@@ -2,7 +2,7 @@
 
 SHELL := /bin/bash
 
-CONDA_ENV_NAME=alphafold-website
+CONDA_ENV_NAME=SoS
 # Note that the extra activate is needed to ensure that the activate floats env to the front of PATH
 CONDA_ACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda activate ; conda activate
 
@@ -13,6 +13,13 @@ build-conda-from-req: ## Build the conda environment
 
 build-conda-from-env:
 	conda env create -n $(CONDA_ENV_NAME) -f environment.yml
+
+download_10m:
+	mkdir download_10m
+	cd download_10m
+	wget -O pubchem_10m.txt.zip https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/pubchem_10m.txt.zip
+	unzip -o pubchem_10m.txt.zip
+	rm pubchem_10m.txt.zip
 
 new-env:
 	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
