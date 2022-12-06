@@ -1,0 +1,169 @@
+""" Preprocessing 
+SMILES or SELFIES, 2022
+"""
+from pathlib import Path
+from typing import Tuple
+
+import pandas as pd
+import selfies
+from rdkit import Chem
+from tqdm import tqdm
+
+from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH, logger
+
+
+def calc_descriptors(mol_string: str) -> dict:
+    """Calculate the descriptors (features) of the given molecule
+
+    Args:
+        mol_string (str): molecule given as SMILES string
+
+    Returns:
+        dict: {descriptor_name : value}
+    """
+    mol = Chem.MolFromSmiles(mol_string)
+    if mol is None:
+        return {key: None for key in DESCRIPTORS}
+    calcs = CALCULATOR.CalcDescriptors(mol)
+    return {key: value for key, value in zip(DESCRIPTORS, calcs)}
+
+
+def check_valid(input: str) -> bool:
+    """Check validity of SMILES string
+    # https://github.com/rdkit/rdkit/issues/2430
+
+    Args:
+        input (str): SMILES string
+
+    Returns:
+        bool: True if valid, False if invalid
+    """
+    m = Chem.MolFromSmiles(input)
+    # check if syntactically correct and rdkit valid
+    return False if m is None else True
+
+
+def canonize_smile(input: str) -> str:
+    """Canonize SMILE string
+
+    Args:
+        input (str): SMILE input string
+
+    Returns:
+        str: canonize SMILE string
+    """
+    return Chem.CanonSmiles(input)
+
+
+def check_canonized(input: str) -> bool:
+    """Check if a (SMILE-)string is already canonized
+
+    Args:
+        input (str): (SMILE-)string to check
+
+    Returns:
+        bool: True if is canonized
+    """
+    return canonize_smile(input) == input
+
+
+def translate_selfie(smile: str) -> Tuple[str, int]:
+    """Translate SMILES to SELFIE
+
+    Args:
+        smile (str): input string as SMILES
+
+    Returns:
+        Tuple[str, int]: SELFIE string, length of SELFIE string
+    """
+    try:
+        selfie = selfies.encoder(smile)
+        len_selfie = selfies.len_selfies(selfie)
+        return (selfie, len_selfie)
+    except Exception as e:
+        logger.error(e)
+        return (None, -1)
+
+
+def process_mol(mol: str) -> Tuple[dict, str]:
+    """Process a single molecule given as SMILES string
+
+    Args:
+        mol (str): SMILES string of molecule to inspect
+
+    Returns:
+        Tuple[dict, str]:   dict with properties including SELFIES and canonized SMILES
+                            class of error
+    """
+    if not check_valid(mol):
+        logger.warn(f"The following sequence was deemed invalid by RdKit: {mol}")
+        return None, "invalid_smile"
+    canon = canonize_smile(mol)
+    descriptors = calc_descriptors(canon)
+    selfie, selfie_length = translate_selfie(canon)
+    if selfie_length == -1:
+        return None, "invalid_selfie"
+    descriptors["SELFIE"] = selfie
+    descriptors["SELFIE_LENGTH"] = selfie_length
+    descriptors["SMILE"] = canon
+    return descriptors, "valid"
+
+
+def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
+    """Process all files in input folder
+
+    Args:
+        input_folder (Path): (parent-)folder, where every file should be inspected
+
+    Returns:
+        Tuple[pd.DataFrame, dict]:  descriptors of all valid molecules in the files
+                                    dict of absolute number of filtering statistics
+    """
+    seen_smiles = set()
+    statistics = {}
+    output = []
+    for file in input_folder.glob("*.txt"):
+        logger.info("Working on file {file}.")
+        with open(file, "r") as open_file:
+            smiles = open_file.readlines()
+        for smile in tqdm(smiles):
+            processed, validity = process_mol(smile)
+            if processed is not None:
+                if processed["SMILE"] in seen_smiles:
+                    validity = "duplicate"
+                else:
+                    seen_smiles.add(processed["SMILE"])
+                    output.append(processed)
+            statistics[validity] = statistics.get(validity, 0) + 1
+
+    return pd.DataFrame(output), statistics
+
+
+if __name__ == "__main__":
+    processed_mols, statistics = process_mol_files(PROJECT_PATH / "10m_download")
+    invalid_smile = statistics.get("invalid_smile", 0)
+    invalid_selfie = statistics.get("invalid_selfie", 0)
+    duplicate = statistics.get("duplicate", 0)
+    valid = statistics.get("valid", 0)
+    all_mols = invalid_smile + invalid_selfie + duplicate + valid
+    curr_mols = all_mols
+    logger.info(
+        f"There were {invalid_smile} invalid smiles found and {curr_mols-invalid_smile} passed this stage."
+    )
+    logger.info(f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}.")
+    curr_mols = curr_mols - invalid_smile
+    logger.info(
+        f"There were {invalid_selfie} invalid selfie found and {curr_mols-invalid_selfie} passed this stage."
+    )
+    logger.info(
+        f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
+    )
+    curr_mols = curr_mols - invalid_selfie
+    logger.info(
+        f"There were {duplicate} duplicates found and {curr_mols-duplicate} passed this stage."
+    )
+    logger.info(f"This amounts to a percentage of {100*duplicate/(curr_mols):.2f}.")
+    curr_mols = curr_mols - duplicate
+    logger.info(f"We filtered out {all_mols-curr_mols} many samples.")
+    logger.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
+    processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
