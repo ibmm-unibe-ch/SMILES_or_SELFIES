@@ -3,13 +3,13 @@ SMILES or SELFIES, 2022
 """
 from pathlib import Path
 from typing import Tuple
-
+import logging
 import pandas as pd
 import selfies
 from rdkit import Chem
 from tqdm import tqdm
 
-from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH, logger
+from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -30,7 +30,7 @@ def calc_descriptors(mol_string: str) -> dict:
 
 def check_valid(input: str) -> bool:
     """Check validity of SMILES string
-    # https://github.com/rdkit/rdkit/issues/2430
+    https://github.com/rdkit/rdkit/issues/2430
 
     Args:
         input (str): SMILES string
@@ -44,22 +44,22 @@ def check_valid(input: str) -> bool:
 
 
 def canonize_smile(input: str) -> str:
-    """Canonize SMILE string
+    """Canonize SMILES string
 
     Args:
-        input (str): SMILE input string
+        input (str): SMILES input string
 
     Returns:
-        str: canonize SMILE string
+        str: canonize SMILES string
     """
     return Chem.CanonSmiles(input)
 
 
 def check_canonized(input: str) -> bool:
-    """Check if a (SMILE-)string is already canonized
+    """Check if a (SMILES-)string is already canonized
 
     Args:
-        input (str): (SMILE-)string to check
+        input (str): (SMILES-)string to check
 
     Returns:
         bool: True if is canonized
@@ -68,20 +68,20 @@ def check_canonized(input: str) -> bool:
 
 
 def translate_selfie(smile: str) -> Tuple[str, int]:
-    """Translate SMILES to SELFIE
+    """Translate SMILES to SELFIES
 
     Args:
         smile (str): input string as SMILES
 
     Returns:
-        Tuple[str, int]: SELFIE string, length of SELFIE string
+        Tuple[str, int]: SELFIES string, length of SELFIES string
     """
     try:
         selfie = selfies.encoder(smile)
         len_selfie = selfies.len_selfies(selfie)
         return (selfie, len_selfie)
     except Exception as e:
-        logger.error(e)
+        logging.error(e)
         return (None, -1)
 
 
@@ -96,7 +96,7 @@ def process_mol(mol: str) -> Tuple[dict, str]:
                             class of error
     """
     if not check_valid(mol):
-        logger.warn(f"The following sequence was deemed invalid by RdKit: {mol}")
+        logging.warning(f"The following sequence was deemed invalid by RdKit: {mol}")
         return None, "invalid_smile"
     canon = canonize_smile(mol)
     descriptors = calc_descriptors(canon)
@@ -123,7 +123,7 @@ def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
     statistics = {}
     output = []
     for file in input_folder.glob("*.txt"):
-        logger.info("Working on file {file}.")
+        logging.info("Working on file {file}.")
         with open(file, "r") as open_file:
             smiles = open_file.readlines()
         for smile in tqdm(smiles):
@@ -140,30 +140,30 @@ def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
 
 
 if __name__ == "__main__":
-    processed_mols, statistics = process_mol_files(PROJECT_PATH / "10m_download")
+    processed_mols, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
     duplicate = statistics.get("duplicate", 0)
     valid = statistics.get("valid", 0)
     all_mols = invalid_smile + invalid_selfie + duplicate + valid
     curr_mols = all_mols
-    logger.info(
-        f"There were {invalid_smile} invalid smiles found and {curr_mols-invalid_smile} passed this stage."
+    logging.info(
+        f"There were {invalid_smile} invalid SMILES found and {curr_mols-invalid_smile} passed this stage."
     )
-    logger.info(f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}.")
+    logging.info(f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}.")
     curr_mols = curr_mols - invalid_smile
-    logger.info(
-        f"There were {invalid_selfie} invalid selfie found and {curr_mols-invalid_selfie} passed this stage."
+    logging.info(
+        f"There were {invalid_selfie} invalid SELFIES found and {curr_mols-invalid_selfie} passed this stage."
     )
-    logger.info(
+    logging.info(
         f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
     )
     curr_mols = curr_mols - invalid_selfie
-    logger.info(
+    logging.info(
         f"There were {duplicate} duplicates found and {curr_mols-duplicate} passed this stage."
     )
-    logger.info(f"This amounts to a percentage of {100*duplicate/(curr_mols):.2f}.")
+    logging.info(f"This amounts to a percentage of {100*duplicate/(curr_mols):.2f}.")
     curr_mols = curr_mols - duplicate
-    logger.info(f"We filtered out {all_mols-curr_mols} many samples.")
-    logger.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
+    logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
+    logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
     processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
