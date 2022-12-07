@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
+import uuid
 
 from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH
 
@@ -113,14 +114,13 @@ def process_mol(mol: str) -> Tuple[dict, str]:
 
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
     statistics = {}
-    output = []
+    output = np.empty(len(DESCRIPTORS) + 3)
     with open(input_file, "r") as open_file:
-        smiles = open_file.readlines()
-    for smile in smiles:
-        processed, validity = process_mol(smile)
-        if processed is not None:
-            output.append(processed)
-        statistics[validity] = statistics.get(validity, 0) + 1
+        for smile in open_file:
+            processed, validity = process_mol(smile)
+            if processed is not None:
+                output = np.vstack((output, processed))
+            statistics[validity] = statistics.get(validity, 0) + 1
     return (output, statistics)
 
 
@@ -136,28 +136,30 @@ def process_mol_files(
         Tuple[pd.DataFrame, dict]:  descriptors of all valid molecules in the files
                                     dict of absolute number of filtering statistics
     """
-    output = []
+    output = np.empty(len(DESCRIPTORS) + 3)
+    paths = []
     statistics = {}
-    input_files = list(input_folder.glob("*.txt"))
+    input_files = list(input_folder.glob("*"))
     with Pool(min(max_processes, len(input_files))) as pool:
         for result in pool.map(
             func=process_mol_file, iterable=input_files, chunksize=None
         ):
             curr_output, curr_statistics = result
-            output.extend(curr_output)
+            curr_path = (
+                PROJECT_PATH
+                / "processed"
+                / "".join([letter for letter in str(uuid.uuid4()) if letter.isalnum()])
+            )
+            np.savez_compressed(curr_path, curr_output)
+            paths.append(curr_path)
             for key in curr_statistics:
                 statistics[key] = statistics.get(key, 0) + curr_statistics[key]
 
-    return (
-        pd.DataFrame.from_records(
-            output, columns=DESCRIPTORS + ["SELFIE", "SELFIE_LENGTH", "SMILE"]
-        ),
-        statistics,
-    )
+    return (paths, statistics)
 
 
 if __name__ == "__main__":
-    processed_mols, statistics = process_mol_files(PROJECT_PATH / "download_10m")
+    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
     valid = statistics.get("valid", 0)
@@ -179,5 +181,6 @@ if __name__ == "__main__":
     curr_mols = curr_mols - invalid_selfie
     logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
     logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
-    (PROJECT_PATH / "processed").mkdir(exist_ok=True)
-    processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
+    logging.info(f"The arrays are saved in {paths}")
+    # (PROJECT_PATH / "processed").mkdir(exist_ok=True)
+    # processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")

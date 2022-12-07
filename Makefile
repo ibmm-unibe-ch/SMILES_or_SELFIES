@@ -20,6 +20,8 @@ download_10m:
 	wget -O pubchem_10m.txt.zip https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/pubchem_10m.txt.zip
 	unzip -o pubchem_10m.txt.zip
 	rm pubchem_10m.txt.zip
+	split -l 1000000 pubchem-10m.txt pubchem_10m-split-
+	rm pubchem-10m.txt
 
 new-env:
 	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
