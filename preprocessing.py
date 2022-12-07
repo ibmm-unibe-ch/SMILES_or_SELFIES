@@ -1,13 +1,15 @@
 """ Preprocessing 
 SMILES or SELFIES, 2022
 """
-from pathlib import Path
-from typing import Tuple
+import os
 import logging
+from multiprocessing.pool import Pool
+from pathlib import Path
+from typing import List, Tuple
+
 import pandas as pd
 import selfies
 from rdkit import Chem
-from tqdm import tqdm
 
 from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH
 
@@ -109,7 +111,23 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     return descriptors, "valid"
 
 
-def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
+def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
+    print(f"The input file is: {input_file}")
+    statistics = {}
+    output = []
+    with open(input_file, "r") as open_file:
+        smiles = open_file.readlines()
+    for smile in smiles:
+        processed, validity = process_mol(smile)
+        if processed is not None:
+            output.append(processed)
+        statistics[validity] = statistics.get(validity, 0) + 1
+    return (output, statistics)
+
+
+def process_mol_files(
+    input_folder: Path, max_processes: int = 4
+) -> Tuple[pd.DataFrame, dict]:
     """Process all files in input folder
 
     Args:
@@ -119,22 +137,17 @@ def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
         Tuple[pd.DataFrame, dict]:  descriptors of all valid molecules in the files
                                     dict of absolute number of filtering statistics
     """
-    seen_smiles = set()
-    statistics = {}
     output = []
-    for file in input_folder.glob("*.txt"):
-        logging.info("Working on file {file}.")
-        with open(file, "r") as open_file:
-            smiles = open_file.readlines()
-        for smile in tqdm(smiles):
-            processed, validity = process_mol(smile)
-            if processed is not None:
-                if processed["SMILE"] in seen_smiles:
-                    validity = "duplicate"
-                else:
-                    seen_smiles.add(processed["SMILE"])
-                    output.append(processed)
-            statistics[validity] = statistics.get(validity, 0) + 1
+    statistics = {}
+    input_files = list(input_folder.glob("*.txt"))
+    with Pool(min(max_processes, len(input_files))) as pool:
+        for result in pool.map(
+            func=process_mol_file, iterable=input_files, chunksize=None
+        ):
+            curr_output, curr_statistics = result
+            output.extend(curr_output)
+            for key in curr_statistics:
+                statistics[key] = statistics.get(key, 0) + curr_statistics[key]
 
     return pd.DataFrame(output), statistics
 
@@ -143,14 +156,15 @@ if __name__ == "__main__":
     processed_mols, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
-    duplicate = statistics.get("duplicate", 0)
     valid = statistics.get("valid", 0)
-    all_mols = invalid_smile + invalid_selfie + duplicate + valid
+    all_mols = invalid_smile + invalid_selfie + valid
     curr_mols = all_mols
     logging.info(
         f"There were {invalid_smile} invalid SMILES found and {curr_mols-invalid_smile} passed this stage."
     )
-    logging.info(f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}.")
+    logging.info(
+        f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}."
+    )
     curr_mols = curr_mols - invalid_smile
     logging.info(
         f"There were {invalid_selfie} invalid SELFIES found and {curr_mols-invalid_selfie} passed this stage."
@@ -159,11 +173,7 @@ if __name__ == "__main__":
         f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
     )
     curr_mols = curr_mols - invalid_selfie
-    logging.info(
-        f"There were {duplicate} duplicates found and {curr_mols-duplicate} passed this stage."
-    )
-    logging.info(f"This amounts to a percentage of {100*duplicate/(curr_mols):.2f}.")
-    curr_mols = curr_mols - duplicate
     logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
     logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
+    os.mkdir(PROJECT_PATH / "processed")
     processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
