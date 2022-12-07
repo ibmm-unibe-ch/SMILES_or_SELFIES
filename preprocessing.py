@@ -1,12 +1,12 @@
 """ Preprocessing 
 SMILES or SELFIES, 2022
 """
-import os
 import logging
 from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
@@ -108,11 +108,10 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     descriptors["SELFIE"] = selfie
     descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
-    return descriptors, "valid"
+    return np.array(list(descriptors.values())), "valid"
 
 
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
-    print(f"The input file is: {input_file}")
     statistics = {}
     output = []
     with open(input_file, "r") as open_file:
@@ -149,7 +148,12 @@ def process_mol_files(
             for key in curr_statistics:
                 statistics[key] = statistics.get(key, 0) + curr_statistics[key]
 
-    return pd.DataFrame(output), statistics
+    return (
+        pd.DataFrame.from_records(
+            output, columns=DESCRIPTORS + ["SELFIE", "SELFIE_LENGTH", "SMILE"]
+        ),
+        statistics,
+    )
 
 
 if __name__ == "__main__":
@@ -175,5 +179,5 @@ if __name__ == "__main__":
     curr_mols = curr_mols - invalid_selfie
     logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
     logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
-    os.mkdir(PROJECT_PATH / "processed")
+    (PROJECT_PATH / "processed").mkdir(exist_ok=True)
     processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
