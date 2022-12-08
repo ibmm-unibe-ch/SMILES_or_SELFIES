@@ -10,9 +10,10 @@ import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
+from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 import uuid
 
-from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH
+from constants import DESCRIPTORS, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -24,10 +25,11 @@ def calc_descriptors(mol_string: str) -> dict:
     Returns:
         dict: {descriptor_name : value}
     """
+    calculator = MolecularDescriptorCalculator(DESCRIPTORS)
     mol = Chem.MolFromSmiles(mol_string)
     if mol is None:
         return {key: None for key in DESCRIPTORS}
-    calcs = CALCULATOR.CalcDescriptors(mol)
+    calcs = calculator.CalcDescriptors(mol)
     return {key: value for key, value in zip(DESCRIPTORS, calcs)}
 
 
@@ -115,7 +117,13 @@ def process_mol(mol: str) -> Tuple[dict, str]:
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
     statistics = {}
     output = np.empty(len(DESCRIPTORS) + 3)
+    output = np.empty(len(DESCRIPTORS) + 3)
     with open(input_file, "r") as open_file:
+        for smile in open_file:
+            processed, validity = process_mol(smile)
+            if processed is not None:
+                output = np.vstack((output, processed))
+            statistics[validity] = statistics.get(validity, 0) + 1
         for smile in open_file:
             processed, validity = process_mol(smile)
             if processed is not None:
@@ -136,7 +144,6 @@ def process_mol_files(
         Tuple[pd.DataFrame, dict]:  descriptors of all valid molecules in the files
                                     dict of absolute number of filtering statistics
     """
-    output = np.empty(len(DESCRIPTORS) + 3)
     paths = []
     statistics = {}
     input_files = list(input_folder.glob("*"))
@@ -159,6 +166,7 @@ def process_mol_files(
 
 
 if __name__ == "__main__":
+    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)

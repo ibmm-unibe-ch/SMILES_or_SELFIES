@@ -2,11 +2,8 @@ import logging
 from pathlib import Path
 
 from rdkit import Chem
-from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 
 DESCRIPTORS = [name for name, _ in Chem.Descriptors.descList]
-CALCULATOR = MolecularDescriptorCalculator(DESCRIPTORS)
-
 
 PROJECT_PATH = Path(__file__).parent
 # ---------------- LOGGING CONSTANTS ----------------
