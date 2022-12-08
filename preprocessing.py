@@ -2,6 +2,8 @@
 SMILES or SELFIES, 2022
 """
 import logging
+import pickle
+import uuid
 from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import List, Tuple
@@ -11,9 +13,8 @@ import pandas as pd
 import selfies
 from rdkit import Chem
 from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
-import uuid
 
-from constants import DESCRIPTORS, PROJECT_PATH
+from constants import DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -117,7 +118,9 @@ def process_mol(mol: str) -> Tuple[dict, str]:
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
     statistics = {}
     output = np.empty(len(DESCRIPTORS) + 3)
-    output = np.empty(len(DESCRIPTORS) + 3)
+    # each process gets their own logger
+    # variant 1 from here ? https://superfastpython.com/multiprocessing-logging-in-python/
+    logging.getLogger()
     with open(input_file, "r") as open_file:
         for smile in open_file:
             processed, validity = process_mol(smile)
@@ -152,10 +155,8 @@ def process_mol_files(
             func=process_mol_file, iterable=input_files, chunksize=None
         ):
             curr_output, curr_statistics = result
-            curr_path = (
-                PROJECT_PATH
-                / "processed"
-                / "".join([letter for letter in str(uuid.uuid4()) if letter.isalnum()])
+            curr_path = PROCESSED_PATH / "".join(
+                [letter for letter in str(uuid.uuid4()) if letter.isalnum()]
             )
             np.savez_compressed(curr_path, curr_output)
             paths.append(curr_path)
@@ -166,7 +167,7 @@ def process_mol_files(
 
 
 if __name__ == "__main__":
-    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
+    PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
     paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
@@ -190,5 +191,7 @@ if __name__ == "__main__":
     logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
     logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
     logging.info(f"The arrays are saved in {paths}")
+    with open(PROCESSED_PATH / "paths.pickle", "wb") as handle:
+        pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
     # (PROJECT_PATH / "processed").mkdir(exist_ok=True)
     # processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
