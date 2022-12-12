@@ -12,9 +12,9 @@ import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
-from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
+from tqdm import tqdm
 
-from constants import DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -26,11 +26,10 @@ def calc_descriptors(mol_string: str) -> dict:
     Returns:
         dict: {descriptor_name : value}
     """
-    calculator = MolecularDescriptorCalculator(DESCRIPTORS)
     mol = Chem.MolFromSmiles(mol_string)
     if mol is None:
         return {key: None for key in DESCRIPTORS}
-    calcs = calculator.CalcDescriptors(mol)
+    calcs = CALCULATOR.CalcDescriptors(mol)
     return {key: value for key, value in zip(DESCRIPTORS, calcs)}
 
 
@@ -112,26 +111,22 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     descriptors["SELFIE"] = selfie
     descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
-    return np.array(list(descriptors.values())), "valid"
+    return descriptors.values(), "valid"
 
 
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
     statistics = {}
-    output = np.empty(len(DESCRIPTORS) + 3)
+    output = []
     # each process gets their own logger
     # variant 1 from here ? https://superfastpython.com/multiprocessing-logging-in-python/
-    logging.getLogger()
+    # logging.getLogger()
     with open(input_file, "r") as open_file:
-        for smile in open_file:
-            processed, validity = process_mol(smile)
-            if processed is not None:
-                output = np.vstack((output, processed))
-            statistics[validity] = statistics.get(validity, 0) + 1
-        for smile in open_file:
-            processed, validity = process_mol(smile)
-            if processed is not None:
-                output = np.vstack((output, processed))
-            statistics[validity] = statistics.get(validity, 0) + 1
+        smiles = open_file.readlines()
+    for smile in tqdm(smiles):
+        processed, validity = process_mol(smile)
+        if processed is not None:
+            output.append(processed)
+        statistics[validity] = statistics.get(validity, 0) + 1
     return (output, statistics)
 
 
@@ -150,19 +145,17 @@ def process_mol_files(
     paths = []
     statistics = {}
     input_files = list(input_folder.glob("*"))
-    with Pool(min(max_processes, len(input_files))) as pool:
-        for result in pool.map(
-            func=process_mol_file, iterable=input_files, chunksize=None
-        ):
-            curr_output, curr_statistics = result
-            curr_path = PROCESSED_PATH / "".join(
-                [letter for letter in str(uuid.uuid4()) if letter.isalnum()]
-            )
-            np.savez_compressed(curr_path, curr_output)
-            paths.append(curr_path)
-            for key in curr_statistics:
-                statistics[key] = statistics.get(key, 0) + curr_statistics[key]
-
+    for input_file in input_files:
+        result = process_mol_file(input_file)
+        curr_output, curr_statistics = result
+        curr_path = PROCESSED_PATH / "".join(
+            [letter for letter in str(uuid.uuid4()) if letter.isalnum()]
+        )
+        curr_df = pd.DataFrame(curr_output)
+        curr_df.to_csv(curr_path)
+        paths.append(curr_path)
+        for key in curr_statistics:
+            statistics[key] = statistics.get(key, 0) + curr_statistics[key]
     return (paths, statistics)
 
 
@@ -193,5 +186,5 @@ if __name__ == "__main__":
     logging.info(f"The arrays are saved in {paths}")
     with open(PROCESSED_PATH / "paths.pickle", "wb") as handle:
         pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # (PROJECT_PATH / "processed").mkdir(exist_ok=True)
-    # processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
+    # PROCESSED_PATH.mkdir(exist_ok=True)
+    # processed_mols.to_csv(PROCESSED_PATH / "10m_pubchem.csv")
