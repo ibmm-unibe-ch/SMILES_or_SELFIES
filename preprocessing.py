@@ -1,15 +1,20 @@
 """ Preprocessing 
 SMILES or SELFIES, 2022
 """
+import logging
+import pickle
+import uuid
+from multiprocessing.pool import Pool
 from pathlib import Path
-from typing import Tuple
+from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
 from tqdm import tqdm
 
-from constants import CALCULATOR, DESCRIPTORS, PROJECT_PATH, logger
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -30,7 +35,7 @@ def calc_descriptors(mol_string: str) -> dict:
 
 def check_valid(input: str) -> bool:
     """Check validity of SMILES string
-    # https://github.com/rdkit/rdkit/issues/2430
+    https://github.com/rdkit/rdkit/issues/2430
 
     Args:
         input (str): SMILES string
@@ -44,22 +49,22 @@ def check_valid(input: str) -> bool:
 
 
 def canonize_smile(input: str) -> str:
-    """Canonize SMILE string
+    """Canonize SMILES string
 
     Args:
-        input (str): SMILE input string
+        input (str): SMILES input string
 
     Returns:
-        str: canonize SMILE string
+        str: canonize SMILES string
     """
     return Chem.CanonSmiles(input)
 
 
 def check_canonized(input: str) -> bool:
-    """Check if a (SMILE-)string is already canonized
+    """Check if a (SMILES-)string is already canonized
 
     Args:
-        input (str): (SMILE-)string to check
+        input (str): (SMILES-)string to check
 
     Returns:
         bool: True if is canonized
@@ -68,20 +73,20 @@ def check_canonized(input: str) -> bool:
 
 
 def translate_selfie(smile: str) -> Tuple[str, int]:
-    """Translate SMILES to SELFIE
+    """Translate SMILES to SELFIES
 
     Args:
         smile (str): input string as SMILES
 
     Returns:
-        Tuple[str, int]: SELFIE string, length of SELFIE string
+        Tuple[str, int]: SELFIES string, length of SELFIES string
     """
     try:
         selfie = selfies.encoder(smile)
         len_selfie = selfies.len_selfies(selfie)
         return (selfie, len_selfie)
     except Exception as e:
-        logger.error(e)
+        logging.error(e)
         return (None, -1)
 
 
@@ -96,7 +101,7 @@ def process_mol(mol: str) -> Tuple[dict, str]:
                             class of error
     """
     if not check_valid(mol):
-        logger.warn(f"The following sequence was deemed invalid by RdKit: {mol}")
+        logging.warning(f"The following sequence was deemed invalid by RdKit: {mol}")
         return None, "invalid_smile"
     canon = canonize_smile(mol)
     descriptors = calc_descriptors(canon)
@@ -106,10 +111,28 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     descriptors["SELFIE"] = selfie
     descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
-    return descriptors, "valid"
+    return descriptors.values(), "valid"
 
 
-def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
+def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
+    statistics = {}
+    output = []
+    # each process gets their own logger
+    # variant 1 from here ? https://superfastpython.com/multiprocessing-logging-in-python/
+    # logging.getLogger()
+    with open(input_file, "r") as open_file:
+        smiles = open_file.readlines()
+    for smile in tqdm(smiles):
+        processed, validity = process_mol(smile)
+        if processed is not None:
+            output.append(processed)
+        statistics[validity] = statistics.get(validity, 0) + 1
+    return (output, statistics)
+
+
+def process_mol_files(
+    input_folder: Path, max_processes: int = 4
+) -> Tuple[pd.DataFrame, dict]:
     """Process all files in input folder
 
     Args:
@@ -119,51 +142,49 @@ def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
         Tuple[pd.DataFrame, dict]:  descriptors of all valid molecules in the files
                                     dict of absolute number of filtering statistics
     """
-    seen_smiles = set()
+    paths = []
     statistics = {}
-    output = []
-    for file in input_folder.glob("*.txt"):
-        logger.info("Working on file {file}.")
-        with open(file, "r") as open_file:
-            smiles = open_file.readlines()
-        for smile in tqdm(smiles):
-            processed, validity = process_mol(smile)
-            if processed is not None:
-                if processed["SMILE"] in seen_smiles:
-                    validity = "duplicate"
-                else:
-                    seen_smiles.add(processed["SMILE"])
-                    output.append(processed)
-            statistics[validity] = statistics.get(validity, 0) + 1
-
-    return pd.DataFrame(output), statistics
+    input_files = list(input_folder.glob("*"))
+    for input_file in input_files:
+        result = process_mol_file(input_file)
+        curr_output, curr_statistics = result
+        curr_path = PROCESSED_PATH / "".join(
+            [letter for letter in str(uuid.uuid4()) if letter.isalnum()]
+        )
+        curr_df = pd.DataFrame(curr_output)
+        curr_df.to_csv(curr_path)
+        paths.append(curr_path)
+        for key in curr_statistics:
+            statistics[key] = statistics.get(key, 0) + curr_statistics[key]
+    return (paths, statistics)
 
 
 if __name__ == "__main__":
-    processed_mols, statistics = process_mol_files(PROJECT_PATH / "10m_download")
+    PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
+    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m")
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
-    duplicate = statistics.get("duplicate", 0)
     valid = statistics.get("valid", 0)
-    all_mols = invalid_smile + invalid_selfie + duplicate + valid
+    all_mols = invalid_smile + invalid_selfie + valid
     curr_mols = all_mols
-    logger.info(
-        f"There were {invalid_smile} invalid smiles found and {curr_mols-invalid_smile} passed this stage."
+    logging.info(
+        f"There were {invalid_smile} invalid SMILES found and {curr_mols-invalid_smile} passed this stage."
     )
-    logger.info(f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}.")
+    logging.info(
+        f"This amounts to a percentage of {100*invalid_smile/(curr_mols):.2f}."
+    )
     curr_mols = curr_mols - invalid_smile
-    logger.info(
-        f"There were {invalid_selfie} invalid selfie found and {curr_mols-invalid_selfie} passed this stage."
+    logging.info(
+        f"There were {invalid_selfie} invalid SELFIES found and {curr_mols-invalid_selfie} passed this stage."
     )
-    logger.info(
+    logging.info(
         f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
     )
     curr_mols = curr_mols - invalid_selfie
-    logger.info(
-        f"There were {duplicate} duplicates found and {curr_mols-duplicate} passed this stage."
-    )
-    logger.info(f"This amounts to a percentage of {100*duplicate/(curr_mols):.2f}.")
-    curr_mols = curr_mols - duplicate
-    logger.info(f"We filtered out {all_mols-curr_mols} many samples.")
-    logger.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
-    processed_mols.to_csv(PROJECT_PATH / "processed" / "10m_pubchem.csv")
+    logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
+    logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
+    logging.info(f"The arrays are saved in {paths}")
+    with open(PROCESSED_PATH / "paths.pickle", "wb") as handle:
+        pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    # PROCESSED_PATH.mkdir(exist_ok=True)
+    # processed_mols.to_csv(PROCESSED_PATH / "10m_pubchem.csv")
