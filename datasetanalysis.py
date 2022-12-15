@@ -145,7 +145,7 @@ def read_file(input_file,desc):
 if __name__ == "__main__":
     additional_descs=['SELFIES','SELFIES_length_tok','SMILES']
     desc=DESCRIPTORS+additional_descs
-    print(desc)
+    # print(desc)
     # print(len(desc))
     df=read_file("./test.csv",desc)
     df_noSMIdups=check_dups(df)
