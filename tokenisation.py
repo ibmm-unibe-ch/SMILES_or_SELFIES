@@ -2,9 +2,9 @@
 SMILES or SELFIES, 2022
 """
 
+import pandas as pd
 from tokenizers import SentencePieceBPETokenizer
 from transformers import PreTrainedTokenizerFast
-import pandas as pd
 
 SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210])
 special_tokens = ["<s>", "<pad>", "</s>", "<unk>", "<cls>", "<sep>", "<mask>"]
