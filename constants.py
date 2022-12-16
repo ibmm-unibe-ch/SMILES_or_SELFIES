@@ -1,3 +1,6 @@
+""" Constants for project 
+SMILES or SELFIES, 2022
+"""
 import logging
 from pathlib import Path
 
@@ -9,6 +12,7 @@ CALCULATOR = MolecularDescriptorCalculator(DESCRIPTORS)
 
 PROJECT_PATH = Path(__file__).parent
 PROCESSED_PATH = PROJECT_PATH / "processed"
+TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 # ---------------- LOGGING CONSTANTS ----------------
 DEFAULT_FORMATTER = "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]"
 DEFAULT_LOG_FILE = PROJECT_PATH / "logs" / "default_log.log"
