@@ -2,12 +2,13 @@
 SMILES or SELFIES, 2022
 """
 from pathlib import Path
+from typing import Tuple, Union
 
 import pandas as pd
-from torch.utils.data import Dataset, random_split
-from constants import SEED
-from typing import Union
 import torch
+from torch.utils.data import Dataset, random_split
+
+from constants import SEED
 
 
 class PandasDataset(Dataset):
@@ -23,7 +24,18 @@ class PandasDataset(Dataset):
         return self.df[idx]
 
 
-def split_train_eval(dataset: Dataset, eval_size: Union[int, float] = 10000) -> Dataset:
+def split_train_eval(
+    dataset: Dataset, eval_size: Union[int, float] = 10000
+) -> Tuple[Dataset, Dataset]:
+    """Split torch dataset to eval_size
+
+    Args:
+        dataset (Dataset): dataset to split
+        eval_size (Union[int, float], optional): relative or absolute size of eval_set. Defaults to 10000.
+
+    Returns:
+        Tuple[Dataset, Dataset]: train_set, eval_set
+    """
     len_dataset = 1 if eval_size < 0 else len(dataset)
     train_set, eval_set = random_split(
         dataset,
