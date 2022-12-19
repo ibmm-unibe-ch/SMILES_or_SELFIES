@@ -127,23 +127,17 @@ def calc_average_lengths(df):
     
     df.loc[:,"SMILES_length"]=df["SMILES"].str.len()
     df.loc[:,"SELFIES_length_char"]=df["SELFIES"].str.len()
-    #print(df)
     return df
 
 def read_file(input_file,desc):
     df=pd.read_csv(input_file,skiprows=1,names=desc) #skip first row when reading input
-    #print(df)
     return df
 
 if __name__ == "__main__":
     additional_descs=['SELFIES','SELFIES_length_tok','SMILES']
     desc=DESCRIPTORS+additional_descs
-    # print(desc)
-    # print(len(desc))
     df=read_file("./test.csv",desc)
     df_noSMIdups=check_dups(df)
-    #print(df_noSMIdups)
     df_withlengths=calc_average_lengths(df_noSMIdups)
-    #print(df_withlengths)
     create_hists(df_withlengths)
     
