@@ -2,8 +2,6 @@
 SMILES or SELFIES, 2022
 """
 import logging
-import pickle
-import uuid
 from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import List, Tuple
@@ -11,7 +9,6 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import selfies
 from rdkit import Chem
 from tqdm import tqdm
 
@@ -30,7 +27,7 @@ def create_length_hist(df):
     ax.set_xlabel('Length [No. of tokens or characters]')
     ax.set_ylabel('Frequency')
     ax.legend()
-    fig=fig.savefig('hist_SELFIESvsSMILES_length')
+    fig=fig.savefig('hist_SELFIESvsSMILES_length.pdf')
     
     #histogram SELFIES vs SMILES characters
     fig1, ax1 = plt.subplots()
@@ -44,7 +41,7 @@ def create_length_hist(df):
     ax1.set_xlabel('Length [No. of characters]')
     ax1.set_ylabel('Frequency')
     ax1.legend()
-    fig1=fig1.savefig('hist_SELFIESvsSMILES_length2')
+    fig1=fig1.savefig('hist_SELFIESvsSMILES_length2.pdf')
     
     #histogram SELFIES tokens
     fig2, ax2=plt.subplots()
@@ -52,7 +49,7 @@ def create_length_hist(df):
     ax2.set_title('Histogram of SELFIES length in tokens')
     ax2.set_xlabel('Length [No. of tokens]')
     ax2.set_ylabel('Frequency')
-    fig2.savefig("SELFIES_tokenlength_hist")
+    fig2.savefig("SELFIES_tokenlength_hist.pdf")
     
     #histogram SELFIES characters
     fig3, ax3=plt.subplots()
@@ -60,7 +57,7 @@ def create_length_hist(df):
     ax3.set_title('Histogram of SELFIES length in characters')
     ax3.set_xlabel('Length [No. of characters]')
     ax3.set_ylabel('Frequency')
-    fig3.savefig("SELFIES_charlength_hist")
+    fig3.savefig("SELFIES_charlength_hist.pdf")
     
     #histogram SMILES length
     fig4, ax4=plt.subplots()
@@ -68,7 +65,7 @@ def create_length_hist(df):
     ax4.set_title('Histogram of SMILES length')
     ax4.set_xlabel('Length [No. of characters]')
     ax4.set_ylabel('Frequency')
-    fig4.savefig("SMILES_length_hist")
+    fig4.savefig("SMILES_length_hist.pdf")
 
 def create_molweight_hist(df):
     fig, ax=plt.subplots()
@@ -76,7 +73,7 @@ def create_molweight_hist(df):
     ax.set_title('Histogram of molecular weight')
     ax.set_xlabel('Molecular weight [g/mol]')
     ax.set_ylabel('Frequency')
-    fig.savefig("MolWt_hist")
+    fig.savefig("MolWt_hist.pdf")
     
 def create_hdonoracceptorhist(df):
     fig, ax=plt.subplots()
@@ -84,21 +81,21 @@ def create_hdonoracceptorhist(df):
     ax.set_title('Histogram of number of H-Acceptors')
     ax.set_xlabel('Hydrogen acceptors in numbers')
     ax.set_ylabel('Frequency')
-    fig.savefig("NumHAcceptors_hist")
+    fig.savefig("NumHAcceptors_hist.pdf")
     
     fig1, ax1=plt.subplots()
     df.hist(column='NumHDonors',ax=ax1, grid=False, color="black")
     ax1.set_title('Histogram of number of H-Donors')
     ax1.set_xlabel('Hydrogen donors in numbers')
     ax1.set_ylabel('Frequency')
-    fig1.savefig("NumHDonors_hist")
+    fig1.savefig("NumHDonors_hist.pdf")
     
     fig2, ax2=plt.subplots()
     df.hist(column='NumAromaticRings',ax=ax2, grid=False, color="black")
     ax2.set_title('Histogram of number of aromatic rings')
     ax2.set_xlabel('Aromatic ringsin numbers')
     ax2.set_ylabel('Frequency')
-    fig2.savefig("NumAromaticRings_hist")
+    fig2.savefig("NumAromaticRings_hist.pdf")
     
 def create_hists(df):
    create_length_hist(df)
@@ -107,30 +104,26 @@ def create_hists(df):
    
 
 def check_dups(df):
-    print("Checking for SMILES duplicates.. ",end="")
     boolean = df.duplicated(subset=['SMILES']).any()
     bool_series = df.duplicated(subset=['SMILES'])
     dup_numbers = df.duplicated(subset=['SMILES']).sum()
     if boolean==True:
-        print("{} SMILES duplicates found.. ".format(dup_numbers),end="") #duplicates are correctly detected, has been tested
+        logging.info(f"{dup_numbers} SMILES duplicates found..") #duplicates are correctly detected, has been tested
     else:
-        print("No SMILES duplicates found.. ",end="")
-    print("Returning cleaned dataframe")
+        logging.info("No SMILES duplicates found..")
+    logging.info("Returning cleaned dataframe")
     return df[~bool_series]                        #duplicates correctly removed from df, tested
         
 def calc_average_lengths(df):
-    print("Calculating average lengths of SMILES in characters.. ",end="")
+   # print("Calculating average lengths of SMILES in characters.. ",end="")     
     average_len_SMI=df["SMILES"].apply(len).mean()
+    logging.info(f"Calculating average lengths of SMILES in characters.. {average_len_SMI}")
     max_len_SMI=df["SMILES"].apply(len).max()
-    print(average_len_SMI)
-    print("Calculating maximum length of SMILES in characters.. ",end="")
-    print(max_len_SMI)
-    print("Calculating average lengths of SELFIES in characters.. ",end="")
+    logging.info(f"Calculating maximum length of SMILES in characters.. {max_len_SMI}")  
     average_len_SEL=df["SELFIES"].apply(len).mean()
-    print(average_len_SEL)
-    print("Calculating average lengths of SELFIES in tokens.. ",end="")
+    logging.info(f"Calculating average lengths of SELFIES in characters.. {average_len_SEL}")
     average_len_SEL_tok=df["SELFIES_length_tok"].mean()
-    print(average_len_SEL_tok)
+    logging.info(f"Calculating average lengths of SELFIES in tokens.. {average_len_SEL_tok}")
     
     df.loc[:,"SMILES_length"]=df["SMILES"].str.len()
     df.loc[:,"SELFIES_length_char"]=df["SELFIES"].str.len()
@@ -149,8 +142,8 @@ if __name__ == "__main__":
     # print(len(desc))
     df=read_file("./test.csv",desc)
     df_noSMIdups=check_dups(df)
-    print(df_noSMIdups)
+    #print(df_noSMIdups)
     df_withlengths=calc_average_lengths(df_noSMIdups)
-    print(df_withlengths)
+    #print(df_withlengths)
     create_hists(df_withlengths)
     
