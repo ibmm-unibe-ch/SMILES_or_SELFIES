@@ -2,13 +2,12 @@
 SMILES or SELFIES, 2022
 """
 import logging
+import os
 import pickle
 import uuid
-from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import List, Tuple
 
-import numpy as np
 import pandas as pd
 import selfies
 from rdkit import Chem
@@ -115,11 +114,16 @@ def process_mol(mol: str) -> Tuple[dict, str]:
 
 
 def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
+    """Processing of a single file with many molecules
+
+    Args:
+        input_file (Path): input file to process
+
+    Returns:
+        Tuple[List[dict], dict]: processed mol file, statistics-dict
+    """
     statistics = {}
     output = []
-    # each process gets their own logger
-    # variant 1 from here ? https://superfastpython.com/multiprocessing-logging-in-python/
-    # logging.getLogger()
     with open(input_file, "r") as open_file:
         smiles = open_file.readlines()
     for smile in tqdm(smiles):
@@ -130,9 +134,7 @@ def process_mol_file(input_file: Path) -> Tuple[List[dict], dict]:
     return (output, statistics)
 
 
-def process_mol_files(
-    input_folder: Path, max_processes: int = 4
-) -> Tuple[pd.DataFrame, dict]:
+def process_mol_files(input_folder: Path) -> Tuple[pd.DataFrame, dict]:
     """Process all files in input folder
 
     Args:
@@ -157,6 +159,52 @@ def process_mol_files(
         for key in curr_statistics:
             statistics[key] = statistics.get(key, 0) + curr_statistics[key]
     return (paths, statistics)
+
+
+def merge_dataframes(
+    paths_path: Path, output_path: Path, remove_paths: bool = False
+) -> pd.DataFrame:
+    """Merge the dataframes saved at paths_path and save to output_path
+
+    Args:
+        paths_path (Path): paths were base dataframes are
+        output_path (Path): path to save merged dataframe
+        remove_paths (bool, optional): flag to remove base dataframes. Defaults to False.
+
+    Returns:
+        pd.DataFrame: merged DataFrame
+    """
+    dataframes = []
+    with open(paths_path, "rb") as handle:
+        paths = pickle.load(handle)
+    logging.log(f"Merging together {len(paths)} dataframes.")
+    for path in paths:
+        curr_dataframe = pd.read_csv(path)
+        dataframes.append(curr_dataframe)
+    merged_dataframe = pd.concat(dataframes)
+    merged_dataframe.to_csv(output_path)
+    if remove_paths:
+        for path in paths:
+            os.remove(path)
+    return merged_dataframe
+
+
+def check_dups(df: pd.DataFrame) -> pd.DataFrame:
+    """Check the duplicates of DataFrame
+
+    Args:
+        df (pd.DataFrame): DataFrame to check
+
+    Returns:
+        pd.DataFrame: de-duplicated DataFrame
+    """
+    logging.log("Checking for SMILES duplicates.. ", end="")
+    duplicated_rows = df.duplicated(subset=["SMILES"])
+    dup_numbers = df.duplicated(subset=["SMILES"]).sum()
+    logging.log(
+        "{} SMILES duplicates found.. ".format(dup_numbers), end=""
+    )  # duplicates are correctly detected, has been tested
+    return df[~duplicated_rows]  # duplicates correctly removed from df, tested
 
 
 if __name__ == "__main__":
@@ -186,5 +234,9 @@ if __name__ == "__main__":
     logging.info(f"The arrays are saved in {paths}")
     with open(PROCESSED_PATH / "paths.pickle", "wb") as handle:
         pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # PROCESSED_PATH.mkdir(exist_ok=True)
-    # processed_mols.to_csv(PROCESSED_PATH / "10m_pubchem.csv")
+    PROCESSED_PATH.mkdir(exist_ok=True)
+    merged_dataframe = merge_dataframes(
+        PROCESSED_PATH / "paths.pickle", PROCESSED_PATH / "10m_pubchem.csv", True
+    )
+    deduplicated_dataframe = check_dups(merged_dataframe)
+    deduplicated_dataframe.to_csv(PROCESSED_PATH / "10m_deduplicated.csv")
