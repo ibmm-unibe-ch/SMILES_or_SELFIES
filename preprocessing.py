@@ -1,4 +1,4 @@
-""" Preprocessing 
+""" Preprocessing
 SMILES or SELFIES, 2022
 """
 import logging
@@ -32,43 +32,43 @@ def calc_descriptors(mol_string: str) -> dict:
     return {key: value for key, value in zip(DESCRIPTORS, calcs)}
 
 
-def check_valid(input: str) -> bool:
+def check_valid(input_str: str) -> bool:
     """Check validity of SMILES string
     https://github.com/rdkit/rdkit/issues/2430
 
     Args:
-        input (str): SMILES string
+        input_str (str): SMILES string
 
     Returns:
         bool: True if valid, False if invalid
     """
-    m = Chem.MolFromSmiles(input)
+    m = Chem.MolFromSmiles(input_str)
     # check if syntactically correct and rdkit valid
-    return False if m is None else True
+    return m is not None
 
 
-def canonize_smile(input: str) -> str:
+def canonize_smile(input_str: str) -> str:
     """Canonize SMILES string
 
     Args:
-        input (str): SMILES input string
+        input_str (str): SMILES input string
 
     Returns:
         str: canonize SMILES string
     """
-    return Chem.CanonSmiles(input)
+    return Chem.CanonSmiles(input_str)
 
 
-def check_canonized(input: str) -> bool:
+def check_canonized(input_str: str) -> bool:
     """Check if a (SMILES-)string is already canonized
 
     Args:
-        input (str): (SMILES-)string to check
+        input_str (str): (SMILES-)string to check
 
     Returns:
         bool: True if is canonized
     """
-    return canonize_smile(input) == input
+    return canonize_smile(input_str) == input_str
 
 
 def translate_selfie(smile: str) -> Tuple[str, int]:
@@ -177,7 +177,7 @@ def merge_dataframes(
     dataframes = []
     with open(paths_path, "rb") as handle:
         paths = pickle.load(handle)
-    logging.log(f"Merging together {len(paths)} dataframes.")
+    logging.info(f"Merging together {len(paths)} dataframes.")
     for path in paths:
         curr_dataframe = pd.read_csv(path)
         dataframes.append(curr_dataframe)
@@ -198,11 +198,13 @@ def check_dups(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: de-duplicated DataFrame
     """
-    logging.log("Checking for SMILES duplicates.. ", end="")
-    duplicated_rows = df.duplicated(subset=["SMILES"])
-    dup_numbers = df.duplicated(subset=["SMILES"]).sum()
-    logging.log(
-        "{} SMILES duplicates found.. ".format(dup_numbers), end=""
+    logging.info("Checking for SMILES duplicates.. ")
+    print(df.head())
+    duplicated_rows = df.duplicated(subset=["210"])
+
+    dup_numbers = df.duplicated(subset=["210"]).sum()
+    logging.info(
+        "{} SMILES duplicates found.. ".format(dup_numbers)
     )  # duplicates are correctly detected, has been tested
     return df[~duplicated_rows]  # duplicates correctly removed from df, tested
 

@@ -1,4 +1,4 @@
-""" Tokenisation 
+""" Tokenisation
 SMILES or SELFIES, 2022
 """
 
@@ -95,15 +95,24 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
 
 
 if __name__ == "__main__":
-    SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
-    atom_SMILES_tokenizer = train_atomwise_tokenizer(
-        SMILES, TOKENIZER_PATH / "Atom_SMILES", vocab_size=1000
-    )
-    print(
-        atom_SMILES_tokenizer(
-            "c1ccc(-c2cccc3c2c2c4oc5c(ccc6c5c5ccccc5n6-c5ccccc5)c4ccc2n3-c2ccccc2)"
-        )
-    )
+    # SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
+    # atom_SMILES_tokenizer = train_atomwise_tokenizer(
+    #    SMILES, TOKENIZER_PATH / "Atom_SMILES", vocab_size=1000
+    # )
+    # print(
+    #    atom_SMILES_tokenizer(
+    #        "c1ccc(-c2cccc3c2c2c4oc5c(ccc6c5c5ccccc5n6-c5ccccc5)c4ccc2n3-c2ccccc2)"
+    #    )
+    # )
+    # SELFIES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210]).values
+    # atom_SELFIES_tokenizer = train_atomwise_tokenizer(
+    #    SELFIES, TOKENIZER_PATH / "atom_SELFIES", vocab_size=1000
+    # )
+    # print(
+    #    atom_SELFIES_tokenizer(
+    #        "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
+    #    )
+    # )
     SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
     SMILES_tokenizer = train_sentencepiece(
         SMILES, TOKENIZER_PATH / "SMILES", vocab_size=1000

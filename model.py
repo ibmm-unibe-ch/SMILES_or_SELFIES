@@ -8,11 +8,19 @@ from transformers import BartConfig, BartModel
 
 def get_BART_model(
     vocab_size: int = 50265,
-    encoder_layers: int = 12,
-    encoder_attention_heads: int = 16,
-    decoder_layers: int = 12,
-    decoder_attention_heads: int = 16,
+    encoder_layers: int = 6,
+    encoder_attention_heads: int = 12,
+    decoder_layers: int = 6,
+    decoder_attention_heads: int = 12,
     dropout: float = 0.1,
+    attention_dropout: float = 0.1,
+    classif_dropout: float = 0.1,
+    classifier_dropout: float = 0.0,
+    d_model: int = 768,
+    decoder_ffn_dim: int = 3072,
+    early_stopping: bool = True,
+    encoder_ffn_dim: int = 3072,
+    encoder_layerdrop: float = 0.0,
 ) -> BartModel:
     """Create empty BART model with given variables
     All default variables are the default from Transformers
@@ -35,6 +43,14 @@ def get_BART_model(
         decoder_layers=decoder_layers,
         decoder_attention_heads=decoder_attention_heads,
         dropout=dropout,
+        attention_dropout=attention_dropout,
+        classif_dropout=classif_dropout,
+        classifier_dropout=classifier_dropout,
+        d_model=d_model,
+        decoder_ffn_dim=decoder_ffn_dim,
+        early_stopping=early_stopping,
+        encoder_ffn_dim=encoder_ffn_dim,
+        encoder_layerdrop=encoder_layerdrop,
     )
-    logging.log("This is the BART config: {config}")
+    logging.info("This is the BART config: {config}")
     return BartModel(config)
