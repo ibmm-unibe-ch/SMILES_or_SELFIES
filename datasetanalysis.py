@@ -70,6 +70,9 @@ def create_length_hist(df, outputpath):
     #histogram SELFIES tokens
     fig2, ax2=plt.subplots()
     df.hist(column='SELFIES_length_tok',ax=ax2, grid=False, color="black")
+    max_selfies_len_tok= df["SELFIES_length_tok"].max()
+   # print("this is max selfies legth in tok", max_selfies_len_tok)
+    plt.xticks(np.arange(0,max_selfies_len_tok+2,50))
     ax2.set_title('Histogram of SELFIES length in tokens')
     ax2.set_xlabel('Length [No. of tokens]')
     ax2.set_ylabel('Frequency')
@@ -78,6 +81,8 @@ def create_length_hist(df, outputpath):
     #histogram SELFIES characters
     fig3, ax3=plt.subplots()
     df.hist(column='SELFIES_length_char',ax=ax3, grid=False, color="black")
+    max_selfies_len_char= df["SELFIES_length_char"].max()
+    plt.xticks(np.arange(0,max_selfies_len_char+2,50))
     ax3.set_title('Histogram of SELFIES length in characters')
     ax3.set_xlabel('Length [No. of characters]')
     ax3.set_ylabel('Frequency')
@@ -86,6 +91,8 @@ def create_length_hist(df, outputpath):
     #histogram SMILES length
     fig4, ax4=plt.subplots()
     df.hist(column='SMILES_length',ax=ax4, grid=False, color="black")
+    max_smiles_len= df["SMILES_length"].max()
+    plt.xticks(np.arange(0,max_smiles_len+2,50))
     ax4.set_title('Histogram of SMILES length')
     ax4.set_xlabel('Length [No. of characters]')
     ax4.set_ylabel('Frequency')
@@ -94,6 +101,9 @@ def create_length_hist(df, outputpath):
 def create_molweight_hist(df,outputpath):
     fig, ax=plt.subplots()
     df.hist(column='MolWt',ax=ax, grid=False, color="black")
+    max_molwt= df["MolWt"].max()
+    min_molwt= df["MolWt"].min()
+    plt.xticks(np.arange(0,max_molwt+2,100))
     ax.set_title('Histogram of molecular weight')
     ax.set_xlabel('Molecular weight [g/mol]')
     ax.set_ylabel('Frequency')
@@ -156,17 +166,25 @@ def check_dups(df):
         
 def calc_average_lengths(df):
    # print("Calculating average lengths of SMILES in characters.. ",end="")     
-    average_len_SMI=df["SMILES"].apply(len).mean()
+    average_len_SMI=df["SMILES"].str.len().mean()
+    #print("Calculating average lengths of SMILES in characters.. {}".format(average_len_SMI))
     logging.info(f"Calculating average lengths of SMILES in characters.. {average_len_SMI}")
-    max_len_SMI=df["SMILES"].apply(len).max()
+    max_len_SMI=df["SMILES"].str.len().max()
     logging.info(f"Calculating maximum length of SMILES in characters.. {max_len_SMI}")  
-    average_len_SEL=df["SELFIES"].apply(len).mean()
+    average_len_SEL=df["SELFIES"].str.len().mean()
     logging.info(f"Calculating average lengths of SELFIES in characters.. {average_len_SEL}")
     average_len_SEL_tok=df["SELFIES_length_tok"].mean()
     logging.info(f"Calculating average lengths of SELFIES in tokens.. {average_len_SEL_tok}")
+    max_len_SEL_tok=df["SELFIES"].str.len().max()
+    logging.info(f"Calculating maximum length of SMILES in tokens.. {max_len_SEL_tok}")  
     
     df.loc[:,"SMILES_length"]=df["SMILES"].str.len()
     df.loc[:,"SELFIES_length_char"]=df["SELFIES"].str.len()
+    
+    max_len_SEL_char=df["SELFIES_length_char"].max()
+    logging.info(f"Calculating maximum length of SELFIES in chars.. {max_len_SEL_char}")  
+    
+    
     return df
 
 def read_file(input_file,desc):
