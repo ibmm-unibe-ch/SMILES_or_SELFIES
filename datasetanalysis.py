@@ -102,7 +102,6 @@ def create_molweight_hist(df,outputpath):
     fig, ax=plt.subplots()
     df.hist(column='MolWt',ax=ax, grid=False, color="black")
     max_molwt= df["MolWt"].max()
-    min_molwt= df["MolWt"].min()
     plt.xticks(np.arange(0,max_molwt+2,100))
     ax.set_title('Histogram of molecular weight')
     ax.set_xlabel('Molecular weight [g/mol]')
