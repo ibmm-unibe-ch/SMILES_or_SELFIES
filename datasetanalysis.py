@@ -39,8 +39,16 @@ def create_desc_diagram(df,desc_list,name,outputpath):
     fig.savefig(outputpath/"AvgDescs_{}.pdf".format(name),bbox_inches="tight")
 
 def create_length_hist(df, outputpath):
+    max_selfies_len_char= df["SELFIES_length_char"].max()
+    max_selfies_len_tok= df["SELFIES_length_tok"].max()
+    max_smiles_len= df["SMILES_length"].max()
     #histogram SELFIES tokens vs SMILES characters
     fig, ax = plt.subplots()
+    # max_forrange1=0
+    # if max_smiles_len > max_selfies_len_tok:
+    #     max_forrange1=max_smiles_len
+    # else:
+    #     max_forrange1=max_selfies_len_tok
     a_heights, a_bins = np.histogram(df['SELFIES_length_tok'])
     b_heights, b_bins = np.histogram(df['SMILES_length'], bins=a_bins)
     width = (a_bins[1] - a_bins[0])/3
@@ -55,6 +63,11 @@ def create_length_hist(df, outputpath):
     
     #histogram SELFIES vs SMILES characters
     fig1, ax1 = plt.subplots()
+    # max_forrange=0
+    # if max_selfies_len_char > max_smiles_len:
+    #     max_forrange=max_selfies_len_char
+    # else:
+    #     max_forrange=max_smiles_len
     a1_heights, a1_bins = np.histogram(df['SELFIES_length_char'])
     b1_heights, b1_bins = np.histogram(df['SMILES_length'], bins=a1_bins)
     width = (a1_bins[1] - a1_bins[0])/3
@@ -69,10 +82,9 @@ def create_length_hist(df, outputpath):
     
     #histogram SELFIES tokens
     fig2, ax2=plt.subplots()
-    df.hist(column='SELFIES_length_tok',ax=ax2, grid=False, color="black")
-    max_selfies_len_tok= df["SELFIES_length_tok"].max()
+    df.hist(column='SELFIES_length_tok',ax=ax2, range=[0,max_selfies_len_tok+2], grid=False, color="black")
    # print("this is max selfies legth in tok", max_selfies_len_tok)
-    plt.xticks(np.arange(0,max_selfies_len_tok+2,50))
+    #plt.xticks(np.arange(0,max_selfies_len_tok+2,50))
     ax2.set_title('Histogram of SELFIES length in tokens')
     ax2.set_xlabel('Length [No. of tokens]')
     ax2.set_ylabel('Frequency')
@@ -80,9 +92,8 @@ def create_length_hist(df, outputpath):
     
     #histogram SELFIES characters
     fig3, ax3=plt.subplots()
-    df.hist(column='SELFIES_length_char',ax=ax3, grid=False, color="black")
-    max_selfies_len_char= df["SELFIES_length_char"].max()
-    plt.xticks(np.arange(0,max_selfies_len_char+2,50))
+    df.hist(column='SELFIES_length_char',ax=ax3, range=[0,max_selfies_len_char+2], grid=False, color="black")
+    #plt.xticks(np.arange(0,max_selfies_len_char+2,50))
     ax3.set_title('Histogram of SELFIES length in characters')
     ax3.set_xlabel('Length [No. of characters]')
     ax3.set_ylabel('Frequency')
@@ -90,9 +101,8 @@ def create_length_hist(df, outputpath):
     
     #histogram SMILES length
     fig4, ax4=plt.subplots()
-    df.hist(column='SMILES_length',ax=ax4, grid=False, color="black")
-    max_smiles_len= df["SMILES_length"].max()
-    plt.xticks(np.arange(0,max_smiles_len+2,50))
+    df.hist(column='SMILES_length',ax=ax4, range=[0,max_smiles_len+2], grid=False, color="black")
+    #plt.xticks(np.arange(0,max_smiles_len+2,50))
     ax4.set_title('Histogram of SMILES length')
     ax4.set_xlabel('Length [No. of characters]')
     ax4.set_ylabel('Frequency')
@@ -100,9 +110,9 @@ def create_length_hist(df, outputpath):
 
 def create_molweight_hist(df,outputpath):
     fig, ax=plt.subplots()
-    df.hist(column='MolWt',ax=ax, grid=False, color="black")
     max_molwt= df["MolWt"].max()
-    plt.xticks(np.arange(0,max_molwt+2,100))
+    df.hist(column='MolWt',ax=ax, range=[0,max_molwt+2], grid=False, color="black")
+    #plt.xticks(np.arange(0,max_molwt+2,100))
     ax.set_title('Histogram of molecular weight')
     ax.set_xlabel('Molecular weight [g/mol]')
     ax.set_ylabel('Frequency')
@@ -110,21 +120,24 @@ def create_molweight_hist(df,outputpath):
     
 def create_hdonoracceptorhist(df,outputpath):
     fig, ax=plt.subplots()
-    df.hist(column='NumHAcceptors',ax=ax, grid=False, color="black")
+    max_hacceptor=df["NumHAcceptors"].max()
+    df.hist(column='NumHAcceptors',ax=ax, range=[0,max_hacceptor+1], grid=False, color="black")
     ax.set_title('Histogram of number of H-Acceptors')
     ax.set_xlabel('Hydrogen acceptors in numbers')
     ax.set_ylabel('Frequency')
     fig.savefig(outputpath/"NumHAcceptors_hist.pdf")
     
     fig1, ax1=plt.subplots()
-    df.hist(column='NumHDonors',ax=ax1, grid=False, color="black")
+    max_hdonor=df["NumHDonors"].max()
+    df.hist(column='NumHDonors',ax=ax1, range=[0,max_hdonor+1], grid=False, color="black")
     ax1.set_title('Histogram of number of H-Donors')
     ax1.set_xlabel('Hydrogen donors in numbers')
     ax1.set_ylabel('Frequency')
     fig1.savefig(outputpath/"NumHDonors_hist.pdf")
     
     fig2, ax2=plt.subplots()
-    df.hist(column='NumAromaticRings',ax=ax2, grid=False, color="black")
+    max_arrings=df["NumAromaticRings"].max()
+    df.hist(column='NumAromaticRings',ax=ax2, range=[0,max_arrings+1], grid=False, color="black")
     ax2.set_title('Histogram of number of aromatic rings')
     ax2.set_xlabel('Aromatic rings in numbers')
     ax2.set_ylabel('Frequency')
@@ -194,7 +207,7 @@ if __name__ == "__main__":
     ANALYSIS_PATH.mkdir(parents=True, exist_ok=True)
     additional_descs=['SELFIES','SELFIES_length_tok','SMILES']
     desc=DESCRIPTORS+additional_descs
-    df=read_file("./test.csv",desc)
+    df=read_file("./test100.csv",desc)
     df_noSMIdups=check_dups(df)
     df_withlengths=calc_average_lengths(df_noSMIdups)
     create_diagrams(df_withlengths, ANALYSIS_PATH)
