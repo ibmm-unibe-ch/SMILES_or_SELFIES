@@ -93,9 +93,9 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
         BartTokenizerFast: loaded tokenizer
     """
     tok = BartTokenizerFast.from_pretrained(tokenizer_path)
-    tok._tokenizer.post_processor = processors.RobertaProcessing(
-        ("</s>", 2), ("<s>", 0)
-    )
+    # tok._tokenizer.post_processor = processors.RobertaProcessing(
+    #    ("</s>", 2), ("<s>", 0)
+    # )
     return tok
 
 
