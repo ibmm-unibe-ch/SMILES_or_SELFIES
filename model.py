@@ -3,7 +3,7 @@ SMILES or SELFIES, 2022
 """
 import logging
 
-from transformers import BartConfig, BartModel
+from transformers import BartConfig, BartForCausalLM, BartModel
 
 
 def get_BART_model(
@@ -21,7 +21,7 @@ def get_BART_model(
     early_stopping: bool = True,
     encoder_ffn_dim: int = 3072,
     encoder_layerdrop: float = 0.0,
-) -> BartModel:
+) -> BartForCausalLM:
     """Create empty BART model with given variables
     All default variables are the default from Transformers
 
@@ -53,4 +53,4 @@ def get_BART_model(
         encoder_layerdrop=encoder_layerdrop,
     )
     logging.info("This is the BART config: {config}")
-    return BartModel(config)
+    return BartForCausalLM(config)

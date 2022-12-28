@@ -1,7 +1,10 @@
+import pandas as pd
 import torch
+from datasets import Dataset
+from tokenizers.processors import BertProcessing
 from transformers import Trainer, TrainingArguments
 
-from constants import MODEL_PATH, SEED, TOKENIZER_PATH
+from constants import MODEL_PATH, PROCESSED_PATH, SEED, TOKENIZER_PATH
 from dataset import PandasDataset, split_train_eval
 from model import get_BART_model
 from tokenisation import get_tokenizer
@@ -31,17 +34,19 @@ if __name__ == "__main__":
         run_name="test_run",
         metric_for_best_model="loss",
         report_to="wandb",
+        optim="adamw_torch",
     )
-    dataset = PandasDataset("path/to/file", 210)
-    tokenizer = get_tokenizer(TOKENIZER_PATH / "tokenizer")
+    tokenizer = get_tokenizer(TOKENIZER_PATH / "SMILES")
+    dataset = PandasDataset(PROCESSED_PATH / "10m_deduplicated.csv", 210, tokenizer)
+
     train_dataset, eval_dataset = split_train_eval(dataset, 10000)
     # TODO: optimizer:warm_start? Default is AdamW ✔️
     trainer = Trainer(
         get_BART_model(),
         args=args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        train_dataset=dataset,
+        eval_dataset=dataset,
         tokenizer=tokenizer,
     )
     trainer.train()
-    trainer.save_model(MODEL_PATH)
+    trainer.save_model(MODEL_PATH / "model")

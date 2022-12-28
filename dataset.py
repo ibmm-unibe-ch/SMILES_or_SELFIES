@@ -14,14 +14,19 @@ from constants import SEED
 class PandasDataset(Dataset):
     """Simple wrapper to load pandas to a torch dataset"""
 
-    def __init__(self, file_path: Path, column: int):
-        self.df = pd.read_csv(file_path, usecols=[column]).values
+    def __init__(self, file_path: Path, column: int, tokenizer):
+        self.df = pd.read_csv(file_path, usecols=[str(column)]).values
+        self.tokenizer = tokenizer
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
-        return self.df[idx]
+        item = self.tokenizer(self.df[idx][0], padding="max_length", max_length=42)
+        item["labels"] = item["input_ids"].copy()
+        for key in item:
+            item[key] = torch.tensor(item[key])
+        return item
 
 
 def split_train_eval(
@@ -48,7 +53,7 @@ def split_train_eval(
 if __name__ == "__main__":
     """only for testing purposes"""
     test = PandasDataset(
-        "/home/jannik-gut/GitHub/SMILES_or_SELFIES/processed/10m_dataframe.csv", 210
+        "/home/jgut/GitHub/SMILES_or_SELFIES/processed/10m_dataframe.csv", 210
     )
     train, test = split_train_eval(test, 10)
     print(len(train))

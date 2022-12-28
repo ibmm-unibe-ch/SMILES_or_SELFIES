@@ -12,6 +12,7 @@ from tokenizers import (
     Tokenizer,
     models,
     pre_tokenizers,
+    processors,
     trainers,
 )
 from transformers import BartTokenizerFast
@@ -91,7 +92,11 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     Returns:
         BartTokenizerFast: loaded tokenizer
     """
-    return BartTokenizerFast.from_pretrained(tokenizer_path)
+    tok = BartTokenizerFast.from_pretrained(tokenizer_path)
+    tok._tokenizer.post_processor = processors.RobertaProcessing(
+        ("</s>", 2), ("<s>", 0)
+    )
+    return tok
 
 
 if __name__ == "__main__":
@@ -113,6 +118,15 @@ if __name__ == "__main__":
     #        "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
     #    )
     # )
+    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
+    # copied from https://colab.research.google.com/drive/1tsiTpC4i26QNdRzBHFfXIOFVToE54-9b?usp=sharing#scrollTo=UHzrWuFpCtzs
+    # same in DeepChem
+    # tk_tokenizer.post_processor = BertProcessing
+    """
+    tok._tokenizer.post_processor = BertProcessing(
+...             ("</s>", 2),
+...             ("<s>", 0),
+...         )
     SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
     SMILES_tokenizer = train_sentencepiece(
         SMILES, TOKENIZER_PATH / "SMILES", vocab_size=1000
@@ -140,3 +154,4 @@ if __name__ == "__main__":
             "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
         )
     )
+"""
