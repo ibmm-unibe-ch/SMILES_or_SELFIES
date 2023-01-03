@@ -44,8 +44,8 @@ if __name__ == "__main__":
     trainer = Trainer(
         get_BART_model(),
         args=args,
-        train_dataset=dataset,
-        eval_dataset=dataset,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         tokenizer=tokenizer,
     )
     trainer.train()
