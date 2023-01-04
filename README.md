@@ -1,19 +1,7 @@
-# [IBMM Python template](https://github.com/ibmm-unibe-ch/Python-Template)
-
-This is the template you can use to start a new Python project at IBMM.
-
-Already included are:
-
-- Makefile &rightarrow; shortcut to usefull commands like environment generation or formatting
-  - Please extend this file for commands you use a lot, like starting a web server.
-- Requirements files &rightarrow; depending what kind of virtual environment you like, there already is a (basically) empty file
-  - environment.yml &rightarrow; conda
-  - requirements.txt &rightarrow; pip
-- GitHub actions
-  - .github/workflows &rightarrow; automatically run checks on GitHubs servers when pushing
-    - formatting
-    - linting
-- Pull request template
-  - The standard template to fill in while filing a pull request
-
-If you run into bugs, have questions or there are things to add, please contact [Jannik](mailto:jannik.gut@unibe.ch).
+# Smiles or Selfies
+## Training pipeline
+1. Download data with *make* 
+1. Preprocess with *preprocessing.py*
+1. Parse with *parsing.py*
+1. Run ``` fairseq-preprocess --only-source --destdir fairseq_preprocess/atom_selfies --trainpref processed/selfies_train  --validpref processed/selfies_val```
+1. Run ```fairseq-train fairseq_preprocess/atom_smiles --save-dir fairseq/smiles_atom_megamol --wandb-project smiles_atom_megamol --batch-size 32 --fp16 --mask 0.2 --tokens-per-sample 512 --total-num-update 500000 --max-update 500000 --warmup-updates 8000 --task denoising --save-interval 1 --arch bart_base --optimizer adam --lr-scheduler polynomial_decay --lr 5e-04 --dropout 0.1 --criterion cross_entropy --max-tokens 3200 --weight-decay 0.01 --attention-dropout 0.0 --relu-dropout 0.0 --share-decoder-input-output-embed --share-all-embeddings --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --log-interval 1000 --save-interval-updates 5000 --keep-interval-updates 1 --update-freq 4 --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --mask-length span-poisson --replace-length 1 --encoder-learned-pos --decoder-learned-pos --rotate 0.0 --mask-random 0.0 --permute-sentences 1 --insert 0.0 --poisson-lambda 3.5 --dataset-impl mmap --num-workers 4```

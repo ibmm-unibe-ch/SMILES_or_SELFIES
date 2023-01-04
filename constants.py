@@ -16,6 +16,7 @@ TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
 SEED = 6217
+VAL_SIZE = 10000
 # ---------------- LOGGING CONSTANTS ----------------
 DEFAULT_FORMATTER = "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]"
 DEFAULT_LOG_FILE = PROJECT_PATH / "logs" / "default_log.log"
