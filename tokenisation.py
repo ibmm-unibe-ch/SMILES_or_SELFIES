@@ -5,6 +5,7 @@ SMILES or SELFIES, 2022
 import logging
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from tokenizers import (
     Regex,
@@ -18,6 +19,7 @@ from tokenizers import (
 from transformers import BartTokenizerFast
 
 from constants import TOKENIZER_PATH
+from preprocessing import check_valid, translate_selfie
 
 
 def train_sentencepiece(
@@ -93,65 +95,63 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
         BartTokenizerFast: loaded tokenizer
     """
     tok = BartTokenizerFast.from_pretrained(tokenizer_path)
-    # tok._tokenizer.post_processor = processors.RobertaProcessing(
-    #    ("</s>", 2), ("<s>", 0)
-    # )
     return tok
 
 
+def tokenize_with_space(tokenizer, sample: str, selfies: False) -> str:
+    translated_selfie, length = translate_selfie(str(sample))
+    if translated_selfie is None:
+        return None
+    if selfies:
+        sample = translated_selfie
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(sample)).input_ids)
+    return " ".join(tokens)
+
+
+def tokenize_array(tokenizer, array: pd.Series, selfies=False) -> pd.Series:
+    output = np.array([tokenize_with_space(tokenizer, x, selfies) for x in array])
+    return output
+
+
+def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
+    # hopefully never needed
+    output = dict_stub
+    dict_stub = {"<s>": 0, "<pad>": 1, "</s>": 2, "<unk>": 3}
+    # as seen in https://huggingface.co/facebook/bart-base/
+    # <mask> needed?
+    before = len(dict_stub)
+    with open(fairseq_dict_dir, "r") as open_file:
+        entries = open_file.readlines()
+    for entry_number, entry_string in enumerate(entries):
+        output[entry_string.split(" ")[0].strip()] = before + entry_number
+    with open(output_path, "w") as outfile:
+        json.dump(output, outfile)
+    return output
+
+
+# tokenizer = BartTokenizer("sample.json", "merges.txt" --> can be empty)
+
 if __name__ == "__main__":
-    # SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
-    # atom_SMILES_tokenizer = train_atomwise_tokenizer(
-    #    SMILES, TOKENIZER_PATH / "Atom_SMILES", vocab_size=1000
-    # )
-    # print(
-    #    atom_SMILES_tokenizer(
-    #        "c1ccc(-c2cccc3c2c2c4oc5c(ccc6c5c5ccccc5n6-c5ccccc5)c4ccc2n3-c2ccccc2)"
-    #    )
-    # )
-    # SELFIES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210]).values
-    # atom_SELFIES_tokenizer = train_atomwise_tokenizer(
-    #    SELFIES, TOKENIZER_PATH / "atom_SELFIES", vocab_size=1000
-    # )
-    # print(
-    #    atom_SELFIES_tokenizer(
-    #        "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
-    #    )
-    # )
-    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
-    # copied from https://colab.research.google.com/drive/1tsiTpC4i26QNdRzBHFfXIOFVToE54-9b?usp=sharing#scrollTo=UHzrWuFpCtzs
-    # same in DeepChem
-    # tk_tokenizer.post_processor = BertProcessing
-    """
-    tok._tokenizer.post_processor = BertProcessing(
-...             ("</s>", 2),
-...             ("<s>", 0),
-...         )
     SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
-    SMILES_tokenizer = train_sentencepiece(
-        SMILES, TOKENIZER_PATH / "SMILES", vocab_size=1000
-    )
-    print(
-        SMILES_tokenizer(
-            "c1ccc(-c2cccc3c2c2c4oc5c(ccc6c5c5ccccc5n6-c5ccccc5)c4ccc2n3-c2ccccc2)"
-        )
-    )
-    SELFIES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210]).values
-    SELFIES_tokenizer = train_sentencepiece(
-        SELFIES, TOKENIZER_PATH / "SELFIES", vocab_size=1000
-    )
-    print(
-        SELFIES_tokenizer(
-            "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
-        )
+    atom_SMILES_tokenizer = train_atomwise_tokenizer(
+        SMILES, TOKENIZER_PATH / "smiles_atom", vocab_size=1000
     )
     SELFIES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210]).values
     atom_SELFIES_tokenizer = train_atomwise_tokenizer(
-        SELFIES, TOKENIZER_PATH / "atom_SELFIES", vocab_size=1000
+        SELFIES, TOKENIZER_PATH / "selfies_atom", vocab_size=1000
     )
-    print(
-        atom_SELFIES_tokenizer(
-            "[C][C][C][C][C][Branch1][=C][N][C][=C][C][=C][Branch1][C][C][C][=C][Ring1][#Branch1][Cl][C][=Branch1][C][=O][O][C]"
+    """
+    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
+    tok._tokenizer.post_processor = BertProcessing(
+                ("</s>", 2),
+                ("<s>", 0),
         )
+    """
+    SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values
+    SMILES_tokenizer = train_sentencepiece(
+        SMILES, TOKENIZER_PATH / "smiles_sentencepiece", vocab_size=1000
     )
-"""
+    SELFIES = pd.read_csv("processed/10m_dataframe.csv", usecols=[210]).values
+    SELFIES_tokenizer = train_sentencepiece(
+        SELFIES, TOKENIZER_PATH / "selfies_sentencepiece", vocab_size=1000
+    )

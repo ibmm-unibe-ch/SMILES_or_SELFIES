@@ -17,6 +17,7 @@ if __name__ == "__main__":
     ).values.tolist()
     smiles = shuffle(smiles, random_state=SEED - 385)
     smiles_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "SMILES")
+    # smiles_atom_tokenizer = get_tokenizer(TOKENIZER_PATH/atom_SMILES) instead of atomwise_tokenizer
     val_size = VAL_SIZE
     for value in tqdm(smiles):
         val_str = value[0]

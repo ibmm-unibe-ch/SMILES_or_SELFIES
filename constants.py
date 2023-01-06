@@ -15,6 +15,7 @@ PROCESSED_PATH = PROJECT_PATH / "processed"
 TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
+DATASET_PATH = PROJECT_PATH / "dataset"
 SEED = 6217
 VAL_SIZE = 10000
 # ---------------- LOGGING CONSTANTS ----------------
