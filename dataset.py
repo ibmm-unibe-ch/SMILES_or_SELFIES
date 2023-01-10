@@ -2,10 +2,10 @@
 SMILES or SELFIES, 2022
 """
 import logging
+import os
 from pathlib import Path
 from typing import Tuple, Union
 
-import numpy as np
 import pandas as pd
 import torch
 from deepchem.feat import RawFeaturizer
@@ -27,8 +27,8 @@ from deepchem.molnet import (
 )
 from torch.utils.data import Dataset, random_split
 
-from constants import DATASET_PATH, SEED, TOKENIZER_PATH
-from tokenisation import get_tokenizer, tokenize_array
+from constants import FAIRSEQ_PREPROCESS_PATH, SEED, TASK_PATH, TOKENIZER_PATH
+from tokenisation import get_tokenizer, tokenize_dataset
 
 # from https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/molnet_dataloader.py
 MOLNET_DIRECTORY = {
@@ -147,14 +147,16 @@ def split_train_eval(
     return train_set, eval_set
 
 
-def prepare_molnet(task: str, tokenizer, selfies: bool, output_dir: Path):
+def prepare_molnet(
+    task: str, tokenizer, selfies: bool, output_dir: Path, model_dict: Path
+):
     molnet_infos = MOLNET_DIRECTORY[task]
     _, splits, _ = molnet_infos["load_fn"](
         featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"]
     )
     tasks = ["train", "valid", "test"]
     for id_number, split in enumerate(splits):
-        mol = tokenize_array(tokenizer, split.X, selfies)
+        mol = tokenize_dataset(tokenizer, split.X, selfies)
         # no normalisation of labels
         if "tasks_wanted" in molnet_infos:
             correct_column = split.tasks.tolist().index(molnet_infos["tasks_wanted"][0])
@@ -163,21 +165,21 @@ def prepare_molnet(task: str, tokenizer, selfies: bool, output_dir: Path):
             label = split.y
         label = label[~pd.isna(mol)]
         logging.info(
-            f"For task {task} in set {tasks[id_number]}, {sum(pd.isna(mol))} samples could not be formed to SELFIES."
+            f"For task {task} in set {tasks[id_number]}, {sum(pd.isna(mol))} ({(sum(pd.isna(mol))/len(mol))*100:.2f})% samples could not be formed to SELFIES."
         )
         mol = mol[~pd.isna(mol)]
         mol.tofile(output_dir / (tasks[id_number] + ".input"), sep="\n", format="%s")
         label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
-        """
-        fairseq_preprocess_cmd(root, X_splits[0], X_splits[1], X_splits[2], "input0", store_path, args.dataset_name, sc_dict)
-        fairseq_preprocess_cmd(root, y_splits[0], y_splits[1], y_splits[2], "label", store_path, args.dataset_name, "")
-        os.system(('fairseq-preprocess --only-source '
-        f'--trainpref "{_train}" '
-        f'--validpref "{_valid}" '
-        f'--testpref "{_test}" '
-        f'--destdir "{store_path}/{dataset_name}/processed/{input0_or_label}" --workers 60 '
-        f'{src_dict}'))
-        """
+    os.system(
+        (
+            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --validpref {output_dir/"valid.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --src_dict {model_dict} --workers 60'
+        )
+    )
+    os.system(
+        (
+            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.label"} --validpref {output_dir/"valid.label"} --testpref {output_dir/"test.label"} --destdir {output_dir/"label"} --workers 60'
+        )
+    )
 
 
 if __name__ == "__main__":
@@ -192,8 +194,14 @@ if __name__ == "__main__":
     for tokenizer_suffix in tokenizer_suffixes:
         selfies = tokenizer_suffix.startswith("selfies")
         tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
-        output_dir = DATASET_PATH / tokenizer_suffix
+        output_dir = TASK_PATH / tokenizer_suffix
         for key in MOLNET_DIRECTORY:
             (output_dir / key).mkdir(parents=True, exist_ok=True)
-            prepare_molnet(key, tokenizer, selfies, output_dir / key)
+            prepare_molnet(
+                key,
+                tokenizer,
+                selfies,
+                output_dir / key,
+                FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt",
+            )
             logging.info(f"Finished creating {output_dir}")

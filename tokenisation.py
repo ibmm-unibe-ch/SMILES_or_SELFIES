@@ -2,6 +2,7 @@
 SMILES or SELFIES, 2022
 """
 
+import json
 import logging
 from pathlib import Path
 
@@ -13,13 +14,12 @@ from tokenizers import (
     Tokenizer,
     models,
     pre_tokenizers,
-    processors,
     trainers,
 )
 from transformers import BartTokenizerFast
 
 from constants import TOKENIZER_PATH
-from preprocessing import check_valid, translate_selfie
+from preprocessing import translate_selfie
 
 
 def train_sentencepiece(
@@ -98,18 +98,20 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     return tok
 
 
-def tokenize_with_space(tokenizer, sample: str, selfies: False) -> str:
-    translated_selfie, length = translate_selfie(str(sample))
+def tokenize_with_space(tokenizer, sample_smiles: str, selfies: False) -> str:
+    translated_selfie, length = translate_selfie(str(sample_smiles))
     if translated_selfie is None:
         return None
     if selfies:
-        sample = translated_selfie
-    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(sample)).input_ids)
+        sample_smiles = translated_selfie
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(sample_smiles)).input_ids)
     return " ".join(tokens)
 
 
-def tokenize_array(tokenizer, array: pd.Series, selfies=False) -> pd.Series:
-    output = np.array([tokenize_with_space(tokenizer, x, selfies) for x in array])
+def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
+    output = np.array(
+        [tokenize_with_space(tokenizer, sample, selfies) for sample in dataset]
+    )
     return output
 
 

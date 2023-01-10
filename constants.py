@@ -1,4 +1,4 @@
-""" Constants for project 
+""" Constants for project
 SMILES or SELFIES, 2022
 """
 import logging
@@ -15,7 +15,8 @@ PROCESSED_PATH = PROJECT_PATH / "processed"
 TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
-DATASET_PATH = PROJECT_PATH / "dataset"
+TASK_PATH = PROJECT_PATH / "task"
+FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
 SEED = 6217
 VAL_SIZE = 10000
 # ---------------- LOGGING CONSTANTS ----------------
