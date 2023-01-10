@@ -9,103 +9,16 @@ from typing import Tuple, Union
 import pandas as pd
 import torch
 from deepchem.feat import RawFeaturizer
-from deepchem.molnet import (
-    load_bace_classification,
-    load_bace_regression,
-    load_bbbp,
-    load_clearance,
-    load_clintox,
-    load_delaney,
-    load_hiv,
-    load_lipo,
-    load_pcba,
-    load_qm7,
-    load_qm8,
-    load_qm9,
-    load_sider,
-    load_tox21,
-)
 from torch.utils.data import Dataset, random_split
 
-from constants import FAIRSEQ_PREPROCESS_PATH, SEED, TASK_PATH, TOKENIZER_PATH
+from constants import (
+    FAIRSEQ_PREPROCESS_PATH,
+    MOLNET_DIRECTORY,
+    SEED,
+    TASK_PATH,
+    TOKENIZER_PATH,
+)
 from tokenisation import get_tokenizer, tokenize_dataset
-
-# from https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/molnet_dataloader.py
-MOLNET_DIRECTORY = {
-    "hiv": {
-        "dataset_type": "classification",
-        "load_fn": load_hiv,
-        "split": "scaffold",
-    },
-    "bace_classification": {
-        "dataset_type": "classification",
-        "load_fn": load_bace_classification,
-        "split": "scaffold",
-    },
-    "bace_regression": {
-        "dataset_type": "regression",
-        "load_fn": load_bace_regression,
-        "split": "scaffold",
-    },
-    "bbbp": {
-        "dataset_type": "classification",
-        "load_fn": load_bbbp,
-        "split": "scaffold",
-    },
-    "clearance": {
-        "dataset_type": "regression",
-        "load_fn": load_clearance,
-        "split": "scaffold",
-    },
-    "clintox": {
-        "dataset_type": "classification",
-        "load_fn": load_clintox,
-        "split": "scaffold",
-        "tasks_wanted": ["CT_TOX"],
-    },
-    "delaney": {
-        "dataset_type": "regression",
-        "load_fn": load_delaney,
-        "split": "scaffold",
-    },
-    # pcba is very large and breaks the dataloader
-    "pcba": {
-        "dataset_type": "classification",
-        "load_fn": load_pcba,
-        "split": "scaffold",
-    },
-    "lipo": {
-        "dataset_type": "regression",
-        "load_fn": load_lipo,
-        "split": "scaffold",
-    },
-    "qm7": {
-        "dataset_type": "regression",
-        "load_fn": load_qm7,
-        "split": "random",
-    },
-    "qm8": {
-        "dataset_type": "regression",
-        "load_fn": load_qm8,
-        "split": "random",
-    },
-    "qm9": {
-        "dataset_type": "regression",
-        "load_fn": load_qm9,
-        "split": "random",
-    },
-    "sider": {
-        "dataset_type": "classification",
-        "load_fn": load_sider,
-        "split": "scaffold",
-    },
-    "tox21": {
-        "dataset_type": "classification",
-        "load_fn": load_tox21,
-        "split": "scaffold",
-        "tasks_wanted": ["SR-p53"],
-    },
-}
 
 
 class PandasDataset(Dataset):
@@ -172,7 +85,7 @@ def prepare_molnet(
         label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
     os.system(
         (
-            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --validpref {output_dir/"valid.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --src_dict {model_dict} --workers 60'
+            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --validpref {output_dir/"valid.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --srcdict {model_dict} --workers 60'
         )
     )
     os.system(
