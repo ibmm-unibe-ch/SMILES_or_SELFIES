@@ -18,6 +18,7 @@ from sklearn.metrics import (
     auc,
     average_precision_score,
     classification_report,
+    f1_score,
     max_error,
     mean_absolute_error,
     mean_squared_error,
@@ -30,7 +31,7 @@ from constants import MOLNET_DIRECTORY, TASK_PATH
 
 def load_model(model_path: Path, cuda_device: str = None):
     model = BARTModel.from_pretrained(
-        model_path.parent, checkpoint_file=model_path.name
+        str(model_path.parent), checkpoint_file=str(model_path.name)
     )
     model.eval()
     if cuda_device:
@@ -39,7 +40,7 @@ def load_model(model_path: Path, cuda_device: str = None):
 
 
 def load_dataset(data_path: Path):
-    dikt = Dictionary.load(data_path.parent / "dict.txt")
+    dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
     data = list(load_indexed_dataset(str(data_path), dikt))
     return data
 
@@ -54,12 +55,14 @@ def get_predictions(
     model,
     mols: np.ndarray,
     targets: np.ndarray,
-    target_dict: Dict,
+    target_dict_path: Dict,  # maybe None for classifications?
     classification: bool = True,
 ) -> Tuple[List[float], List[float]]:
     # from https://github.com/YerevaNN/BARTSmiles/blob/main/evaluation/compute_score.py
     preds = []
     seen_targets = []
+    if classification:
+        target_dict = Dictionary.load(str(target_dict_path))
     for (smile, target) in tqdm(list(zip(mols, targets))):
         smile = torch.cat(
             (torch.cat((torch.tensor([0]), smile[:126])), torch.tensor([2]))
@@ -84,17 +87,18 @@ def get_predictions(
 def get_score(
     predictions: List[float], seen_targets: List[float], classification: bool = True
 ) -> Tuple[dict, str]:
+    predicted_classes = [int(prediction >= 0.5) for prediction in predictions]
     score_dikt = {}
     if classification:
         roc_auc = roc_auc_score(seen_targets, predictions)
         score_dikt["ROC_AUC"] = roc_auc
         average_precision = average_precision_score(seen_targets, predictions)
         score_dikt["average_precision"] = average_precision
-        auc_score = auc(seen_targets, predictions)
-        score_dikt["AUC"] = auc_score
-        acc_score = accuracy_score(seen_targets, predictions)
+        f1 = f1_score(seen_targets, predicted_classes)
+        score_dikt["F1_score"] = f1
+        acc_score = accuracy_score(seen_targets, predicted_classes)
         score_dikt["accuracy_score"] = acc_score
-        report = classification_report(seen_targets, predictions)
+        report = classification_report(seen_targets, predicted_classes)
         return score_dikt, report
     mae = mean_absolute_error(seen_targets, predictions)
     score_dikt["mean_absolute_error"] = mae
@@ -120,7 +124,7 @@ if __name__ == "__main__":
             classification = (
                 MOLNET_DIRECTORY[specific_task]["dataset_type"] == "classification"
             )
-            if (specific_task_path / "checkpoint_best.pt").if_file():
+            if (specific_task_path / "checkpoint_best.pt").is_file():
                 model = load_model(
                     specific_task_path / "checkpoint_best.pt", cuda_device
                 )
@@ -129,10 +133,14 @@ if __name__ == "__main__":
                     labels = load_dataset(specific_task_path / "label" / "test")
                 else:
                     labels = load_regression_dataset(
-                        specific_task_path / "label" / "test"
+                        specific_task_path / "label" / "test.label"
                     )
                 preds, seen_targets = get_predictions(
-                    model, mols, labels, specific_task_path / "dict.txt", classification
+                    model,
+                    mols,
+                    labels,
+                    specific_task_path / "label" / "dict.txt",
+                    classification,
                 )
                 score_dict, report = get_score(preds, seen_targets, classification)
                 if classification:
@@ -148,4 +156,4 @@ if __name__ == "__main__":
                 score_dict["task"] = specific_task
                 score_dict["tokenizer"] = tokenizer_suffix_path.name
                 score_dict["model"] = model_type
-                pd.DataFrame(score_dict).to_csv(specific_task_path / "scores.csv")
+                pd.DataFrame([score_dict]).to_csv(specific_task_path / "scores.csv")

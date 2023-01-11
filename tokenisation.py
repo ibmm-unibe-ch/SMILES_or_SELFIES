@@ -99,7 +99,7 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
 
 
 def tokenize_with_space(tokenizer, sample_smiles: str, selfies: False) -> str:
-    translated_selfie, length = translate_selfie(str(sample_smiles))
+    translated_selfie, _ = translate_selfie(str(sample_smiles))
     if translated_selfie is None:
         return None
     if selfies:
@@ -117,8 +117,8 @@ def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
 
 def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
     # hopefully never needed
-    output = dict_stub
     dict_stub = {"<s>": 0, "<pad>": 1, "</s>": 2, "<unk>": 3}
+    output = dict_stub
     # as seen in https://huggingface.co/facebook/bart-base/
     # <mask> needed?
     before = len(dict_stub)
@@ -130,8 +130,6 @@ def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
         json.dump(output, outfile)
     return output
 
-
-# tokenizer = BartTokenizer("sample.json", "merges.txt" --> can be empty)
 
 if __name__ == "__main__":
     SMILES = pd.read_csv("processed/10m_dataframe.csv", usecols=[212]).values

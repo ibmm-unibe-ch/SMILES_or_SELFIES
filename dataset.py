@@ -83,6 +83,13 @@ def prepare_molnet(
         mol = mol[~pd.isna(mol)]
         mol.tofile(output_dir / (tasks[id_number] + ".input"), sep="\n", format="%s")
         label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
+        if molnet_infos["dataset_type"] == "regression":
+            (output_dir / "label").mkdir(parents=True, exist_ok=True)
+            label.tofile(
+                output_dir / "label" / (tasks[id_number] + ".label"),
+                sep="\n",
+                format="%s",
+            )
     os.system(
         (
             f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --validpref {output_dir/"valid.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --srcdict {model_dict} --workers 60'
