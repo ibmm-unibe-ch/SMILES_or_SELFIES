@@ -15,7 +15,6 @@ from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
 from sklearn.metrics import (
     accuracy_score,
-    auc,
     average_precision_score,
     classification_report,
     f1_score,
@@ -68,7 +67,7 @@ def get_predictions(
             (torch.cat((torch.tensor([0]), smile[:126])), torch.tensor([2]))
         )
         output = model.predict(
-            "sentence_classification_head", smile, return_logits=False
+            "sentence_classification_head", smile, return_logits=not classification
         )
         if classification:
             target = target[0].item()
@@ -87,9 +86,9 @@ def get_predictions(
 def get_score(
     predictions: List[float], seen_targets: List[float], classification: bool = True
 ) -> Tuple[dict, str]:
-    predicted_classes = [int(prediction >= 0.5) for prediction in predictions]
     score_dikt = {}
     if classification:
+        predicted_classes = [int(prediction >= 0.5) for prediction in predictions]
         roc_auc = roc_auc_score(seen_targets, predictions)
         score_dikt["ROC_AUC"] = roc_auc
         average_precision = average_precision_score(seen_targets, predictions)

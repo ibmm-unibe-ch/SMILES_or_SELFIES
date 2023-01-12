@@ -76,11 +76,17 @@ def prepare_molnet(
             label = split.y[:, correct_column]
         else:
             label = split.y
+        print("labels")
+        print(len(label))
         label = label[~pd.isna(mol)]
+        print(len(label))
         logging.info(
             f"For task {task} in set {tasks[id_number]}, {sum(pd.isna(mol))} ({(sum(pd.isna(mol))/len(mol))*100:.2f})% samples could not be formed to SELFIES."
         )
+        print("mol")
+        print(len(mol))
         mol = mol[~pd.isna(mol)]
+        print(len(mol))
         mol.tofile(output_dir / (tasks[id_number] + ".input"), sep="\n", format="%s")
         label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
         if molnet_infos["dataset_type"] == "regression":
@@ -111,6 +117,28 @@ if __name__ == "__main__":
     ]
     molnets = MOLNET_DIRECTORY
     del molnets["pcba"]
+    from deepchem.molnet import load_qm8, load_qm9, load_sider
+
+    MOLNET_DIRECTORY = {
+        "qm8": {
+            "dataset_type": "regression",
+            "load_fn": load_qm8,
+            "split": "random",
+            "trainingset_size": 17396,
+        },
+        "qm9": {
+            "dataset_type": "regression",
+            "load_fn": load_qm9,
+            "split": "random",
+            "trainingset_size": 105984,
+        },
+        "sider": {
+            "dataset_type": "classification",
+            "load_fn": load_sider,
+            "split": "scaffold",
+            "trainingset_size": 1141,
+        },
+    }
     for tokenizer_suffix in tokenizer_suffixes:
         selfies = tokenizer_suffix.startswith("selfies")
         tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)

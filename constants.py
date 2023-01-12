@@ -96,6 +96,7 @@ MOLNET_DIRECTORY = {
         "split": "random",
         "trainingset_size": 5470,
     },
+    """
     "qm8": {
         "dataset_type": "regression",
         "load_fn": load_qm8,
@@ -114,6 +115,7 @@ MOLNET_DIRECTORY = {
         "split": "scaffold",
         "trainingset_size": 1141,
     },
+    """
     "tox21": {
         "dataset_type": "classification",
         "load_fn": load_tox21,
@@ -122,6 +124,13 @@ MOLNET_DIRECTORY = {
         "trainingset_size": 6264,
     },
 }
+
+TOKENIZER_SUFFIXES = [
+    "selfies_sentencepiece",
+    "smiles_sentencepiece",
+    "smiles_atom",
+    "selfies_atom",
+]
 
 PROJECT_PATH = Path(__file__).parent
 PROCESSED_PATH = PROJECT_PATH / "processed"
