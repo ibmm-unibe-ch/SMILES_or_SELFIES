@@ -13,11 +13,6 @@ from deepchem.molnet import (
     load_delaney,
     load_hiv,
     load_lipo,
-    load_pcba,
-    load_qm7,
-    load_qm8,
-    load_qm9,
-    load_sider,
     load_tox21,
 )
 from rdkit.Chem import Descriptors
@@ -65,12 +60,6 @@ MOLNET_DIRECTORY = {
         "split": "scaffold",
         "trainingset_size": 902,
     },
-    # "freesolv": {
-    #    "dataset_type": "regression",
-    #    "load_fn": load_freesolv,
-    #    "split": "random",
-    #    "trainingset_size": 0,  # TBD
-    # },
     "hiv": {
         "dataset_type": "classification",
         "load_fn": load_hiv,
@@ -83,39 +72,18 @@ MOLNET_DIRECTORY = {
         "split": "scaffold",
         "trainingset_size": 3360,
     },
-    # pcba is very large and breaks the dataloader
-    "pcba": {
-        "dataset_type": "classification",
-        "load_fn": load_pcba,
-        "split": "scaffold",
-        "trainingset_size": 0,  # Needs to be changed
-    },
-    "qm7": {
-        "dataset_type": "regression",
-        "load_fn": load_qm7,
-        "split": "random",
-        "trainingset_size": 5470,
-    },
-    """
-    "qm8": {
-        "dataset_type": "regression",
-        "load_fn": load_qm8,
-        "split": "random",
-        "trainingset_size": 17396,
-    },
-    "qm9": {
-        "dataset_type": "regression",
-        "load_fn": load_qm9,
-        "split": "random",
-        "trainingset_size": 105984,
-    },
-    "sider": {
-        "dataset_type": "classification",
-        "load_fn": load_sider,
-        "split": "scaffold",
-        "trainingset_size": 1141,
-    },
-    """
+    #    "qm7": {
+    #        "dataset_type": "regression",
+    #        "load_fn": load_qm7,
+    #        "split": "random",
+    #        "trainingset_size": 5470,
+    #    },
+    #    "sider": {
+    #        "dataset_type": "classification",
+    #        "load_fn": load_sider,
+    #        "split": "scaffold",
+    #        "trainingset_size": 1141,
+    #    },
     "tox21": {
         "dataset_type": "classification",
         "load_fn": load_tox21,

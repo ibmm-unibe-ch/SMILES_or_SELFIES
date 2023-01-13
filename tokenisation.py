@@ -19,7 +19,7 @@ from tokenizers import (
 from transformers import BartTokenizerFast
 
 from constants import TOKENIZER_PATH
-from preprocessing import translate_selfie
+from preprocessing import canonize_smile, translate_selfie
 
 
 def train_sentencepiece(
@@ -98,13 +98,13 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     return tok
 
 
-def tokenize_with_space(tokenizer, sample_smiles: str, selfies: False) -> str:
-    translated_selfie, _ = translate_selfie(str(sample_smiles))
-    if translated_selfie is None:
+def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
+    if translate_selfie(str(sample_smiles))[0] is None:
         return None
+    canon_smiles = canonize_smile(sample_smiles)
     if selfies:
-        sample_smiles = translated_selfie
-    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(sample_smiles)).input_ids)
+        canon_smiles = translate_selfie(str(canon_smiles))[0]
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(canon_smiles)).input_ids)
     return " ".join(tokens)
 
 

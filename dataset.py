@@ -17,6 +17,7 @@ from constants import (
     SEED,
     TASK_PATH,
     TOKENIZER_PATH,
+    TOKENIZER_SUFFIXES,
 )
 from tokenisation import get_tokenizer, tokenize_dataset
 
@@ -61,7 +62,11 @@ def split_train_eval(
 
 
 def prepare_molnet(
-    task: str, tokenizer, selfies: bool, output_dir: Path, model_dict: Path
+    task: str,
+    tokenizer,
+    selfies: bool,
+    output_dir: Path,
+    model_dict: Path,
 ):
     molnet_infos = MOLNET_DIRECTORY[task]
     _, splits, _ = molnet_infos["load_fn"](
@@ -76,17 +81,11 @@ def prepare_molnet(
             label = split.y[:, correct_column]
         else:
             label = split.y
-        print("labels")
-        print(len(label))
         label = label[~pd.isna(mol)]
-        print(len(label))
         logging.info(
             f"For task {task} in set {tasks[id_number]}, {sum(pd.isna(mol))} ({(sum(pd.isna(mol))/len(mol))*100:.2f})% samples could not be formed to SELFIES."
         )
-        print("mol")
-        print(len(mol))
         mol = mol[~pd.isna(mol)]
-        print(len(mol))
         mol.tofile(output_dir / (tasks[id_number] + ".input"), sep="\n", format="%s")
         label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
         if molnet_infos["dataset_type"] == "regression":
@@ -109,47 +108,18 @@ def prepare_molnet(
 
 
 if __name__ == "__main__":
-    tokenizer_suffixes = [
-        "selfies_sentencepiece",
-        "smiles_sentencepiece",
-        "smiles_atom",
-        "selfies_atom",
-    ]
     molnets = MOLNET_DIRECTORY
-    del molnets["pcba"]
-    from deepchem.molnet import load_qm8, load_qm9, load_sider
-
-    MOLNET_DIRECTORY = {
-        "qm8": {
-            "dataset_type": "regression",
-            "load_fn": load_qm8,
-            "split": "random",
-            "trainingset_size": 17396,
-        },
-        "qm9": {
-            "dataset_type": "regression",
-            "load_fn": load_qm9,
-            "split": "random",
-            "trainingset_size": 105984,
-        },
-        "sider": {
-            "dataset_type": "classification",
-            "load_fn": load_sider,
-            "split": "scaffold",
-            "trainingset_size": 1141,
-        },
-    }
-    for tokenizer_suffix in tokenizer_suffixes:
+    for tokenizer_suffix in TOKENIZER_SUFFIXES:
         selfies = tokenizer_suffix.startswith("selfies")
         tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
-        output_dir = TASK_PATH / tokenizer_suffix
         for key in MOLNET_DIRECTORY:
-            (output_dir / key).mkdir(parents=True, exist_ok=True)
+            output_dir = TASK_PATH / key / (tokenizer_suffix)
+            output_dir.mkdir(parents=True, exist_ok=True)
             prepare_molnet(
                 key,
                 tokenizer,
                 selfies,
-                output_dir / key,
+                output_dir,
                 FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt",
             )
             logging.info(f"Finished creating {output_dir}")
