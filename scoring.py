@@ -25,12 +25,25 @@ from sklearn.metrics import (
 )
 from tqdm import tqdm
 
-from constants import MOLNET_DIRECTORY, TASK_PATH
+from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH
+
+CUDA_DEVICE = 3
 
 
-def load_model(model_path: Path, cuda_device: str = None):
+def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
+    """Load fairseq BART model
+
+    Args:
+        model_path (Path): path to .pt file
+        cuda_device (str, optional): if model should be converted to a device. Defaults to None.
+
+    Returns:
+        fairseq_model: load BART model
+    """
     model = BARTModel.from_pretrained(
-        str(model_path.parent), checkpoint_file=str(model_path.name)
+        str(model_path.parent),
+        data_name_or_path=str(data_path),
+        checkpoint_file=str(model_path.name),
     )
     model.eval()
     if cuda_device:
@@ -38,13 +51,21 @@ def load_model(model_path: Path, cuda_device: str = None):
     return model
 
 
-def load_dataset(data_path: Path):
-    dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
-    data = list(load_indexed_dataset(str(data_path), dikt))
-    return data
+def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
+    """Load dataset with fairseq
+
+    Args:
+        data_path (Path): folder path of data (e.g. /input0/test)
+        classification (bool): if classification(True) or regression(False) loading should be used. Defaults to classification.
 
 
-def load_regression_dataset(data_path: Path):
+    Returns:
+        List[str]: loaded fairseq dataset
+    """
+    if classification:
+        dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
+        data = list(load_indexed_dataset(str(data_path), dikt))
+        return data
     with open(data_path, "r") as label_file:
         label_lines = label_file.readlines()
     return [float(line.strip()) for line in label_lines]
@@ -54,9 +75,21 @@ def get_predictions(
     model,
     mols: np.ndarray,
     targets: np.ndarray,
-    target_dict_path: Dict,  # maybe None for classifications?
+    target_dict_path: Path,  # maybe None for classifications?
     classification: bool = True,
 ) -> Tuple[List[float], List[float]]:
+    """Get predictions of model on mols
+
+    Args:
+        model (fairseq_model): fairseq model to make predictions with
+        mols (np.ndarray): dataset to make predictions
+        targets (np.ndarray): targets to predict against
+        target_dict_path (Path): path to target_dict to translate model output to class
+        classification (bool): if classification(True) or regression(False). Defaults to classification.
+
+    Returns:
+        Tuple[List[float], List[float]]: predictions, targets
+    """
     # from https://github.com/YerevaNN/BARTSmiles/blob/main/evaluation/compute_score.py
     preds = []
     seen_targets = []
@@ -86,6 +119,16 @@ def get_predictions(
 def get_score(
     predictions: List[float], seen_targets: List[float], classification: bool = True
 ) -> Tuple[dict, str]:
+    """Compute scores of predictions and seen_targets
+
+    Args:
+        predictions (List[float]): predictions made by model
+        seen_targets (List[float]): ground_truth models
+        classification (bool, optional): whether classification metrics should be used (True) or regression metrics (False). Defaults to True.
+
+    Returns:
+        Tuple[dict, str]: score_dictionary, report
+    """
     score_dikt = {}
     if classification:
         predicted_classes = [int(prediction >= 0.5) for prediction in predictions]
@@ -110,49 +153,86 @@ def get_score(
     return score_dikt, score_dikt
 
 
+def iterate_paths(path: Path) -> List[Tuple[Path, str]]:
+    """Iterate paths with glob and return names
+
+    Args:
+        path (Path): Path to search for subpaths
+
+    Returns:
+        List[Tuple[Path, str]]: subpaths, name of last bit of subpaths
+    """
+    subpath_strings = glob(str(path) + "/*", recursive=True)
+    subpaths = [Path(subpath_string) for subpath_string in subpath_strings]
+    names = [subpath.name for subpath in subpaths]
+    return zip(subpaths, names)
+
+
+def parse_hyperparams(param_string: str) -> Dict[str, str]:
+    """Parse hyperparameter string
+
+    Args:
+        param_string (str): parameter string to parse
+
+    Returns:
+        Dict[str, str]: dictionary with hyperparameters
+    """
+    param_parts = param_string.split("_")
+    output = {
+        "learning_rate": param_parts[0],
+        "dropout": param_parts[1],
+        "model_size": param_parts[2],
+        "data_type": param_parts[3],
+    }
+    return output
+
+
 if __name__ == "__main__":
-    cuda_device = 3
-    model_type = "base"
-    for tokenizer_suffix_path in glob(str(TASK_PATH) + "/*", recursive=True):
-        tokenizer_suffix_path = Path(tokenizer_suffix_path)
-        for specific_task_path in glob(
-            str(tokenizer_suffix_path) + "/*", recursive=True
-        ):
-            specific_task_path = Path(specific_task_path)
-            specific_task = specific_task_path.name
-            classification = (
-                MOLNET_DIRECTORY[specific_task]["dataset_type"] == "classification"
-            )
-            if (specific_task_path / "checkpoint_best.pt").is_file():
-                model = load_model(
-                    specific_task_path / "checkpoint_best.pt", cuda_device
-                )
-                mols = load_dataset(specific_task_path / "input0" / "test")
-                if classification:
-                    labels = load_dataset(specific_task_path / "label" / "test")
+    for task_path, task in iterate_paths(TASK_MODEL_PATH):
+        if task not in MOLNET_DIRECTORY:
+            continue
+        classification = MOLNET_DIRECTORY[task]["dataset_type"] == "classification"
+        for tokenizer_path, tokenizer in iterate_paths(task_path):
+            for hyperparameter_path, hyperparameter in iterate_paths(tokenizer_path):
+                if (hyperparameter_path / hyperparameter).exists():
+                    best_checkpoint_path = (
+                        hyperparameter_path / hyperparameter / "checkpoint_best.pt"
+                    )
                 else:
-                    labels = load_regression_dataset(
-                        specific_task_path / "label" / "test.label"
+                    best_checkpoint_path = hyperparameter_path / "checkpoint_best.pt"
+                if not best_checkpoint_path.is_file():
+                    continue
+                model = load_model(
+                    best_checkpoint_path, TASK_PATH / task / tokenizer, CUDA_DEVICE
+                )
+                mols = load_dataset(TASK_PATH / task / tokenizer / "input0" / "test")
+                if classification:
+                    labels = load_dataset(
+                        TASK_PATH / task / tokenizer / "label" / "test", classification
+                    )
+                else:
+                    labels = load_dataset(
+                        TASK_PATH / task / tokenizer / "label" / "test.label",
+                        classification,
                     )
                 preds, seen_targets = get_predictions(
                     model,
                     mols,
                     labels,
-                    specific_task_path / "label" / "dict.txt",
+                    TASK_PATH / task / tokenizer / "label" / "dict.txt",
                     classification,
                 )
                 score_dict, report = get_score(preds, seen_targets, classification)
+                score_dict = score_dict | parse_hyperparams(hyperparameter)
                 if classification:
-                    with open(specific_task_path / "report.txt", "w") as report_file:
+                    with open(hyperparameter_path / "report.txt", "w") as report_file:
                         report_file.write(report)
                 else:
-                    with open(specific_task_path / "report.txt", "w") as report_file:
+                    with open(hyperparameter_path / "report.txt", "w") as report_file:
                         report_file.write(json.dumps(report, indent=4))
-
                 score_dict["task_type"] = (
                     "classification" if classification else "regression"
                 )
-                score_dict["task"] = specific_task
-                score_dict["tokenizer"] = tokenizer_suffix_path.name
-                score_dict["model"] = model_type
-                pd.DataFrame([score_dict]).to_csv(specific_task_path / "scores.csv")
+                score_dict["task"] = task
+                score_dict["tokenizer"] = tokenizer
+                pd.DataFrame([score_dict]).to_csv(hyperparameter_path / "scores.csv")

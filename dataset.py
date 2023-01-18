@@ -4,22 +4,22 @@ SMILES or SELFIES, 2022
 import logging
 import os
 from pathlib import Path
-from typing import Tuple, Union
 
 import pandas as pd
 import torch
 from deepchem.feat import RawFeaturizer
-from torch.utils.data import Dataset, random_split
+from torch.utils.data import Dataset
 
 from constants import (
     FAIRSEQ_PREPROCESS_PATH,
     MOLNET_DIRECTORY,
-    SEED,
     TASK_PATH,
     TOKENIZER_PATH,
     TOKENIZER_SUFFIXES,
 )
 from tokenisation import get_tokenizer, tokenize_dataset
+
+os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
 class PandasDataset(Dataset):
@@ -40,27 +40,6 @@ class PandasDataset(Dataset):
         return item
 
 
-def split_train_eval(
-    dataset: Dataset, eval_size: Union[int, float] = 10000
-) -> Tuple[Dataset, Dataset]:
-    """Split torch dataset to eval_size
-
-    Args:
-        dataset (Dataset): dataset to split
-        eval_size (Union[int, float], optional): relative or absolute size of eval_set. Defaults to 10000.
-
-    Returns:
-        Tuple[Dataset, Dataset]: train_set, eval_set
-    """
-    len_dataset = 1 if eval_size < 0 else len(dataset)
-    train_set, eval_set = random_split(
-        dataset,
-        [len_dataset - eval_size, eval_size],
-        generator=torch.Generator().manual_seed(SEED + 238947),
-    )
-    return train_set, eval_set
-
-
 def prepare_molnet(
     task: str,
     tokenizer,
@@ -68,6 +47,15 @@ def prepare_molnet(
     output_dir: Path,
     model_dict: Path,
 ):
+    """Prepare Molnet tasks with fairseq, so that they can be used for fine-tuning.
+
+    Args:
+        task (str): which MolNet task to prepare
+        tokenizer (tokenizer): which tokenizer to use for this dataset
+        selfies (bool): Use selfies or not; should agree with selected tokenizer
+        output_dir (Path): where to save preprocessed files
+        model_dict (Path): which vocabulary to use for pre-processing
+    """
     molnet_infos = MOLNET_DIRECTORY[task]
     _, splits, _ = molnet_infos["load_fn"](
         featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"]
