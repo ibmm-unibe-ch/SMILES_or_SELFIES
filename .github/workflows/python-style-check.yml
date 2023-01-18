@@ -20,7 +20,9 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda env update --name base -f environment.yml --prune
+        conda env remove --name test_env --all
+        conda env create --name test_env -f environment.yml
+        conda env activate test_env
     - name: Fix code style with isort (import calls)
       run: |
           python -m pip install isort
