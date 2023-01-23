@@ -10,9 +10,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from fairseq.data import Dictionary
-from fairseq.data.data_utils import load_indexed_dataset
-from fairseq.models.bart import BARTModel
+from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -25,7 +23,9 @@ from sklearn.metrics import (
 )
 from tqdm import tqdm
 
-from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH
+from fairseq.data import Dictionary
+from fairseq.data.data_utils import load_indexed_dataset
+from fairseq.models.bart import BARTModel
 
 CUDA_DEVICE = 3
 

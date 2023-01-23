@@ -10,14 +10,13 @@ from typing import List, Tuple
 
 import pandas as pd
 import selfies
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 from rdkit import Chem
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
 )
 from tqdm import tqdm
-
-from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
