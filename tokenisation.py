@@ -152,7 +152,6 @@ def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
 
 
 if __name__ == "__main__":
-
     # """
     SMILES = pd.read_csv("processed/10m_deduplicated_isomers.csv", usecols=[212]).values
     atom_SMILES_tokenizer = train_atomwise_tokenizer(

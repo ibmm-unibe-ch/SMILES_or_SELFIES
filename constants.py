@@ -108,6 +108,7 @@ ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = PROJECT_PATH / "task"
 USPTO_PATH = PROJECT_PATH / "download_uspto"
 TASK_MODEL_PATH = Path("/data/SoS_models/")
+
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
 SEED = 6217
 VAL_SIZE = 10000

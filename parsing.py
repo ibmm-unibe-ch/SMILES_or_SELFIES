@@ -14,16 +14,14 @@ if __name__ == "__main__":
         usecols=[str(210)],
     ).values.tolist()
     smiles = shuffle(smiles, random_state=SEED - 385)
-    smiles_trained_tokenizer = get_tokenizer(
-        TOKENIZER_PATH / "smiles_sentencepiece_isomers"
-    )
-    # smiles_atom_tokenizer = get_tokenizer(TOKENIZER_PATH / "smiles_atom_isomers")
+    smiles_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "smiles_sentencepiece")
+    smiles_atom_tokenizer = get_tokenizer(TOKENIZER_PATH / "smiles_atom")
     val_size = VAL_SIZE
     for value in tqdm(smiles):
         val_str = value[0]
-        # atom_tokens = smiles_atom_tokenizer.convert_ids_to_tokens(
-        #    smiles_atom_tokenizer(val_str).input_ids
-        # )
+        atom_tokens = smiles_atom_tokenizer.convert_ids_to_tokens(
+            smiles_atom_tokenizer(val_str).input_ids
+        )
         trained_tokens = smiles_trained_tokenizer.convert_ids_to_tokens(
             smiles_trained_tokenizer(val_str).input_ids
         )
@@ -47,14 +45,15 @@ if __name__ == "__main__":
         usecols=[str(208)],
     ).values.tolist()
     selfies = shuffle(selfies, random_state=SEED - 385)
-    selfies_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_sentencepiece")
-    # selfies_atom_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_atom_isomers")
+    selfies_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_sentencepiece_isomers")
+
+    selfies_atom_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_atom_isomers")
     val_size = VAL_SIZE
     for value in tqdm(selfies):
         val_str = value[0]
-        # atom_tokens = selfies_atom_tokenizer.convert_ids_to_tokens(
-        #    selfies_atom_tokenizer(val_str).input_ids
-        # )
+        atom_tokens = selfies_atom_tokenizer.convert_ids_to_tokens(
+            selfies_atom_tokenizer(val_str).input_ids
+        )
         trained_tokens = selfies_trained_tokenizer.convert_ids_to_tokens(
             selfies_trained_tokenizer(val_str).input_ids
         )

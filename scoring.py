@@ -50,7 +50,6 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
         model.cuda(device=cuda_device)
     return model
 
-
 def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
     """Load dataset with fairseq
 

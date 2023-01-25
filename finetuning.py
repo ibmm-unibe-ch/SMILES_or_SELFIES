@@ -57,3 +57,4 @@ if __name__ == "__main__":
                 logging.info(
                     f"Finished training of configuration {tokenizer_prefix} with task {task} and learning rate {learning_rate}, dropout {dropout}."
                 )
+
