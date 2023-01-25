@@ -1,4 +1,4 @@
-""" only testing so far
+""" Fine tuning on MolNet tasks
 SMILES or SELFIES, 2022
 """
 import argparse
@@ -15,10 +15,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--tokenizer_prefix",
         choices=[
-            "selfies_atom",
-            "selfies_sentencepiece",
-            "smiles_atom",
-            "smiles_sentencepiece",
             "selfies_atom",
             "selfies_sentencepiece",
             "smiles_atom",
@@ -42,17 +38,23 @@ if __name__ == "__main__":
         update_steps = int(
             MOLNET_DIRECTORY[task]["trainingset_size"] / BATCH_SIZE * EPOCHS
         )
-        logging.info(
-            f"Started training of configuration {tokenizer_prefix} with task {task}."
-        )
-        if MOLNET_DIRECTORY[task]["dataset_type"] == "classification":
-            os.system(
-                f'CUDA_VISIBLE_DEVICES={args.cuda} fairseq-train {task_path} --update-freq 8 --restore-file fairseq/{tokenizer_prefix[:-5]}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --dropout 0.2 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr 1e-05 --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --num-classes 2 --save-dir {task_path}'
-            )
-        else:
-            os.system(
-                f'CUDA_VISIBLE_DEVICES={args.cuda} fairseq-train {task_path} --update-freq 8 --restore-file fairseq/{tokenizer_prefix[:-5]}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --dropout 0.2 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr 1e-05 --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --num-classes 1 --save-dir {task_path} --best-checkpoint-metric loss --regression-target --init-token 0'
-            )
-        logging.info(
-            f"Finished training of configuration {tokenizer_prefix} with task {task}."
-        )
+        for learning_rate in [5e-06, 1e-05, 5e-05]:
+            for dropout in [0.1, 0.2, 0.3]:
+                logging.info(
+                    f"Started training of configuration {tokenizer_prefix} with task {task} and learning rate {learning_rate}, dropout {dropout}."
+                )
+                if MOLNET_DIRECTORY[task]["dataset_type"] == "classification":
+                    os.system(
+                        f'CUDA_VISIBLE_DEVICES={args.cuda} fairseq-train {task_path} --update-freq 8 --restore-file fairseq/{tokenizer_prefix[:-5]}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --dropout {dropout} --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr {learning_rate} --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --num-classes 2 --save-dir {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}'
+                    )
+                else:
+                    os.system(
+                        f'CUDA_VISIBLE_DEVICES={args.cuda} fairseq-train {task_path} --update-freq 8 --restore-file fairseq/{tokenizer_prefix[:-5]}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --dropout {dropout} --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr {learning_rate} --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --num-classes 1 --save-dir {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")} --best-checkpoint-metric loss --regression-target --init-token 0'
+                    )
+                os.system(
+                    f'mkdir --parents /data/jgut/SoS_models/{task}/{tokenizer_prefix}/{(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")} ; mv {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}/* /data/jgut/SoS_models/{task}/{tokenizer_prefix}/{(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}'
+                )
+                logging.info(
+                    f"Finished training of configuration {tokenizer_prefix} with task {task} and learning rate {learning_rate}, dropout {dropout}."
+                )
+
