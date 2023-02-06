@@ -72,18 +72,6 @@ MOLNET_DIRECTORY = {
         "split": "scaffold",
         "trainingset_size": 3360,
     },
-    #    "qm7": {
-    #        "dataset_type": "regression",
-    #        "load_fn": load_qm7,
-    #        "split": "random",
-    #        "trainingset_size": 5470,
-    #    },
-    #    "sider": {
-    #        "dataset_type": "classification",
-    #        "load_fn": load_sider,
-    #        "split": "scaffold",
-    #        "trainingset_size": 1141,
-    #    },
     "tox21": {
         "dataset_type": "classification",
         "load_fn": load_tox21,
@@ -93,6 +81,20 @@ MOLNET_DIRECTORY = {
     },
 }
 
+RETROSYNTHESIS_DIRECTORY = {
+    "lef": {
+        "dataset_type": "generation",
+        "trainingset_size": 296578,
+    },
+    "jin": {
+        "dataset_type": "generation",
+        "trainingset_size": 391412,
+    },
+    "schwaller": {
+        "dataset_type": "generation",
+        "trainingset_size": 902271,
+    },
+}
 TOKENIZER_SUFFIXES = [
     "selfies_sentencepiece",
     "smiles_sentencepiece",
@@ -107,7 +109,10 @@ MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = PROJECT_PATH / "task"
 USPTO_PATH = PROJECT_PATH / "download_uspto"
-TASK_MODEL_PATH = Path("/data/SoS_models/")
+TASK_MODEL_PATH = Path("/data/jgut/SoS_models/")
+
+PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
+
 
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
 SEED = 6217

@@ -59,7 +59,11 @@ def canonize_smile(input_str: str) -> str:
     Returns:
         str: canonize SMILES string
     """
-    return Chem.CanonSmiles(input_str)
+    mol = Chem.MolFromSmiles(input_str)
+    if mol is None:
+        return None
+    [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+    return Chem.MolToSmiles(mol)
 
 
 def check_canonized(input_str: str) -> bool:
@@ -90,6 +94,16 @@ def translate_selfie(smile: str) -> Tuple[str, int]:
     except Exception as e:
         logging.error(e)
         return (None, -1)
+
+
+def translate_smile(selfie: str) -> str:
+    try:
+        smile = selfies.decoder(selfie)
+        canon_smile = canonize_smile(smile)
+        return canon_smile
+    except Exception as e:
+        logging.error(e)
+        return None
 
 
 def process_mol(mol: str) -> Tuple[dict, str]:
