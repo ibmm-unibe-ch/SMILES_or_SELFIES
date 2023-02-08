@@ -283,7 +283,7 @@ dependencies:
       - notebook==6.5.2
       - notebook-shim==0.2.2
       - numba==0.56.4
-      - numpy==1.24.1
+      - numpy==1.23.5
       - omegaconf==2.0.6
       - pandocfilters==1.5.0
       - parso==0.8.3
