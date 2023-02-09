@@ -62,58 +62,69 @@ def aggregate_SMILE_attention(line):
     bond_att = 0
     additional_attention = 0
     for (score, token) in line:
-        if token == "C":
-            output_dict[f"{bond}C_count"] = output_dict.get(f"{bond}C_count", 0) + 1
-            output_dict[f"{bond}C_att"] = (
-                output_dict.get(f"{bond}C_att", 0) + score + bond_att
+        if token in ["C", "c"]:
+            output_dict[f"{bond}C count"] = output_dict.get(f"{bond}C count", 0) + 1
+            output_dict[f"{bond}C attention"] = (
+                output_dict.get(f"{bond}C attention", 0) + score + bond_att
             ) + additional_attention
             bond = ""
             bond_att = 0
         if token in ["(", ")"] or token.isnumeric():
-            output_dict["structure_att"] = output_dict.get("structure_att", 0) + score
-            output_dict["structure_att_bonds"] = (
-                output_dict.get("structure_att", 0) + score + additional_attention
+            output_dict["structure attention"] = (
+                output_dict.get("structure attention", 0) + score
             )
-            output_dict["structure_count"] = output_dict.get("structure_count", 0) + 1
+            output_dict["structure attenton trailing bond"] = (
+                output_dict.get("structure attenton trailing bond", 0)
+                + score
+                + additional_attention
+            )
+            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
             additional_attention = 0
         elif token in ["=", "#", "/", "\\", ":", "~", "-"]:
-            output_dict["bond_att"] = output_dict.get("bond_att", 0) + score
-            output_dict["bond_count"] = output_dict.get("bond_count", 0) + 1
+            output_dict["bond attention"] = output_dict.get("bond attention", 0) + score
+            output_dict["bond count"] = output_dict.get("bond count", 0) + 1
             bond = token
             bond_att += score
             additional_attention += score
         else:
-            output_dict["atom_att"] = output_dict.get("atom_att", 0) + score
-            output_dict["atom_att_bonds"] = (
-                output_dict.get("atom_att", 0) + score + additional_attention
+            output_dict["atom attention"] = output_dict.get("atom attention", 0) + score
+            output_dict["atom attention trailing bond"] = (
+                output_dict.get("atom attention trailing bond", 0)
+                + score
+                + additional_attention
             )
-            output_dict["atom_count"] = output_dict.get("atom_count", 0) + 1
+            output_dict["atom count"] = output_dict.get("atom count", 0) + 1
+            output_dict["atom count trailing bond"] = (
+                output_dict.get("atom count trailing bond", 0) + 1
+            )
             additional_attention = 0
     # distribute bond attention
-    output_dict["structure_att_added"] = output_dict.get(
-        "structure_att", 0
-    ) + output_dict.get("bond_att", 0) * (
-        output_dict.get("structure_att", 0)
-        / (output_dict.get("structure_att", 0) + output_dict.get("bond_att", 0))
+    output_dict["structure attention distributed"] = output_dict.get(
+        "structure attention distributed", 0
+    ) + output_dict.get("bond attention", 0) * (
+        output_dict.get("structure attention", 0)
+        / (
+            output_dict.get("structure attention", 0)
+            + output_dict.get("bond attention", 0)
+        )
     )
-    output_dict["atom_att_added"] = output_dict["atom_att"] + output_dict.get(
-        "bond_att", 0
-    ) * (
-        output_dict["atom_att"]
-        / (output_dict.get("structure_att", 0) + output_dict["atom_att"])
+    output_dict["atom attention distributed"] = output_dict[
+        "atom attention"
+    ] + output_dict.get("bond attention", 0) * (
+        output_dict["atom attention"]
+        / (output_dict.get("structure attention", 0) + output_dict["atom attention"])
     )
-
-    output_dict["structure_count_added"] = output_dict.get(
-        "structure_count", 0
-    ) + output_dict.get("bond_count", 0) * (
-        output_dict.get("structure_count", 0)
-        / (output_dict.get("structure_count", 0) + output_dict.get("bond_count", 0))
+    output_dict["structure count distributed"] = output_dict.get(
+        "structure count", 0
+    ) + output_dict.get("bond count", 0) * (
+        output_dict.get("structure count", 0)
+        / (output_dict.get("structure count", 0) + output_dict.get("bond count", 0))
     )
-    output_dict["atom_count_added"] = output_dict.get(
-        "atom_count", 0
-    ) + output_dict.get("bond_count", 0) * (
-        output_dict.get("atom_count", 0)
-        / (output_dict.get("structure_count", 0) + output_dict.get("atom_count", 0))
+    output_dict["atom count distributed"] = output_dict.get(
+        "atom count", 0
+    ) + output_dict.get("bond count", 0) * (
+        output_dict.get("atom count", 0)
+        / (output_dict.get("structure count", 0) + output_dict.get("atom count", 0))
     )
     return output_dict
 
@@ -125,25 +136,29 @@ def aggregate_SELFIE_attention(line):
         if structure_tokens > 0:
             # overloaded tokens
             structure_tokens -= 1
-            output_dict["structure_att"] = output_dict.get("structure_att", 0) + score
-            output_dict["structure_count"] = output_dict.get("structure_count", 0) + 1
+            output_dict["structure attention"] = (
+                output_dict.get("structure attention", 0) + score
+            )
+            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
         elif "Ring" in token or "Branch" in token:
-            output_dict["structure_att"] = output_dict.get("structure_att", 0) + score
-            output_dict["structure_count"] = output_dict.get("structure_count", 0) + 1
+            output_dict["structure attention"] = (
+                output_dict.get("structure attention", 0) + score
+            )
+            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
             # parse overloading
             structure_tokens = int(token[-2])
         else:
-            output_dict["atom_att"] = output_dict.get("atom_att", 0) + score
-            output_dict["atom_count"] = output_dict.get("atom_count", 0) + 1
-            if "C" in token:
+            output_dict["atom attention"] = output_dict.get("atom attention", 0) + score
+            output_dict["atom count"] = output_dict.get("atom count", 0) + 1
+            if "C]" in token:
                 if "C" == token[1]:
                     token = list(token)
                     token[1] = ""
-                output_dict[f"{token[1]}C_count"] = (
-                    output_dict.get(f"{token[1]}C_count", 0) + 1
+                output_dict[f"{token[1]}C count"] = (
+                    output_dict.get(f"{token[1]}C count", 0) + 1
                 )
-                output_dict[f"{token[1]}C_att"] = (
-                    output_dict.get(f"{token[1]}C_att", 0) + score
+                output_dict[f"{token[1]}C attention"] = (
+                    output_dict.get(f"{token[1]}C attention", 0) + score
                 )
     return output_dict
 
@@ -154,92 +169,21 @@ def log_and_add(text, string):
     return text
 
 
-def parse_att_dict(SMILE_dict, SELFIE_dict, save_path):
+def parse_att_dict(SMILE_dict, SELFIE_dict, len_output, save_path):
     text = ""
-    text = log_and_add(
-        text,
-        f"On average there are {SMILE_dict.get('structure_count',0)/len(output):.3f} structure SMILES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SMILE_dict.get('structure_att',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SMILE_dict.get('structure_att',0)/SMILE_dict.get('structure_count',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"Distributing the bond tokens according to the amount of tokens, we have {SMILE_dict.get('structure_count_added',0)/len(output):.3f} structure SMILES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SMILE_dict.get('structure_att_added',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SMILE_dict.get('structure_att_added',0)/SMILE_dict.get('structure_count_added',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"On average there are {SMILE_dict.get('atom_count',0)/len(output):.3f} atom SMILES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SMILE_dict.get('atom_att',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SMILE_dict.get('atom_att',0)/SMILE_dict.get('atom_count',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"Distributing the bond tokens according to the amount of tokens, we have {SMILE_dict.get('atom_count_added',0)/len(output):.3f} atom SMILES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SMILE_dict.get('atom_att_added',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SMILE_dict.get('atom_att_added',0)/SMILE_dict.get('atom_count_added',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"On average there are {SMILE_dict.get('bond_count',0)/len(output):.3f} bond SMILES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SMILE_dict.get('bond_att',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SMILE_dict.get('bond_att',0)/SMILE_dict.get('bond_count',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"On average there are {SELFIE_dict.get('structure_count',0)/len(output):.3f} structure SELFIES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SELFIE_dict.get('structure_att',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SELFIE_dict.get('structure_att',0)/SELFIE_dict.get('structure_count',1):.3f} attention per token.",
-    )
-    text = log_and_add(
-        text,
-        f"On average there are {SELFIE_dict.get('atom_count',0)/len(output):.3f} atom SELFIES tokens",
-    )
-    text = log_and_add(
-        text,
-        f"They accumulate {SELFIE_dict.get('atom_att',0)/len(output):.3f} attention per sample.",
-    )
-    text = log_and_add(
-        text,
-        f"Which is {SELFIE_dict.get('atom_att',0)/SELFIE_dict.get('atom_count',1):.3f} attention per token.",
-    )
+    for (representation, dikt) in [("SMILES", SMILE_dict), ("SELFIES", SELFIE_dict)]:
+        text += f"{representation}:\n"
+        for key in sorted(dikt.keys()):
+            text = log_and_add(text, f"The amount of {key} is {dikt[key]:.3f}.")
+            if "attention" in key:
+                modified_key = key.replace("attention", "count")
+                text = log_and_add(
+                    text,
+                    f"The amount of {key} per token is {dikt[key]/dikt[modified_key]:.3f}",
+                )
+            text = log_and_add(
+                text, f"The amount of {key} per sample is {dikt[key]/len_output:.3f}"
+            )
     text = log_and_add(text, str(SMILE_dict))
     text = log_and_add(text, str(SELFIE_dict))
     with open(save_path, "w") as openfile:
@@ -364,5 +308,7 @@ if __name__ == "__main__":
     ), f"{args['task']} not in MOLNET tasks."
     output, labels = generate_attention_dict(args["task"], args["cuda"])
     SMILE_dict, SELFIE_dict = aggregate_attention(output)
-    parse_att_dict(SMILE_dict, SELFIE_dict, f"logs/attention_agg_{args['task']}.txt")
+    parse_att_dict(
+        SMILE_dict, SELFIE_dict, len(output), f"logs/attention_agg_{args['task']}.txt"
+    )
     produce_att_samples(output, labels, f"logs/attention_samples_{args['task']}.md")
