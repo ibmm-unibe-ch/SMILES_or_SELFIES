@@ -3,6 +3,14 @@ import os
 
 import numpy as np
 import pandas as pd
+from fairseq.data import Dictionary
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC, LinearSVC
+from tqdm import tqdm
+
 from attention_readout import generate_prev_output_tokens
 from constants import (
     DESCRIPTORS,
@@ -13,16 +21,8 @@ from constants import (
     TOKENIZER_SUFFIXES,
 )
 from scoring import load_dataset, load_model
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC, LinearSVC
 from tokenisation import get_tokenizer, tokenize_dataset
-from tqdm import tqdm
-from fairseq.data import Dictionary
-
-from utils import pickle_object, parse_arguments
+from utils import parse_arguments, pickle_object
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 

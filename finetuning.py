@@ -1,16 +1,16 @@
 """ Fine tuning on MolNet tasks
 SMILES or SELFIES, 2022
 """
-from utils import parse_arguments
 import logging
 import os
 
 from constants import (
     MOLNET_DIRECTORY,
-    TASK_PATH,
     RETROSYNTHESIS_DIRECTORY,
     TASK_MODEL_PATH,
+    TASK_PATH,
 )
+from utils import parse_arguments
 
 EPOCHS = 10
 BATCH_SIZE = 16

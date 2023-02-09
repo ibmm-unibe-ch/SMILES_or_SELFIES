@@ -6,20 +6,9 @@ import json
 from glob import glob
 from pathlib import Path
 from typing import Dict, List, Tuple
+
 import numpy as np
-
-from lexicographic_scores import compute_distances
-from preprocessing import canonize_smile, translate_smile
-from tqdm import tqdm
-
 import pandas as pd
-from constants import (
-    MOLNET_DIRECTORY,
-    TASK_MODEL_PATH,
-    TASK_PATH,
-    RETROSYNTHESIS_DIRECTORY,
-    PROJECT_PATH,
-)
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -30,9 +19,19 @@ from sklearn.metrics import (
     mean_squared_error,
     roc_auc_score,
 )
-from fairseq_utils import load_dataset, load_model, get_predictions
+from tqdm import tqdm
+
+from constants import (
+    MOLNET_DIRECTORY,
+    PROJECT_PATH,
+    RETROSYNTHESIS_DIRECTORY,
+    TASK_MODEL_PATH,
+    TASK_PATH,
+)
+from fairseq_utils import get_predictions, load_dataset, load_model
+from lexicographic_scores import compute_distances
+from preprocessing import canonize_smile, translate_smile
 from utils import parse_arguments
-import pandas as pd
 
 
 def get_score(

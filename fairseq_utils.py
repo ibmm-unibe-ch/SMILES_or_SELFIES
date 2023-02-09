@@ -1,17 +1,17 @@
-from pathlib import Path
+import json
 import logging
-from typing import List, Tuple, Optional
+import os
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
-from tqdm import tqdm
-
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
-import json
-import os
-from constants import TASK_PATH, PROJECT_PATH
+from tqdm import tqdm
+
+from constants import PROJECT_PATH, TASK_PATH
 
 
 def load_model(model_path: Path, data_path: Path, cuda_device: str = None):

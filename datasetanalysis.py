@@ -10,9 +10,10 @@ from typing import List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from constants import ANALYSIS_PATH, DESCRIPTORS
 from rdkit import Chem
 from tqdm import tqdm
+
+from constants import ANALYSIS_PATH, DESCRIPTORS
 
 
 def create_desc_diagram(df, desc_list, name, outputpath):

@@ -3,6 +3,9 @@ import re
 
 import numpy as np
 import pandas as pd
+from deepchem.feat import RawFeaturizer
+from fairseq.data import Dictionary
+
 from constants import (
     MOLNET_DIRECTORY,
     PARSING_REGEX,
@@ -10,12 +13,9 @@ from constants import (
     TASK_PATH,
     TOKENIZER_PATH,
 )
-from deepchem.feat import RawFeaturizer
 from preprocessing import canonize_smile, translate_selfie
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
-
-from fairseq.data import Dictionary
 from utils import parse_arguments
 
 
@@ -31,6 +31,7 @@ def generate_prev_output_tokens(sample, source_dictionary):
 
 def compute_attention_output(dataset, model, text, source_dictionary, tokenizer=None):
     # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+    device = next(model.parameters()).device
     attentions = []
     for counter, sample in enumerate(dataset):
         if tokenizer is None:
@@ -43,11 +44,13 @@ def compute_attention_output(dataset, model, text, source_dictionary, tokenizer=
             parsed_tokens = tokenizer.convert_ids_to_tokens(
                 tokenizer(str(text[counter])).input_ids
             )
-        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary)
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device
+        )
         # same as in predict
-        attention = model.model(sample.unsqueeze(0), None, prev_output_tokens)[1][
-            "attn"
-        ][0][0][0].tolist()
+        attention = model.model(
+            sample.unsqueeze(0).to(device), None, prev_output_tokens
+        )[1]["attn"][0][0][0].tolist()
         attentions.append(list(zip(attention, parsed_tokens)))
     return attentions
 
@@ -55,16 +58,37 @@ def compute_attention_output(dataset, model, text, source_dictionary, tokenizer=
 def aggregate_SMILE_attention(line):
     # http://www.dalkescientific.com/writings/diary/archive/2004/01/05/tokens.html
     output_dict = {}
+    bond = ""
+    bond_att = 0
+    additional_attention = 0
     for (score, token) in line:
+        if token == "C":
+            output_dict[f"{bond}C_count"] = output_dict.get(f"{bond}C_count", 0) + 1
+            output_dict[f"{bond}C_att"] = (
+                output_dict.get(f"{bond}C_att", 0) + score + bond_att
+            ) + additional_attention
+            bond = ""
+            bond_att = 0
         if token in ["(", ")"] or token.isnumeric():
             output_dict["structure_att"] = output_dict.get("structure_att", 0) + score
+            output_dict["structure_att_bonds"] = (
+                output_dict.get("structure_att", 0) + score + additional_attention
+            )
             output_dict["structure_count"] = output_dict.get("structure_count", 0) + 1
+            additional_attention = 0
         elif token in ["=", "#", "/", "\\", ":", "~", "-"]:
             output_dict["bond_att"] = output_dict.get("bond_att", 0) + score
             output_dict["bond_count"] = output_dict.get("bond_count", 0) + 1
+            bond = token
+            bond_att += score
+            additional_attention += score
         else:
             output_dict["atom_att"] = output_dict.get("atom_att", 0) + score
+            output_dict["atom_att_bonds"] = (
+                output_dict.get("atom_att", 0) + score + additional_attention
+            )
             output_dict["atom_count"] = output_dict.get("atom_count", 0) + 1
+            additional_attention = 0
     # distribute bond attention
     output_dict["structure_att_added"] = output_dict.get(
         "structure_att", 0
@@ -111,12 +135,22 @@ def aggregate_SELFIE_attention(line):
         else:
             output_dict["atom_att"] = output_dict.get("atom_att", 0) + score
             output_dict["atom_count"] = output_dict.get("atom_count", 0) + 1
+            if "C" in token:
+                if "C" == token[1]:
+                    token = list(token)
+                    token[1] = ""
+                output_dict[f"{token[1]}C_count"] = (
+                    output_dict.get(f"{token[1]}C_count", 0) + 1
+                )
+                output_dict[f"{token[1]}C_att"] = (
+                    output_dict.get(f"{token[1]}C_att", 0) + score
+                )
     return output_dict
 
 
 def log_and_add(text, string):
     logging.info(string)
-    text += string
+    text += string + "\n"
     return text
 
 
@@ -206,6 +240,8 @@ def parse_att_dict(SMILE_dict, SELFIE_dict, save_path):
         text,
         f"Which is {SELFIE_dict.get('atom_att',0)/SELFIE_dict.get('atom_count',1):.3f} attention per token.",
     )
+    text = log_and_add(text, str(SMILE_dict))
+    text = log_and_add(text, str(SELFIE_dict))
     with open(save_path, "w") as openfile:
         openfile.write(text)
 

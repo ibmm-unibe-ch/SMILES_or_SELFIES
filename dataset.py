@@ -7,6 +7,9 @@ import re
 from pathlib import Path
 
 import pandas as pd
+from deepchem.feat import RawFeaturizer
+from tqdm import tqdm
+
 from constants import (
     FAIRSEQ_PREPROCESS_PATH,
     MOLNET_DIRECTORY,
@@ -14,9 +17,7 @@ from constants import (
     TOKENIZER_PATH,
     USPTO_PATH,
 )
-from deepchem.feat import RawFeaturizer
 from tokenisation import get_tokenizer, tokenize_dataset
-from tqdm import tqdm
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 

@@ -6,10 +6,11 @@ import re
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
 from constants import PROJECT_PATH, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES
 from lexicographic_scores import compute_distances
 from preprocessing import canonize_smile, translate_smile
-from tqdm import tqdm
 
 
 def parse_line(line: str, separator_occurences=1):
@@ -89,6 +90,15 @@ def score_distances(samples):
         "lev_norm",
         "dl",
         "dl_norm",
+        "rouge1",
+        "rouge2",
+        "rouge3",
+        "rougeL",
+        "BLEU",
+        "BLEU1",
+        "BLEU2",
+        "BLEU3",
+        "BLEU4",
     ]
     df = [{key: sample[key] for key in keep_keys} for sample in samples]
     df = pd.DataFrame.from_dict(df)

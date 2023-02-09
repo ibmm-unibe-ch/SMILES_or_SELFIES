@@ -1,6 +1,9 @@
 import re
 from collections import defaultdict
 
+import nltk
+from rouge_score import rouge_scorer
+
 from constants import PARSING_REGEX
 
 
@@ -89,6 +92,36 @@ def compute_needleman_wunsch(sequence1, sequence2):
     return score[-1][-1]
 
 
+def compute_rouge(input_str, output_str):
+    rouge_metrics = ["rouge1", "rouge2", "rouge3", "rougeL"]
+    scorer = rouge_scorer.RougeScorer(rouge_metrics, use_stemmer=False)
+    scores = scorer.score(" ".join(input_str), " ".join(output_str))
+    output_dict = {}
+    for rouge_metric in rouge_metrics:
+        output_dict[rouge_metric] = scores[rouge_metric][1]
+    return output_dict
+
+
+def compute_bleu(input_str, output_str):
+    output_dict = {}
+    output_dict["BLEU"] = nltk.translate.bleu_score.sentence_bleu(
+        [input_str], output_str
+    )
+    output_dict["BLEU1"] = nltk.translate.bleu_score.sentence_bleu(
+        [input_str], output_str, (1, 0, 0, 0)
+    )
+    output_dict["BLEU2"] = nltk.translate.bleu_score.sentence_bleu(
+        [input_str], output_str, (0, 1, 0, 0)
+    )
+    output_dict["BLEU3"] = nltk.translate.bleu_score.sentence_bleu(
+        [input_str], output_str, (0, 0, 1, 0)
+    )
+    output_dict["BLEU4"] = nltk.translate.bleu_score.sentence_bleu(
+        [input_str], output_str, (0, 0, 0, 1)
+    )
+    return output_dict
+
+
 def compute_distances(input_str, output_str):
     input_tokens = [
         parsed_token.strip()
@@ -111,4 +144,9 @@ def compute_distances(input_str, output_str):
     output_dict["lev_norm"] = output_dict["lev"] / max_length
     output_dict["dl"] = compute_damerau_levenshtein(input_tokens, output_tokens)
     output_dict["dl_norm"] = output_dict["dl"] / max_length
+    output_dict = (
+        output_dict
+        | compute_bleu(input_tokens, output_tokens)
+        | compute_rouge(input_tokens, output_tokens)
+    )
     return output_dict

@@ -7,8 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from constants import PROCESSED_PATH, TOKENIZER_PATH
-from preprocessing import canonize_smile, translate_selfie
 from rdkit import RDLogger
 from tokenizers import (
     Regex,
@@ -20,6 +18,9 @@ from tokenizers import (
 )
 from tqdm import tqdm
 from transformers import BartTokenizerFast
+
+from constants import PROCESSED_PATH, TOKENIZER_PATH
+from preprocessing import canonize_smile, translate_selfie
 
 RDLogger.DisableLog("rdApp.warning")
 
