@@ -50,7 +50,7 @@ def eval_weak_estimators(train_X, train_y, test_X, test_y, report_prefix):
         grid_search.fit(train_X, train_y)
         predictions = grid_search.predict(test_X)
         reportpath = report_prefix / f"estimator_{name}.txt"
-        os.makedirs(reportpath)
+        os.makedirs(reportpath.parent, exist_ok=True)
         with open(reportpath, "w") as reportfile:
             reportfile.writelines(
                 [
