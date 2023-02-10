@@ -22,29 +22,36 @@ from constants import (
 )
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer, tokenize_dataset
-from utils import parse_arguments, pickle_object
+from utils import parse_arguments, pickle_object, unpickle
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
 def eval_weak_estimators(train_X, train_y, test_X, test_y, report_prefix):
     estimators = {
+        "KNN": KNeighborsClassifier(),
         "RBF SVC": SVC(kernel="rbf", random_state=SEED + 49057),
         "Linear SVC": LinearSVC(random_state=SEED + 57),
         "Logistic Regression": LogisticRegression(random_state=SEED + 497),
-        "KNN": KNeighborsClassifier(),
     }
     for name, estimator in estimators.items():
         if name == "KNN":
-            param_grid = {"n_neighbors": [1, 5, 11], "weights": ["uniform", "distance"]}
+            param_grid = {"n_neighbors": [11], "weights": ["distance"]}
         else:
             param_grid = {"C": [0.1, 1, 10]}  # coef0 for SVC?
         grid_search = GridSearchCV(
-            estimator=estimator, param_grid=param_grid, scoring="roc_auc", cv=3
+            estimator=estimator,
+            param_grid=param_grid,
+            scoring="roc_auc",
+            cv=3,
+            n_jobs=3,
+            verbose=4,
         )
         grid_search.fit(train_X, train_y)
         predictions = grid_search.predict(test_X)
-        with open(report_prefix / f"estimator_{name}.txt", "w") as reportfile:
+        reportpath = report_prefix / f"estimator_{name}.txt"
+        os.makedirs(reportpath)
+        with open(reportpath, "w") as reportfile:
             reportfile.writelines(
                 [
                     name,
@@ -123,6 +130,7 @@ def main():
     # )
     # transform_to_translation_models()
     cuda = parse_arguments(True, False, False)["cuda"]
+    flag = False
     for tokenizer_suffix in reversed(TOKENIZER_SUFFIXES):
         _ = """
         transplant_model(
@@ -145,32 +153,36 @@ def main():
             str(cuda),
         )
         dataset_dict = {}
+        embeddings_path = PROJECT_PATH / "embeddings" / "pickle"
         for set_variation in ["train", "test"]:
-            dataset = load_dataset(
-                PROJECT_PATH
-                / "embeddings"
-                / tokenizer_suffix
-                / "input0"
-                / set_variation
-            )
-            source_dictionary = Dictionary.load(
-                str(
+            if flag:
+                dataset = load_dataset(
                     PROJECT_PATH
                     / "embeddings"
                     / tokenizer_suffix
                     / "input0"
-                    / "dict.txt"
+                    / set_variation
                 )
-            )
+                source_dictionary = Dictionary.load(
+                    str(
+                        PROJECT_PATH
+                        / "embeddings"
+                        / tokenizer_suffix
+                        / "input0"
+                        / "dict.txt"
+                    )
+                )
 
-            embeddings = get_embeddings(model, dataset, source_dictionary, cuda)
-            embeddings_path = PROJECT_PATH / "embeddings" / "pickle"
-            os.makedirs(embeddings_path, exist_ok=True)
-            pickle_object(
-                embeddings,
-                embeddings_path / f"{tokenizer_suffix}_{set_variation}.pkl",
-            )
-
+                embeddings = get_embeddings(model, dataset, source_dictionary, cuda)
+                os.makedirs(embeddings_path, exist_ok=True)
+                pickle_object(
+                    embeddings,
+                    embeddings_path / f"{tokenizer_suffix}_{set_variation}.pkl",
+                )
+            else:
+                embeddings = unpickle(
+                    embeddings_path / f"{tokenizer_suffix}_{set_variation}.pkl"
+                )
             dataset_dict[f"{set_variation}_X"] = embeddings
             dataset_dict[f"{set_variation}_y"] = np.fromfile(
                 PROJECT_PATH
@@ -187,6 +199,7 @@ def main():
             dataset_dict["test_y"],
             report_prefix,
         )
+        flag = True
 
 
 if __name__ == "__main__":

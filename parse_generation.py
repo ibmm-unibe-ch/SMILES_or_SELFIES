@@ -115,11 +115,11 @@ if __name__ == "__main__":
     for task in ["lef", "jin", "schwaller"]:
         for tokenizer in TOKENIZER_SUFFIXES:
             # os.system(
-            #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"pre-processed"} --source-lang input --target-lang label --wandb-project retrosynthesis-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"retrosynthesis_beam"/task/tokenizer}'
+            #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam"/task/tokenizer}'
             # )
             samples = parse_file(
                 PROJECT_PATH
-                / "retrosynthesis_beam"
+                / "reaction_prediction_beam"
                 / task
                 / tokenizer
                 / "generate-test.txt"
@@ -129,5 +129,9 @@ if __name__ == "__main__":
             output = output | score_samples(samples, selfies)
             output = output | score_distances(samples)
             pd.DataFrame.from_dict([output]).to_csv(
-                PROJECT_PATH / "retrosynthesis_beam" / task / tokenizer / "output.csv"
+                PROJECT_PATH
+                / "reaction_prediction_beam"
+                / task
+                / tokenizer
+                / "output.csv"
             )

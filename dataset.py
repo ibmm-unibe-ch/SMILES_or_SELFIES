@@ -114,7 +114,12 @@ def prepare_uspto(
         clean_products.tofile(output_dir / (dataset + ".label"), sep="\n", format="%s")
     os.system(
         (
-            f'fairseq-preprocess --trainpref {output_dir/"train"} --validpref {output_dir/"valid"} --testpref {output_dir/"test"} --srcdict {model_dict} --tgtdict {model_dict} --workers 60 --source-lang input --target-lang label --destdir {output_dir/"pre-processed"}'
+            f'fairseq-preprocess --trainpref {output_dir/"train"} --validpref {output_dir/"valid"} --testpref {output_dir/"test"} --srcdict {model_dict} --tgtdict {model_dict} --workers 60 --source-lang input --target-lang label --destdir {output_dir/"reaction_prediction"}'
+        )
+    )
+    os.system(
+        (
+            f'fairseq-preprocess --trainpref {output_dir/"train"} --validpref {output_dir/"valid"} --testpref {output_dir/"test"} --srcdict {model_dict} --tgtdict {model_dict} --workers 60 --source-lang label --target-lang input --destdir {output_dir/"retrosynthesis"}'
         )
     )
 

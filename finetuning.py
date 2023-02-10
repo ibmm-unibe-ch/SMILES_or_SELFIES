@@ -6,7 +6,7 @@ import os
 
 from constants import (
     MOLNET_DIRECTORY,
-    RETROSYNTHESIS_DIRECTORY,
+    REACTION_PREDICTION_DIRECTORY,
     TASK_MODEL_PATH,
     TASK_PATH,
 )
@@ -17,7 +17,7 @@ BATCH_SIZE = 16
 
 if __name__ == "__main__":
     args = parse_arguments(True, True, True)
-    tasks_directory = MOLNET_DIRECTORY | RETROSYNTHESIS_DIRECTORY
+    tasks_directory = MOLNET_DIRECTORY | REACTION_PREDICTION_DIRECTORY
     all_tasks = list(tasks_directory.keys())
     tokenizer_prefix = args["tokenizer"]
     if not ("task" in args):
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                     )
                 else:
                     os.system(
-                        f'CUDA_VISIBLE_DEVICES={args["cuda"]} fairseq-train {task_path/"pre-processed"} --update-freq 8 --restore-file fairseq_models/{tokenizer_prefix}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task translation --num-workers 1 --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion label_smoothed_cross_entropy --max-target-positions 1024 --max-source-positions 1024 --dropout {dropout} --optimizer adam --adam-betas "(0.9, 0.98)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr {learning_rate} --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --save-dir {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}'
+                        f'CUDA_VISIBLE_DEVICES={args["cuda"]} fairseq-train {task_path/"reaction_prediction"} --update-freq 8 --restore-file fairseq_models/{tokenizer_prefix}/checkpoint_last.pt --wandb-project {"Finetune_"+task} --batch-size {BATCH_SIZE} --task translation --num-workers 1 --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion label_smoothed_cross_entropy --max-target-positions 1024 --max-source-positions 1024 --dropout {dropout} --optimizer adam --adam-betas "(0.9, 0.98)" --adam-eps 1e-08 --weight-decay 0.01 --attention-dropout 0.2 --relu-dropout 0.1 --clip-norm 0.1 --lr-scheduler polynomial_decay --lr {learning_rate} --total-num-update {update_steps} --max-update {update_steps} --warmup-updates {int(update_steps*0.16)} --fp16 --keep-best-checkpoints 1 --keep-last-epochs 5 --save-dir {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}'
                     )
                 os.system(
                     f'mkdir --parents {TASK_MODEL_PATH/task/tokenizer_prefix/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")} ; mv {task_path/(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}/* /data/jgut/SoS_models/{task}/{tokenizer_prefix}/{(str(learning_rate)+"_"+str(dropout)+"_"+"based"+"_"+"norm")}'

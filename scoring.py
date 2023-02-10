@@ -24,7 +24,7 @@ from tqdm import tqdm
 from constants import (
     MOLNET_DIRECTORY,
     PROJECT_PATH,
-    RETROSYNTHESIS_DIRECTORY,
+    REACTION_PREDICTION_DIRECTORY,
     TASK_MODEL_PATH,
     TASK_PATH,
 )
@@ -261,13 +261,13 @@ if __name__ == "__main__":
                     pd.DataFrame([output_dict]).to_csv(
                         hyperparameter_path / "scores.csv"
                     )
-            if task in RETROSYNTHESIS_DIRECTORY:
+            if task in REACTION_PREDICTION_DIRECTORY:
                 # os.system(
-                #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"pre-processed"} --source-lang input --target-lang label --wandb-project retrosynthesis-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"retrosynthesis_beam"/task/tokenizer}'
+                #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"pre-processed"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam"/task/tokenizer}'
                 # )
                 samples = parse_file(
                     PROJECT_PATH
-                    / "retrosynthesis_beam"
+                    / "reaction_prediction_beam"
                     / task
                     / tokenizer
                     / "generate-test.txt"
@@ -278,7 +278,7 @@ if __name__ == "__main__":
                 output = output | score_distances(samples)
                 pd.DataFrame.from_dict([output]).to_csv(
                     PROJECT_PATH
-                    / "retrosynthesis_beam"
+                    / "reaction_prediction_beam"
                     / task
                     / tokenizer
                     / "output.csv"

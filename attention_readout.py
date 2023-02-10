@@ -172,7 +172,7 @@ def log_and_add(text, string):
 def parse_att_dict(SMILE_dict, SELFIE_dict, len_output, save_path):
     text = ""
     for (representation, dikt) in [("SMILES", SMILE_dict), ("SELFIES", SELFIE_dict)]:
-        text += f"{representation}:\n"
+        text += log_and_add(text, f"{representation}:")
         for key in sorted(dikt.keys()):
             text = log_and_add(text, f"The amount of {key} is {dikt[key]:.3f}.")
             if "attention" in key:
