@@ -10,13 +10,14 @@ from typing import List, Tuple
 
 import pandas as pd
 import selfies
-from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 from rdkit import Chem
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
 )
 from tqdm import tqdm
+
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -59,7 +60,11 @@ def canonize_smile(input_str: str) -> str:
     Returns:
         str: canonize SMILES string
     """
-    return Chem.CanonSmiles(input_str)
+    mol = Chem.MolFromSmiles(input_str)
+    if mol is None:
+        return None
+    [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+    return Chem.MolToSmiles(mol)
 
 
 def check_canonized(input_str: str) -> bool:
@@ -92,6 +97,24 @@ def translate_selfie(smile: str) -> Tuple[str, int]:
         return (None, -1)
 
 
+def translate_smile(selfie: str) -> str:
+    """Translate a SELFIES to a SMILES.
+
+    Args:
+        selfie (str): SELFIES to translate to a SMILES
+
+    Returns:
+        str: SMILES in canonical form
+    """
+    try:
+        smile = selfies.decoder(selfie)
+        canon_smile = canonize_smile(smile)
+        return canon_smile
+    except Exception as e:
+        logging.error(e)
+        return None
+
+
 def process_mol(mol: str) -> Tuple[dict, str]:
     """Process a single molecule given as SMILES string
 
@@ -116,7 +139,16 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     return descriptors.values(), "valid"
 
 
-def create_isomers(mol_string: str, isomers: int = 0):
+def create_isomers(mol_string: str, isomers: int = 0) -> Tuple[List[dict], dict]:
+    """Create isomers based on a molecule string.
+
+    Args:
+        mol_string (str): molecule string to base isomer around.
+        isomers (int, optional): Amount of created isomers per mol. Defaults to 0.
+
+    Returns:
+        Tuple[List[dict], dict]: processed mol file, statistics-dict of isomers
+    """
     if isomers <= 0:
         return None, {}
     mol = Chem.MolFromSmiles(mol_string)

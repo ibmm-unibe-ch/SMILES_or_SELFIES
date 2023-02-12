@@ -2,12 +2,12 @@
 SMILES or SELFIES, 2022
 """
 
-import json
 import logging
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from rdkit import RDLogger
 from tokenizers import (
     Regex,
     SentencePieceUnigramTokenizer,
@@ -16,10 +16,13 @@ from tokenizers import (
     pre_tokenizers,
     trainers,
 )
+from tqdm import tqdm
 from transformers import BartTokenizerFast
 
-from constants import TOKENIZER_PATH
+from constants import PROCESSED_PATH, TOKENIZER_PATH
 from preprocessing import canonize_smile, translate_selfie
+
+RDLogger.DisableLog("rdApp.warning")
 
 
 def train_sentencepiece(
@@ -43,7 +46,6 @@ def train_sentencepiece(
         show_progress=True,
         special_tokens=special_tokens,
         unk_token="<unk>",
-        # length=len(training_data),
     )
     tokenizer = BartTokenizerFast(tokenizer_object=tk_tokenizer)
     logging.info(f"Saving tokenizer to {save_path}")
@@ -111,6 +113,7 @@ def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
     """
     if translate_selfie(str(sample_smiles))[0] is None:
         return None
+
     canon_smiles = canonize_smile(sample_smiles)
     if selfies:
         canon_smiles = translate_selfie(str(canon_smiles))[0]
@@ -130,52 +133,32 @@ def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
         pd.Series: Tokenized dataset
     """
     output = np.array(
-        [tokenize_with_space(tokenizer, sample, selfies) for sample in dataset]
+        [tokenize_with_space(tokenizer, sample, selfies) for sample in tqdm(dataset)]
     )
-    return output
-
-
-def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
-    # hopefully never needed
-    dict_stub = {"<s>": 0, "<pad>": 1, "</s>": 2, "<unk>": 3}
-    output = dict_stub
-    # as seen in https://huggingface.co/facebook/bart-base/
-    # <mask> needed?
-    before = len(dict_stub)
-    with open(fairseq_dict_dir, "r") as open_file:
-        entries = open_file.readlines()
-    for entry_number, entry_string in enumerate(entries):
-        output[entry_string.split(" ")[0].strip()] = before + entry_number
-    with open(output_path, "w") as outfile:
-        json.dump(output, outfile)
     return output
 
 
 if __name__ == "__main__":
-    # """
-    SMILES = pd.read_csv("processed/10m_deduplicated_isomers.csv", usecols=[212]).values
+    SMILES = pd.read_csv(
+        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
+    ).values
     atom_SMILES_tokenizer = train_atomwise_tokenizer(
         SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
     )
     SELFIES = pd.read_csv(
-        "processed/10m_deduplicated_isomers.csv", usecols=[210]
+        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["208"]
     ).values
     atom_SELFIES_tokenizer = train_atomwise_tokenizer(
         SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
     )
-    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
-    tok._tokenizer.post_processor = BertProcessing(
-        ("</s>", 2),
-        ("<s>", 0),
-    )
-    # """
-    SMILES = pd.read_csv("processed/10m_deduplicated_isomers.csv", usecols=[212]).values
-    SMILES_tokenizer = train_sentencepiece(
-        SMILES, TOKENIZER_PATH / "smiles_sentencepiece_isomers", vocab_size=1000
-    )
-    SELFIES = pd.read_csv(
-        "processed/10m_deduplicated_isomers.csv", usecols=[210]
+    SMILES = pd.read_csv(
+        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
     ).values
+    SMILES_tokenizer = train_sentencepiece(
+        SMILES, TOKENIZER_PATH / "smiles_sentencepiece_isomers_small", vocab_size=1000
+    )
+
+    SELFIES = pd.read_csv("processed/10m_only_isomers.csv", usecols=["208"]).values
     SELFIES_tokenizer = train_sentencepiece(
         SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
     )

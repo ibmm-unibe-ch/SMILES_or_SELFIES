@@ -3,13 +3,15 @@ SMILES or SELFIES, 2022
 """
 
 import pandas as pd
-from constants import PROCESSED_PATH, SEED, TOKENIZER_PATH, VAL_SIZE
 from sklearn.utils import shuffle
-from tokenisation import get_tokenizer
 from tqdm import tqdm
+
+from constants import PROCESSED_PATH, SEED, TOKENIZER_PATH, VAL_SIZE
+from tokenisation import get_tokenizer
 
 if __name__ == "__main__":
     smiles = pd.read_csv(
+        PROCESSED_PATH / "10m_deduplicated_isomers.csv",
         PROCESSED_PATH / "10m_deduplicated_isomers.csv",
         usecols=[str(210)],
     ).values.tolist()
@@ -45,7 +47,9 @@ if __name__ == "__main__":
         usecols=[str(208)],
     ).values.tolist()
     selfies = shuffle(selfies, random_state=SEED - 385)
-    selfies_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_sentencepiece_isomers")
+    selfies_trained_tokenizer = get_tokenizer(
+        TOKENIZER_PATH / "selfies_sentencepiece_isomers"
+    )
 
     selfies_atom_tokenizer = get_tokenizer(TOKENIZER_PATH / "selfies_atom_isomers")
     val_size = VAL_SIZE
