@@ -1,4 +1,5 @@
 """ Fine tuning on MolNet tasks
+""" Fine tuning on MolNet tasks
 SMILES or SELFIES, 2022
 """
 import logging
@@ -58,3 +59,4 @@ if __name__ == "__main__":
                 logging.info(
                     f"Finished training of configuration {tokenizer_prefix} with task {task} and learning rate {learning_rate}, dropout {dropout}."
                 )
+
