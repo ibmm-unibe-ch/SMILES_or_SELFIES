@@ -5,6 +5,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from deepchem.feat import RawFeaturizer
@@ -22,7 +23,15 @@ from tokenisation import get_tokenizer, tokenize_dataset
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
-def split_reaction(smirks):
+def split_reaction(smirks: str) -> Optional[Tuple[str, str, str]]:
+    """Split a reaction SMIRKS into reactant, agent, product
+
+    Args:
+        smirks (str): SMIRKS reaction string
+
+    Returns:
+        Optional[Tuple[str, str, str]]: reactant, agent, product
+    """
     agents_check = re.findall(">>", smirks)
     if len(agents_check) == 0:
         split_smirks = smirks.split(">")
@@ -39,7 +48,15 @@ def split_reaction(smirks):
     return (reactant, agent, product)
 
 
-def split_it(ds):
+def split_it(ds: List[str]) -> pd.DataFrame:
+    """Split dataset and create a DataFrame with each sample in one row split into reactant, agent, product
+
+    Args:
+        ds (List[str]): SMIRKS samples
+
+    Returns:
+        pd.DataFrame: DataFrame of SMIRKS, reactant, agent, product
+    """
     reactants = []
     agents = []
     products = []
@@ -61,7 +78,19 @@ def split_it(ds):
     return df
 
 
-def read_uspto(task: str, dataset: str):
+def read_uspto(task: str, dataset: str) -> pd.DataFrame:
+    """Read one USPTO task from the correct split
+
+    Args:
+        task (str): USPTO task
+        dataset (str): split ["train", "valid", "test"]
+
+    Raises:
+        Exception: Incorrect USPTO task
+
+    Returns:
+        pd.DataFrame: USPTO DataFrame with SMIRKS, reactant, agent, product
+    """
     if task == "jin":
         read_data = pd.read_csv(
             USPTO_PATH
@@ -99,7 +128,15 @@ def prepare_uspto(
     output_dir: Path,
     model_dict: Path,
 ):
-    """ """
+    """Read and fairseq-prepare USPTO task
+
+    Args:
+        task (str): USPTO task
+        tokenizer: HuggingFace tokenizer to use
+        selfies (bool): Translate to SELFIES or not
+        output_dir (Path): where to save dataset
+        model_dict (Path): for which model/tokenizer to optimise
+    """
     datasets = ["train", "valid", "test"]
     for dataset in datasets:
         read_data = read_uspto(task, dataset)

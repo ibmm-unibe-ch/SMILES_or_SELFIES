@@ -1,5 +1,11 @@
+"""Readout of attention
+SMILES or SELFIES
+"""
+
 import logging
 import re
+from pathlib import Path
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -19,7 +25,16 @@ from tokenisation import get_tokenizer
 from utils import parse_arguments
 
 
-def generate_prev_output_tokens(sample, source_dictionary):
+def generate_prev_output_tokens(sample: np.ndarray, source_dictionary) -> np.ndarray:
+    """Generate previous output tokens needed for the fairseq models
+
+    Args:
+        sample (np.ndarray): sample to generate output tokens from
+        source_dictionary (fairseq dictionary): used to translation
+
+    Returns:
+        np.ndarray: previous output tokens
+    """
     tokens = sample.unsqueeze(-1)
     prev_output_tokens = tokens.clone()
     prev_output_tokens[:, 0] = tokens.gather(
@@ -29,7 +44,22 @@ def generate_prev_output_tokens(sample, source_dictionary):
     return prev_output_tokens
 
 
-def compute_attention_output(dataset, model, text, source_dictionary, tokenizer=None):
+def compute_attention_output(
+    dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
+) -> List[List[Tuple[float, str]]]:
+    """Compute attention of whole dataset with model copied from fairseq
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        dataset (List[np.ndarray]): pre-processed dataset to get attention from
+        model (fairseq model): fairseq model
+        text (List[str]): human readable string of samples
+        source_dictionary: source dictionary for fairseq
+        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
+
+    Returns:
+        List[List[Tuple[float, str]]]: List[List[attention, token]]
+    """
     # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
     device = next(model.parameters()).device
     attentions = []
@@ -55,8 +85,16 @@ def compute_attention_output(dataset, model, text, source_dictionary, tokenizer=
     return attentions
 
 
-def aggregate_SMILE_attention(line):
-    # http://www.dalkescientific.com/writings/diary/archive/2004/01/05/tokens.html
+def aggregate_SMILE_attention(line: List[float, str]) -> dict:
+    """Aggregate the attention from a SMILES line according to similar tokens
+    http://www.dalkescientific.com/writings/diary/archive/2004/01/05/tokens.html
+
+    Args:
+        line (List[float, str]): Line consisting of attention score and token
+
+    Returns:
+        dict: dict with keys to indicate aggregation and scores
+    """
     output_dict = {}
     bond = ""
     bond_att = 0
@@ -129,7 +167,15 @@ def aggregate_SMILE_attention(line):
     return output_dict
 
 
-def aggregate_SELFIE_attention(line):
+def aggregate_SELFIE_attention(line: List[float, str]) -> dict:
+    """Aggregate the attention from a SELFIES line according to similar tokens
+
+    Args:
+        line (List[float, str]): Line consisting of attention score and token
+
+    Returns:
+        dict: dict with keys to indicate aggregation and scores
+    """
     output_dict = {}
     structure_tokens = 0
     for (score, token) in line:
@@ -163,13 +209,32 @@ def aggregate_SELFIE_attention(line):
     return output_dict
 
 
-def log_and_add(text, string):
+def log_and_add(text: str, string: str) -> str:
+    """Log string and add it to text
+
+    Args:
+        text (str): Longer text to add string to
+        string (str): String to add to log and add to text
+
+    Returns:
+        str: Extended text
+    """
     logging.info(string)
     text += string + "\n"
     return text
 
 
-def parse_att_dict(SMILE_dict, SELFIE_dict, len_output, save_path):
+def parse_att_dict(
+    SMILE_dict: dict, SELFIE_dict: dict, len_output: int, save_path: Path
+):
+    """Parse the attention dicts.
+
+    Args:
+        SMILE_dict (dict): dict of SMILES
+        SELFIE_dict (dict): dict of SELFIES
+        len_output (int): amount of samples
+        save_path (Path): path to save aggregates to
+    """
     text = ""
     for (representation, dikt) in [("SMILES", SMILE_dict), ("SELFIES", SELFIE_dict)]:
         text += log_and_add(text, f"{representation}:")
@@ -190,7 +255,15 @@ def parse_att_dict(SMILE_dict, SELFIE_dict, len_output, save_path):
         openfile.write(text)
 
 
-def load_molnet_test_set(task):
+def load_molnet_test_set(task: str) -> Tuple[List[str], List[int]]:
+    """Load MoleculeNet task
+
+    Args:
+        task (str): MoleculeNet task to load
+
+    Returns:
+        Tuple[List[str], List[int]]: Features, Labels
+    """
     task_test = MOLNET_DIRECTORY[task]["load_fn"](
         featurizer=RawFeaturizer(smiles=True), splitter=MOLNET_DIRECTORY[task]["split"]
     )[1][2]
@@ -199,7 +272,18 @@ def load_molnet_test_set(task):
     return task_SMILES, task_labels
 
 
-def generate_attention_dict(task, cuda):
+def generate_attention_dict(
+    task: str, cuda: int
+) -> Tuple[List[List[float]], np.ndarray]:
+    """Generate the attention dict of a task
+
+    Args:
+        task (str): Task to find attention of
+        cuda (int): CUDA device to use
+
+    Returns:
+        Tuple[List[List[float]], np.ndarray]: attention, labels
+    """
     task_SMILES, task_labels = load_molnet_test_set(task)
     for encoding in [
         "smiles_atom",
@@ -242,7 +326,15 @@ def generate_attention_dict(task, cuda):
     return output, labels
 
 
-def aggregate_attention(output):
+def aggregate_attention(output: List[float, str]) -> Tuple[dict, dict]:
+    """Aggregate the attention of annotated
+
+    Args:
+        output (str): List of attention and token
+
+    Returns:
+        Tuple[dict,dict]: SMILES_dict, SELFIES_dict
+    """
     SMILE_dict = {}
     SELFIE_dict = {}
     for line in output:
@@ -259,7 +351,17 @@ def aggregate_attention(output):
     return SMILE_dict, SELFIE_dict
 
 
-def produce_att_samples(output, labels, save_dir, samples=20):
+def produce_att_samples(
+    output: List[float, str], labels: List[int], save_dir: Path, samples: int = 20
+):
+    """Produce *samples* many samples from output with labels and save them to save_dir
+
+    Args:
+        output (List[float, str]): List of attention and token
+        labels (List[int]): Labels of samples
+        save_dir (Path): where to save samples to
+        samples (int, optional): amount of samples to select. Defaults to 20.
+    """
     md = ""
     for i in range(samples):
         md += f"# Sample {i+1} with value {labels[i]:.3f}" + r"\n"

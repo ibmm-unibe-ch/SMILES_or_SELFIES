@@ -1,8 +1,10 @@
-""" Parse generation
+""" Parse generation file 
 SMILES or SELFIES 2023
 """
 import os
 import re
+from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,15 +15,33 @@ from lexicographic_scores import compute_distances
 from preprocessing import canonize_smile, translate_smile
 
 
-def parse_line(line: str, separator_occurences=1):
+def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool, int]:
+    """Parse line after seperator_occurences of the seperator
+
+    Args:
+        line (str): line to parse
+        separator_occurences (int, optional): how many seperator was seen before the good sequence. Defaults to 1.
+
+    Returns:
+        Tuple[str, bool, int]: parsed mol, unknown flag, amount of NLP tokens
+    """
     tokens = line.split("\t", separator_occurences)[separator_occurences]
     tokens = [token.strip() for token in tokens.split(" ") if token]
     unk_flag = "<unk>" in tokens
     full = "".join(tokens).strip()
-    return full, unk_flag
+    return full, unk_flag, len(tokens)
 
 
-def parse_file(file_path, examples_per=10):
+def parse_file(file_path: Path, examples_per: int = 10) -> dict:
+    """Parsing of generation file made by fairseq-generate
+
+    Args:
+        file_path (Path): Path to fairseq-generated file
+        examples_per (int, optional): How many examples . Defaults to 10.
+
+    Returns:
+        dict: _description_
+    """
     with open(file_path, "r") as open_file:
         lines = open_file.readlines()[:-1]
     samples = []
@@ -31,17 +51,19 @@ def parse_file(file_path, examples_per=10):
     target_examples = np.split(np.array(lines), len(lines) / (2 + 3 * examples_per))
     for target_example in tqdm(target_examples):
         sample_dict = {}
-        source, source_unk = parse_line(target_example[0], 1)
+        source, source_unk, source_len = parse_line(target_example[0], 1)
         sample_dict["source"] = source
         sample_dict["source_unk"] = source_unk
-        target, target_unk = parse_line(target_example[1], 1)
+        sample_dict["source_len"] = source_len
+        target, target_unk, target_len = parse_line(target_example[1], 1)
         sample_dict = sample_dict | compute_distances(source, target)
         sample_dict["target"] = target
         sample_dict["target_unk"] = target_unk
+        sample_dict["target_len"] = target_len
         predictions = []
         target_example = target_example[2:]
         for _ in range(examples_per):
-            prediction, prediction_unk = parse_line(target_example[0], 2)
+            prediction, prediction_unk, _ = parse_line(target_example[0], 2)
             predictions.append((prediction, prediction_unk))
             target_example = target_example[3:]
         sample_dict["predictions"] = predictions
@@ -82,6 +104,8 @@ def score_samples(samples, selfies=False):
 
 def score_distances(samples):
     keep_keys = [
+        "source_len",
+        "target_len",
         "max_len",
         "len_diff",
         "nw",
@@ -99,14 +123,18 @@ def score_distances(samples):
         "BLEU2",
         "BLEU3",
         "BLEU4",
+        "input_set",
+        "output_set",
     ]
     df = [{key: sample[key] for key in keep_keys} for sample in samples]
     df = pd.DataFrame.from_dict(df)
     output = {}
-    for key in keep_keys:
+    for key in keep_keys[:-2]:
         output[f"{key}_mean"] = df[key].mean()
         output[f"{key}_median"] = df[key].median()
         output[f"{key}_std"] = df[key].std()
+    output["unique_input_tokens"] = len(set.union(*df["input_set"].tolist()))
+    output["unique_output_tokens"] = len(set.union(*df["output_set"].tolist()))
     return output
 
 

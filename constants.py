@@ -81,7 +81,7 @@ MOLNET_DIRECTORY = {
     },
 }
 
-RETROSYNTHESIS_DIRECTORY = {
+REACTION_PREDICTION_DIRECTORY = {
     "lef": {
         "dataset_type": "generation",
         "trainingset_size": 296578,

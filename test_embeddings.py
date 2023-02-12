@@ -1,5 +1,9 @@
+"""TBD
+SMILES or SELFIES, 2023
+"""
 import logging
 import os
+import pprint
 
 import numpy as np
 import pandas as pd
@@ -54,9 +58,9 @@ def eval_weak_estimators(train_X, train_y, test_X, test_y, report_prefix):
         with open(reportpath, "w") as reportfile:
             reportfile.writelines(
                 [
-                    name,
-                    classification_report(test_y, predictions),
-                    grid_search.best_params_,
+                    str(name),
+                    str(classification_report(test_y, predictions)),
+                    pprint.pformat(grid_search.best_params_),
                 ]
             )
 

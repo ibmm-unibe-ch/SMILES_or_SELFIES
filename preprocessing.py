@@ -98,6 +98,14 @@ def translate_selfie(smile: str) -> Tuple[str, int]:
 
 
 def translate_smile(selfie: str) -> str:
+    """Translate a SELFIES to a SMILES.
+
+    Args:
+        selfie (str): SELFIES to translate to a SMILES
+
+    Returns:
+        str: SMILES in canonical form
+    """
     try:
         smile = selfies.decoder(selfie)
         canon_smile = canonize_smile(smile)
@@ -131,7 +139,16 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     return descriptors.values(), "valid"
 
 
-def create_isomers(mol_string: str, isomers: int = 0):
+def create_isomers(mol_string: str, isomers: int = 0) -> Tuple[List[dict], dict]:
+    """Create isomers based on a molecule string.
+
+    Args:
+        mol_string (str): molecule string to base isomer around.
+        isomers (int, optional): Amount of created isomers per mol. Defaults to 0.
+
+    Returns:
+        Tuple[List[dict], dict]: processed mol file, statistics-dict of isomers
+    """
     if isomers <= 0:
         return None, {}
     mol = Chem.MolFromSmiles(mol_string)

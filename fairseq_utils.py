@@ -119,6 +119,13 @@ def create_dict_from_fairseq(fairseq_dict_dir: Path, output_path: Path):
 def transplant_model(
     taker_model_path: Path, giver_model_path: Path, output_path: Optional[Path] = None
 ):
+    """Transplanting a diffusion (giver) model to a different (taker) model and save it to output_path
+
+    Args:
+        taker_model_path (Path): path to taker model
+        giver_model_path (Path): path to giver model
+        output_path (Optional[Path], optional): path where to save transplanted model to. Defaults to taker model.
+    """
     taker_model = torch.load(taker_model_path)
     giver_model = torch.load(giver_model_path)
     if output_path is None:
@@ -132,6 +139,7 @@ def transplant_model(
 
 
 def transform_to_translation_models():
+    """Transform a diffusion model to a translation model, which then can be used by fairseq."""
     for tokenizer_suffix in [
         "smiles_atom",
         "selfies_atom",

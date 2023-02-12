@@ -1,5 +1,9 @@
+"""Lexicographic distances
+SMILES or SELFIES, 2023
+"""
 import re
 from collections import defaultdict
+from typing import Dict, List
 
 import nltk
 from rouge_score import rouge_scorer
@@ -7,8 +11,17 @@ from rouge_score import rouge_scorer
 from constants import PARSING_REGEX
 
 
-def compute_damerau_levenshtein(sequence1, sequence2):
-    # https://github.com/jamesturk/jellyfish/blob/d15fee2de05694fe65d1cbb78519f01955ec3154/jellyfish/_jellyfish.py#L133
+def compute_damerau_levenshtein(sequence1: List[str], sequence2: List[str]) -> float:
+    """Compute the Damerau Levenshtein distance between sequence1 and sequence2
+    https://github.com/jamesturk/jellyfish/blob/d15fee2de05694fe65d1cbb78519f01955ec3154/jellyfish/_jellyfish.py#L133
+
+    Args:
+        sequence1 (List[str]): starting sequence
+        sequence2 (List[str]): ending sequence
+
+    Returns:
+        float: Damerau Levenshtein distance
+    """
     da = defaultdict(lambda: 0)
     maxdist = len(sequence1) + len(sequence2) + 2
     d = {}
@@ -40,8 +53,17 @@ def compute_damerau_levenshtein(sequence1, sequence2):
     return d[(len(sequence1) + 1, len(sequence2) + 1)]
 
 
-def compute_levenshtein(sequence1: list[str], sequence2: list[str]):
-    # https://en.wikipedia.org/wiki/Levenshtein_distance
+def compute_levenshtein(sequence1: list[str], sequence2: list[str]) -> float:
+    """Compute the Levenshtein distance between sequence1 and sequence2
+    https://en.wikipedia.org/wiki/Levenshtein_distance
+
+    Args:
+        sequence1 (List[str]): starting sequence
+        sequence2 (List[str]): ending sequence
+
+    Returns:
+        float: Levenshtein distance
+    """
     v0 = list(range(len(sequence2) + 1))
     for i, _ in enumerate(sequence1):
         v1 = [i + 1]
@@ -57,7 +79,16 @@ def compute_levenshtein(sequence1: list[str], sequence2: list[str]):
     return v0[-1]
 
 
-def match_score(alpha, beta):
+def match_score(alpha: str, beta: str) -> int:
+    """Trying to match two strings for Needleman Wunsch
+
+    Args:
+        alpha (str): first token
+        beta (str): second token
+
+    Returns:
+        int: 1==match, else -1
+    """
     if alpha == beta:
         return 1
     if alpha == "-" or beta == "-":
@@ -65,8 +96,17 @@ def match_score(alpha, beta):
     return -1
 
 
-def compute_needleman_wunsch(sequence1, sequence2):
-    # https://wilkelab.org/classes/SDS348/2019_spring/labs/lab13-solution.html
+def compute_needleman_wunsch(sequence1: List[str], sequence2: List[str]) -> float:
+    """Compute the Needleman Wunsch score between sequence1 and sequence2
+    https://wilkelab.org/classes/SDS348/2019_spring/labs/lab13-solution.html
+
+    Args:
+        sequence1 (List[str]): starting sequence
+        sequence2 (List[str]): ending sequence
+
+    Returns:
+        float: Needleman Wunsch score
+    """
     n = len(sequence1)
     m = len(sequence2)
     if min(m, n) <= 0:
@@ -92,7 +132,16 @@ def compute_needleman_wunsch(sequence1, sequence2):
     return score[-1][-1]
 
 
-def compute_rouge(input_str, output_str):
+def compute_rouge(input_str: List[str], output_str: List[str]) -> float:
+    """Compute the ROUGE score between input_str and output_str
+
+    Args:
+        input_str (List[str]): starting sequence
+        output_str (List[str]): ending sequence
+
+    Returns:
+        float: ROUGE score
+    """
     rouge_metrics = ["rouge1", "rouge2", "rouge3", "rougeL"]
     scorer = rouge_scorer.RougeScorer(rouge_metrics, use_stemmer=False)
     scores = scorer.score(" ".join(input_str), " ".join(output_str))
@@ -102,7 +151,16 @@ def compute_rouge(input_str, output_str):
     return output_dict
 
 
-def compute_bleu(input_str, output_str):
+def compute_bleu(input_str: List[str], output_str: List[str]) -> float:
+    """Compute the BLEU score between input_str and output_str
+
+    Args:
+        input_str (List[str]): starting sequence
+        output_str (List[str]): ending sequence
+
+    Returns:
+        float: BLEU score
+    """
     output_dict = {}
     output_dict["BLEU"] = nltk.translate.bleu_score.sentence_bleu(
         [input_str], output_str
@@ -122,7 +180,16 @@ def compute_bleu(input_str, output_str):
     return output_dict
 
 
-def compute_distances(input_str, output_str):
+def compute_distances(input_str: str, output_str: str) -> Dict[str, float]:
+    """Compute all distances from input_str to output_str and return them in a dict
+
+    Args:
+        input_str (str): starting string
+        output_str (str): output string
+
+    Returns:
+        Dict[str, float]: dict of lexicographic distances
+    """
     input_tokens = [
         parsed_token.strip()
         for parsed_token in re.split(PARSING_REGEX, input_str)
@@ -136,6 +203,8 @@ def compute_distances(input_str, output_str):
     output_dict = {}
     max_length = max(len(input_tokens), len(output_tokens))
     length_diff = abs(len(input_tokens) - len(output_tokens))
+    output_dict["input_set"] = set(input_tokens)
+    output_dict["output_set"] = set(output_tokens)
     output_dict["max_len"] = max_length
     output_dict["len_diff"] = length_diff
     output_dict["nw"] = compute_needleman_wunsch(input_tokens, output_tokens)
