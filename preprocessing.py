@@ -10,13 +10,14 @@ from typing import List, Tuple
 
 import pandas as pd
 import selfies
-from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 from rdkit import Chem
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
 )
 from tqdm import tqdm
+
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -138,7 +139,6 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     return descriptors.values(), "valid"
 
 
-<<<<<<< HEAD
 def create_isomers(mol_string: str, isomers: int = 0) -> Tuple[List[dict], dict]:
     """Create isomers based on a molecule string.
 
@@ -149,9 +149,6 @@ def create_isomers(mol_string: str, isomers: int = 0) -> Tuple[List[dict], dict]
     Returns:
         Tuple[List[dict], dict]: processed mol file, statistics-dict of isomers
     """
-=======
-def create_isomers(mol_string: str, isomers: int = 0):
->>>>>>> 4884e2bcd2f9dde11fb542ae119564607a4d642c
     if isomers <= 0:
         return None, {}
     mol = Chem.MolFromSmiles(mol_string)

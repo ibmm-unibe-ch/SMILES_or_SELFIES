@@ -132,16 +132,6 @@ def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
     Returns:
         pd.Series: Tokenized dataset
     """
-    """Tokenize whole dataset with tokenizer
-
-    Args:
-        tokenizer (_type_): Tokenizer to use for tokenisation
-        dataset (pd.Series): dataset to tokenize
-        selfies (bool, optional): Tranlsate to SELFIES (True) or keep SMILES(False). Defaults to False.
-
-    Returns:
-        pd.Series: Tokenized dataset
-    """
     output = np.array(
         [tokenize_with_space(tokenizer, sample, selfies) for sample in tqdm(dataset)]
     )
@@ -154,13 +144,11 @@ if __name__ == "__main__":
     ).values
     atom_SMILES_tokenizer = train_atomwise_tokenizer(
         SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
-        SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
     )
     SELFIES = pd.read_csv(
         PROCESSED_PATH / "10m_only_isomers.csv", usecols=["208"]
     ).values
     atom_SELFIES_tokenizer = train_atomwise_tokenizer(
-        SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
         SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
     )
     SMILES = pd.read_csv(
@@ -172,6 +160,5 @@ if __name__ == "__main__":
 
     SELFIES = pd.read_csv("processed/10m_only_isomers.csv", usecols=["208"]).values
     SELFIES_tokenizer = train_sentencepiece(
-        SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
         SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
     )
