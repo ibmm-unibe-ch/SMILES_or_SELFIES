@@ -1,61 +1,240 @@
 """ Dataset class for loading
 SMILES or SELFIES, 2022
 """
+import logging
+import os
+import re
 from pathlib import Path
-from typing import Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import pandas as pd
-import torch
-from torch.utils.data import Dataset, random_split
+from deepchem.feat import RawFeaturizer
+from tqdm import tqdm
 
-from constants import SEED
+from constants import (
+    FAIRSEQ_PREPROCESS_PATH,
+    MOLNET_DIRECTORY,
+    TASK_PATH,
+    TOKENIZER_PATH,
+    USPTO_PATH,
+)
+from tokenisation import get_tokenizer, tokenize_dataset
 
-
-class PandasDataset(Dataset):
-    """Simple wrapper to load pandas to a torch dataset"""
-
-    def __init__(self, file_path: Path, column: int, tokenizer):
-        self.df = pd.read_csv(file_path, usecols=[str(column)]).values
-        self.tokenizer = tokenizer
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx):
-        item = self.tokenizer(self.df[idx][0], padding="max_length", max_length=42)
-        item["labels"] = item["input_ids"].copy()
-        for key in item:
-            item[key] = torch.tensor(item[key])
-        return item
+os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
-def split_train_eval(
-    dataset: Dataset, eval_size: Union[int, float] = 10000
-) -> Tuple[Dataset, Dataset]:
-    """Split torch dataset to eval_size
+def split_reaction(smirks: str) -> Optional[Tuple[str, str, str]]:
+    """Split a reaction SMIRKS into reactant, agent, product
 
     Args:
-        dataset (Dataset): dataset to split
-        eval_size (Union[int, float], optional): relative or absolute size of eval_set. Defaults to 10000.
+        smirks (str): SMIRKS reaction string
 
     Returns:
-        Tuple[Dataset, Dataset]: train_set, eval_set
+        Optional[Tuple[str, str, str]]: reactant, agent, product
     """
-    len_dataset = 1 if eval_size < 0 else len(dataset)
-    train_set, eval_set = random_split(
-        dataset,
-        [len_dataset - eval_size, eval_size],
-        generator=torch.Generator().manual_seed(SEED + 238947),
+    agents_check = re.findall(">>", smirks)
+    if len(agents_check) == 0:
+        split_smirks = smirks.split(">")
+        reactant = split_smirks[0]
+        agent = split_smirks[1]
+        product = split_smirks[2]
+    elif len(agents_check) == 1:
+        split_smirks = smirks.split(">>")
+        agent = ""
+        reactant = split_smirks[0]
+        product = split_smirks[1]
+    else:
+        return None
+    return (reactant, agent, product)
+
+
+def split_it(ds: List[str]) -> pd.DataFrame:
+    """Split dataset and create a DataFrame with each sample in one row split into reactant, agent, product
+
+    Args:
+        ds (List[str]): SMIRKS samples
+
+    Returns:
+        pd.DataFrame: DataFrame of SMIRKS, reactant, agent, product
+    """
+    reactants = []
+    agents = []
+    products = []
+    smirks_orig = []
+    for smirks in tqdm(ds):
+        reactant, agent, product = split_reaction(str(smirks))
+        reactants.append(reactant)
+        agents.append(agent)
+        products.append(product)
+        smirks_orig.append(smirks)
+    df = pd.DataFrame(
+        {
+            "SMIRKS": smirks_orig,
+            "Reactant": reactants,
+            "Agent": agents,
+            "Product": products,
+        }
     )
-    return train_set, eval_set
+    return df
+
+
+def read_uspto(task: str, dataset: str) -> pd.DataFrame:
+    """Read one USPTO task from the correct split
+
+    Args:
+        task (str): USPTO task
+        dataset (str): split ["train", "valid", "test"]
+
+    Raises:
+        Exception: Incorrect USPTO task
+
+    Returns:
+        pd.DataFrame: USPTO DataFrame with SMIRKS, reactant, agent, product
+    """
+    if task == "jin":
+        read_data = pd.read_csv(
+            USPTO_PATH
+            / "ReactionSeq2Seq_Dataset"
+            / ("Jin_USPTO_1product_" + dataset + ".txt"),
+            delimiter=" ",
+            skiprows=1,
+            names=["reaction", "delimiters"],
+        )["reaction"]
+    elif task == "schwaller":
+        read_data = pd.read_csv(
+            USPTO_PATH
+            / "ReactionSeq2Seq_Dataset"
+            / ("US_patents_1976-Sep2016_1product_reactions_" + dataset + ".csv"),
+            skiprows=2,
+            header=0,
+            sep="\t",
+            usecols=["CanonicalizedReaction"],
+        )["CanonicalizedReaction"]
+    elif task == "lef":
+        read_data = pd.read_csv(
+            USPTO_PATH / "lef_uspto" / ("filtered_" + dataset + ".txt"),
+            delimiter=" ",
+            names=["reaction", "delimiters"],
+        )["reaction"]
+    else:
+        raise Exception(f"Wrong USPTO task name: {task}")
+    return split_it(read_data)
+
+
+def prepare_uspto(
+    task: str,
+    tokenizer,
+    selfies: bool,
+    output_dir: Path,
+    model_dict: Path,
+):
+    """Read and fairseq-prepare USPTO task
+
+    Args:
+        task (str): USPTO task
+        tokenizer: HuggingFace tokenizer to use
+        selfies (bool): Translate to SELFIES or not
+        output_dir (Path): where to save dataset
+        model_dict (Path): for which model/tokenizer to optimise
+    """
+    datasets = ["train", "valid", "test"]
+    for dataset in datasets:
+        read_data = read_uspto(task, dataset)
+        reactant = tokenize_dataset(tokenizer, read_data["Reactant"], selfies)
+        products = tokenize_dataset(tokenizer, read_data["Product"], selfies)
+        clean_reactant = reactant[~(pd.isna(reactant) | pd.isna(products))]
+        clean_products = products[~(pd.isna(reactant) | pd.isna(products))]
+        logging.info(
+            f"For task {task} in set {dataset}, {sum(pd.isna(clean_products))} ({(sum(pd.isna(clean_products))/len(products))*100:.2f})% samples could not be formed to SELFIES."
+        )
+        clean_reactant.tofile(output_dir / (dataset + ".input"), sep="\n", format="%s")
+        clean_products.tofile(output_dir / (dataset + ".label"), sep="\n", format="%s")
+    os.system(
+        (
+            f'fairseq-preprocess --trainpref {output_dir/"train"} --validpref {output_dir/"valid"} --testpref {output_dir/"test"} --srcdict {model_dict} --tgtdict {model_dict} --workers 60 --source-lang input --target-lang label --destdir {output_dir/"reaction_prediction"}'
+        )
+    )
+    os.system(
+        (
+            f'fairseq-preprocess --trainpref {output_dir/"train"} --validpref {output_dir/"valid"} --testpref {output_dir/"test"} --srcdict {model_dict} --tgtdict {model_dict} --workers 60 --source-lang label --target-lang input --destdir {output_dir/"retrosynthesis"}'
+        )
+    )
+
+
+def prepare_molnet(
+    task: str,
+    tokenizer,
+    selfies: bool,
+    output_dir: Path,
+    model_dict: Path,
+):
+    """Prepare Molnet tasks with fairseq, so that they can be used for fine-tuning.
+
+    Args:
+        task (str): which MolNet task to prepare
+        tokenizer (tokenizer): which tokenizer to use for this dataset
+        selfies (bool): Use selfies or not; should agree with selected tokenizer
+        output_dir (Path): where to save preprocessed files
+        model_dict (Path): which vocabulary to use for pre-processing
+    """
+    molnet_infos = MOLNET_DIRECTORY[task]
+    _, splits, _ = molnet_infos["load_fn"](
+        featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"]
+    )
+    tasks = ["train", "valid", "test"]
+    for id_number, split in enumerate(splits):
+        mol = tokenize_dataset(tokenizer, split.X, selfies)
+        # no normalisation of labels
+        if "tasks_wanted" in molnet_infos:
+            correct_column = split.tasks.tolist().index(molnet_infos["tasks_wanted"][0])
+            label = split.y[:, correct_column]
+        else:
+            label = split.y
+        label = label[~pd.isna(mol)]
+        logging.info(
+            f"For task {task} in set {tasks[id_number]}, {sum(pd.isna(mol))} ({(sum(pd.isna(mol))/len(mol))*100:.2f})% samples could not be formed to SELFIES."
+        )
+        mol = mol[~pd.isna(mol)]
+        mol.tofile(output_dir / (tasks[id_number] + ".input"), sep="\n", format="%s")
+        label.tofile(output_dir / (tasks[id_number] + ".label"), sep="\n", format="%s")
+        if molnet_infos["dataset_type"] == "regression":
+            (output_dir / "label").mkdir(parents=True, exist_ok=True)
+            label.tofile(
+                output_dir / "label" / (tasks[id_number] + ".label"),
+                sep="\n",
+                format="%s",
+            )
+    os.system(
+        (
+            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --validpref {output_dir/"valid.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --srcdict {model_dict} --workers 60'
+        )
+    )
+    os.system(
+        (
+            f'fairseq-preprocess --only-source --trainpref {output_dir/"train.label"} --validpref {output_dir/"valid.label"} --testpref {output_dir/"test.label"} --destdir {output_dir/"label"} --workers 60'
+        )
+    )
 
 
 if __name__ == "__main__":
-    """only for testing purposes"""
-    test = PandasDataset(
-        "/home/jgut/GitHub/SMILES_or_SELFIES/processed/10m_dataframe.csv", 210
-    )
-    train, test = split_train_eval(test, 10)
-    print(len(train))
-    print(len(test))
-    print(test[0])
+    molnets = MOLNET_DIRECTORY
+    for tokenizer_suffix in [
+        "smiles_isomers_atom",
+        "smiles_isomers_sentencepiece",
+        "selfies_isomers_atom",
+        "selfies_isomers_sentencepiece",
+    ]:
+        selfies = tokenizer_suffix.startswith("selfies")
+        tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
+        preprocess_path = FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt"
+        for key in MOLNET_DIRECTORY:
+            output_dir = TASK_PATH / key / tokenizer_suffix
+            output_dir.mkdir(parents=True, exist_ok=True)
+            prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path)
+            logging.info(f"Finished creating {output_dir}")
+
+        for key in ["jin", "schwaller", "lef"]:
+            output_dir = TASK_PATH / key / tokenizer_suffix
+            output_dir.mkdir(parents=True, exist_ok=True)
+            prepare_uspto(key, tokenizer, selfies, output_dir, preprocess_path)
+            logging.info(f"Finished creating {output_dir}")
