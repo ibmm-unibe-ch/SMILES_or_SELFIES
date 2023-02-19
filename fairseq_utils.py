@@ -1,6 +1,11 @@
+""" Util functions to deal with fairseq
+SMILES or SELFIES, 2023
+"""
+
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -11,7 +16,7 @@ from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
 from tqdm import tqdm
 
-from constants import PROJECT_PATH, TASK_PATH
+from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
 
 
 def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
@@ -156,3 +161,87 @@ def transform_to_translation_models():
             / "checkpoint_last.pt",
             PROJECT_PATH / "fairseq_models" / tokenizer_suffix / "checkpoint_last.pt",
         )
+
+
+def get_embeddings(model, dataset, source_dictionary, cuda=3):
+    embeddings = []
+    for sample in tqdm(dataset):
+        sample = sample[:1020]
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device=f"cuda:{cuda}"
+        )
+        # same as in predict
+        features = model.model(
+            sample.unsqueeze(0).to(device=f"cuda:{cuda}"),
+            None,
+            prev_output_tokens,
+            features_only=True,
+        )[0][-1, :]
+        embedding = (
+            features.view(features.size(0), -1, features.size(-1))[:, -1, :]
+            .cpu()
+            .detach()
+            .numpy()
+        ).squeeze()
+        embeddings.append(embedding)
+    return embeddings
+
+
+def generate_prev_output_tokens(sample: np.ndarray, source_dictionary) -> np.ndarray:
+    """Generate previous output tokens needed for the fairseq models
+
+    Args:
+        sample (np.ndarray): sample to generate output tokens from
+        source_dictionary (fairseq dictionary): used to translation
+
+    Returns:
+        np.ndarray: previous output tokens
+    """
+    tokens = sample.unsqueeze(-1)
+    prev_output_tokens = tokens.clone()
+    prev_output_tokens[:, 0] = tokens.gather(
+        0, (tokens.ne(source_dictionary.pad()).sum(0) - 1).unsqueeze(-1)
+    ).squeeze()
+    prev_output_tokens[:, 1:] = tokens[:, :-1]
+    return prev_output_tokens
+
+
+def compute_attention_output(
+    dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
+) -> List[List[Tuple[float, str]]]:
+    """Compute attention of whole dataset with model copied from fairseq
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        dataset (List[np.ndarray]): pre-processed dataset to get attention from
+        model (fairseq model): fairseq model
+        text (List[str]): human readable string of samples
+        source_dictionary: source dictionary for fairseq
+        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
+
+    Returns:
+        List[List[Tuple[float, str]]]: List[List[attention, token]]
+    """
+    # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+    device = next(model.parameters()).device
+    attentions = []
+    for counter, sample in enumerate(dataset):
+        if tokenizer is None:
+            parsed_tokens = [
+                parsed_token
+                for parsed_token in re.split(PARSING_REGEX, text[counter])
+                if parsed_token
+            ]
+        else:
+            parsed_tokens = tokenizer.convert_ids_to_tokens(
+                tokenizer(str(text[counter])).input_ids
+            )
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device
+        )
+        # same as in predict
+        attention = model.model(
+            sample.unsqueeze(0).to(device), None, prev_output_tokens
+        )[1]["attn"][0][0][0].tolist()
+        attentions.append(list(zip(attention, parsed_tokens)))
+    return attentions

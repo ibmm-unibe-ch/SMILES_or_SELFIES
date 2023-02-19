@@ -2,8 +2,6 @@
 SMILES or SELFIES
 """
 
-import logging
-import re
 from pathlib import Path
 from typing import List, Tuple
 
@@ -12,77 +10,12 @@ import pandas as pd
 from deepchem.feat import RawFeaturizer
 from fairseq.data import Dictionary
 
-from constants import (
-    MOLNET_DIRECTORY,
-    PARSING_REGEX,
-    TASK_MODEL_PATH,
-    TASK_PATH,
-    TOKENIZER_PATH,
-)
+from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_PATH
+from fairseq_utils import compute_attention_output
 from preprocessing import canonize_smile, translate_selfie
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
-from utils import parse_arguments
-
-
-def generate_prev_output_tokens(sample: np.ndarray, source_dictionary) -> np.ndarray:
-    """Generate previous output tokens needed for the fairseq models
-
-    Args:
-        sample (np.ndarray): sample to generate output tokens from
-        source_dictionary (fairseq dictionary): used to translation
-
-    Returns:
-        np.ndarray: previous output tokens
-    """
-    tokens = sample.unsqueeze(-1)
-    prev_output_tokens = tokens.clone()
-    prev_output_tokens[:, 0] = tokens.gather(
-        0, (tokens.ne(source_dictionary.pad()).sum(0) - 1).unsqueeze(-1)
-    ).squeeze()
-    prev_output_tokens[:, 1:] = tokens[:, :-1]
-    return prev_output_tokens
-
-
-def compute_attention_output(
-    dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
-) -> List[List[Tuple[float, str]]]:
-    """Compute attention of whole dataset with model copied from fairseq
-    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
-
-    Args:
-        dataset (List[np.ndarray]): pre-processed dataset to get attention from
-        model (fairseq model): fairseq model
-        text (List[str]): human readable string of samples
-        source_dictionary: source dictionary for fairseq
-        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
-
-    Returns:
-        List[List[Tuple[float, str]]]: List[List[attention, token]]
-    """
-    # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
-    device = next(model.parameters()).device
-    attentions = []
-    for counter, sample in enumerate(dataset):
-        if tokenizer is None:
-            parsed_tokens = [
-                parsed_token
-                for parsed_token in re.split(PARSING_REGEX, text[counter])
-                if parsed_token
-            ]
-        else:
-            parsed_tokens = tokenizer.convert_ids_to_tokens(
-                tokenizer(str(text[counter])).input_ids
-            )
-        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
-            device
-        )
-        # same as in predict
-        attention = model.model(
-            sample.unsqueeze(0).to(device), None, prev_output_tokens
-        )[1]["attn"][0][0][0].tolist()
-        attentions.append(list(zip(attention, parsed_tokens)))
-    return attentions
+from utils import log_and_add, parse_arguments
 
 
 def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
@@ -210,21 +143,6 @@ def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
                     output_dict.get(f"{token[1]}C attention", 0) + score
                 )
     return output_dict
-
-
-def log_and_add(text: str, string: str) -> str:
-    """Log string and add it to text
-
-    Args:
-        text (str): Longer text to add string to
-        string (str): String to add to log and add to text
-
-    Returns:
-        str: Extended text
-    """
-    logging.info(string)
-    text += string + "\n"
-    return text
 
 
 def parse_att_dict(

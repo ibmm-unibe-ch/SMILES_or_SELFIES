@@ -3,6 +3,7 @@ SMILES or SELFIES, 2023
 """
 
 import argparse
+import logging
 import os
 import pickle
 from pathlib import Path
@@ -34,6 +35,21 @@ def unpickle(path: Path):
     with open(path, "rb") as openfile:
         objekt = pickle.load(openfile)
     return objekt
+
+
+def log_and_add(text: str, string: str) -> str:
+    """Log string and add it to text
+
+    Args:
+        text (str): Longer text to add string to
+        string (str): String to add to log and add to text
+
+    Returns:
+        str: Extended text
+    """
+    logging.info(string)
+    text += string + "\n"
+    return text
 
 
 def parse_arguments(cuda=False, tokenizer=False, task=False) -> dict:
