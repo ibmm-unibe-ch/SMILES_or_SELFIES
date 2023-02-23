@@ -114,6 +114,7 @@ def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool]:
 
     Returns:
         Tuple[str, bool, int]: parsed mol, unknown flag, amount of NLP tokens
+
     """
     tokens = line.split("\t", separator_occurences)[separator_occurences]
     tokens = [token.strip() for token in tokens.split(" ") if token]
@@ -260,7 +261,6 @@ if __name__ == "__main__":
     for task_path, task in iterate_paths(TASK_MODEL_PATH):
         for tokenizer_path, tokenizer in iterate_paths(task_path):
             if task in MOLNET_DIRECTORY:
-                continue
                 classification = (
                     MOLNET_DIRECTORY[task]["dataset_type"] == "classification"
                 )

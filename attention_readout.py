@@ -2,6 +2,8 @@
 SMILES or SELFIES
 """
 
+import logging
+import re
 from pathlib import Path
 from typing import List, Tuple
 
@@ -9,6 +11,7 @@ import numpy as np
 import pandas as pd
 from deepchem.feat import RawFeaturizer
 from fairseq.data import Dictionary
+
 
 from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_PATH
 from fairseq_utils import compute_attention_output
@@ -30,7 +33,6 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
     """
     output_dict = {}
     bond = ""
-    bond_att = 0
     bond_att = 0
     for (score, token) in line:
         if token in ["C", "c"]:
@@ -55,7 +57,6 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
             )
             bond_att = 0
             bond = ""
-            bond_att = 0
         elif token in ["=", "#", "/", "\\", ":", "~", "-"]:
             output_dict["bond attention"] = output_dict.get("bond attention", 0) + score
             output_dict["bond count"] = output_dict.get("bond count", 0) + 1
@@ -102,7 +103,6 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
     )
     return output_dict
 
-
 def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
     """Aggregate the attention from a SELFIES line according to similar tokens
 
@@ -143,7 +143,6 @@ def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
                     output_dict.get(f"{token[1]}C attention", 0) + score
                 )
     return output_dict
-
 
 def parse_att_dict(
     SMILE_dict: dict, SELFIE_dict: dict, len_output: int, save_path: Path
@@ -245,7 +244,6 @@ def generate_attention_dict(
     output = list(zip(*attention_encodings))
     labels = np.array(task_labels).transpose()[0]
     return output, labels
-
 
 def aggregate_attention(output: List[Tuple[float, str]]) -> Tuple[dict, dict]:
     """Aggregate the attention of annotated
