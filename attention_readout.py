@@ -33,13 +33,13 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
     bond_att = 0
     bond_att = 0
     for (score, token) in line:
-        if token in ["C", "c"]:
-            output_dict[f"{bond}C count"] = output_dict.get(f"{bond}C count", 0) + 1
-            output_dict[f"{bond}C attention"] = (
-                output_dict.get(f"{bond}C attention", 0) + score + bond_att
-            )
-            bond = ""
-            bond_att = 0
+        # if token in ["C", "c"]:
+        #    output_dict[f"{bond}C count"] = output_dict.get(f"{bond}C count", 0) + 1
+        #    output_dict[f"{bond}C attention"] = (
+        #        output_dict.get(f"{bond}C attention", 0) + score + bond_att
+        #    )
+        #    bond = ""
+        #    bond_att = 0
         if token in ["(", ")"] or token.isnumeric():
             output_dict["structure attention"] = (
                 output_dict.get("structure attention", 0) + score
@@ -54,12 +54,11 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
                 output_dict.get("structure count trailing bond", 0) + 1
             )
             bond_att = 0
-            bond = ""
-            bond_att = 0
+            # bond = ""
         elif token in ["=", "#", "/", "\\", ":", "~", "-"]:
             output_dict["bond attention"] = output_dict.get("bond attention", 0) + score
             output_dict["bond count"] = output_dict.get("bond count", 0) + 1
-            bond = token
+            # bond = token
             bond_att += score
         else:
             output_dict["atom attention"] = output_dict.get("atom attention", 0) + score
@@ -71,7 +70,7 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
                 output_dict.get("atom count trailing bond", 0) + 1
             )
             bond_att = 0
-            bond = ""
+            # bond = ""
     # distribute bond attention
     output_dict["structure attention distributed"] = output_dict.get(
         "structure attention", 0
@@ -121,7 +120,7 @@ def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
             output_dict["structure attention"] = (
                 output_dict.get("structure attention", 0) + score
             )
-            # output_dict["structure count"] = output_dict.get("structure count", 0) + 1
+            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
         elif "Ring" in token or "Branch" in token:
             output_dict["structure attention"] = (
                 output_dict.get("structure attention", 0) + score
@@ -132,16 +131,16 @@ def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
         else:
             output_dict["atom attention"] = output_dict.get("atom attention", 0) + score
             output_dict["atom count"] = output_dict.get("atom count", 0) + 1
-            if "C]" in token:
-                if "C" == token[1]:
-                    token = list(token)
-                    token[1] = ""
-                output_dict[f"{token[1]}C count"] = (
-                    output_dict.get(f"{token[1]}C count", 0) + 1
-                )
-                output_dict[f"{token[1]}C attention"] = (
-                    output_dict.get(f"{token[1]}C attention", 0) + score
-                )
+            # if "C]" in token:
+            #    if "C" == token[1]:
+            #        token = list(token)
+            #        token[1] = ""
+            #    output_dict[f"{token[1]}C count"] = (
+            #        output_dict.get(f"{token[1]}C count", 0) + 1
+            #    )
+            #    output_dict[f"{token[1]}C attention"] = (
+            #        output_dict.get(f"{token[1]}C attention", 0) + score
+            #    )
     return output_dict
 
 
