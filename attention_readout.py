@@ -10,6 +10,7 @@ import pandas as pd
 from deepchem.feat import RawFeaturizer
 from fairseq.data import Dictionary
 
+
 from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_PATH
 from fairseq_utils import compute_attention_output
 from preprocessing import canonize_smile, translate_selfie
@@ -30,7 +31,6 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
     """
     output_dict = {}
     bond = ""
-    bond_att = 0
     bond_att = 0
     for (score, token) in line:
         # if token in ["C", "c"]:

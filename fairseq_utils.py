@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -17,6 +18,7 @@ from fairseq.models.bart import BARTModel
 from tqdm import tqdm
 
 from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
+
 
 
 def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
@@ -161,7 +163,6 @@ def transform_to_translation_models():
             / "checkpoint_last.pt",
             PROJECT_PATH / "fairseq_models" / tokenizer_suffix / "checkpoint_last.pt",
         )
-
 
 def get_embeddings(model, dataset, source_dictionary, cuda=3):
     embeddings = []

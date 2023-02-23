@@ -15,7 +15,6 @@ from tqdm import tqdm
 
 from constants import ANALYSIS_PATH, DESCRIPTORS
 
-
 def create_desc_diagram(df, desc_list, name, outputpath):
     avg_dict = dict()
     for item in desc_list:
@@ -40,9 +39,6 @@ def create_desc_diagram(df, desc_list, name, outputpath):
 
     fig.savefig(outputpath / "AvgDescs_{}.pdf".format(name), bbox_inches="tight")
 
-    fig.savefig(outputpath / "AvgDescs_{}.pdf".format(name), bbox_inches="tight")
-
-
 def create_length_hist(df, outputpath):
     max_selfies_len_char = df["SELFIES_length_char"].max()
     max_selfies_len_tok = df["SELFIES_length_tok"].max()
@@ -66,9 +62,6 @@ def create_length_hist(df, outputpath):
     ax.set_xlabel("Length [No. of tokens or characters]")
     ax.set_ylabel("Frequency")
     ax.legend()
-    fig = fig.savefig(outputpath / "hist_SELFIESvsSMILES_length.pdf")
-
-    # histogram SELFIES vs SMILES characters
     fig = fig.savefig(outputpath / "hist_SELFIESvsSMILES_length.pdf")
 
     # histogram SELFIES vs SMILES characters
@@ -317,20 +310,10 @@ def check_dups(df):
         logging.info(
             f"{dup_numbers} SMILES duplicates found.."
         )  # duplicates are correctly detected, has been tested
-    boolean = df.duplicated(subset=["SMILES"]).any()
-    bool_series = df.duplicated(subset=["SMILES"])
-    dup_numbers = df.duplicated(subset=["SMILES"]).sum()
-    if boolean == True:
-        logging.info(
-            f"{dup_numbers} SMILES duplicates found.."
-        )  # duplicates are correctly detected, has been tested
     else:
         logging.info("No SMILES duplicates found..")
     logging.info("Returning cleaned dataframe")
     return df[~bool_series]  # duplicates correctly removed from df, tested
-
-    return df[~bool_series]  # duplicates correctly removed from df, tested
-
 
 def calc_average_lengths(df):
     # print("Calculating average lengths of SMILES in characters.. ",end="")
@@ -359,12 +342,6 @@ def calc_average_lengths(df):
     logging.info(f"Calculating maximum length of SELFIES in chars.. {max_len_SEL_char}")
 
     return df
-
-
-def read_file(input_file, desc):
-    df = pd.read_csv(
-        input_file, skiprows=1, names=desc
-    )  # skip first row when reading input
 
 
 def read_file(input_file, desc):
