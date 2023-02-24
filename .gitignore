@@ -5,7 +5,18 @@
 /tokenizer
 /model
 /wandb
-/fairseq
+/dataset
+/download_10m
+/download_uspto
+/embeddings
+/fairseq_models
+/fairseq_preprocess
+/generation
+/reaction_prediction_beam
+/tables
+/task
+/translation_models
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
