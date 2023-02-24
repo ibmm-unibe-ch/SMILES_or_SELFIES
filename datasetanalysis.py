@@ -15,7 +15,6 @@ from tqdm import tqdm
 
 from constants import ANALYSIS_PATH, DESCRIPTORS
 
-
 def create_desc_diagram(df, desc_list, name, outputpath):
     avg_dict = dict()
     for item in desc_list:
@@ -39,7 +38,6 @@ def create_desc_diagram(df, desc_list, name, outputpath):
     plt.tight_layout()
 
     fig.savefig(outputpath / "AvgDescs_{}.pdf".format(name), bbox_inches="tight")
-
 
 def create_length_hist(df, outputpath):
     max_selfies_len_char = df["SELFIES_length_char"].max()
@@ -316,7 +314,6 @@ def check_dups(df):
         logging.info("No SMILES duplicates found..")
     logging.info("Returning cleaned dataframe")
     return df[~bool_series]  # duplicates correctly removed from df, tested
-
 
 def calc_average_lengths(df):
     # print("Calculating average lengths of SMILES in characters.. ",end="")

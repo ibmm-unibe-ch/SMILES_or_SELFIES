@@ -106,20 +106,21 @@ def parse_hyperparams(param_string: str) -> Dict[str, str]:
 
 
 def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool]:
-    """Parse a line with a sample after the separator
+    """Parse line after seperator_occurences of the seperator
 
     Args:
-        line (str): Line to parse.
-        separator_occurences (int, optional): After where to count the sample. Defaults to 1.
+        line (str): line to parse
+        separator_occurences (int, optional): how many seperator was seen before the good sequence. Defaults to 1.
 
     Returns:
-        Tuple[str, bool]: Parsed sample, flag if <unk> was seen
+        Tuple[str, bool, int]: parsed mol, unknown flag, amount of NLP tokens
+
     """
     tokens = line.split("\t", separator_occurences)[separator_occurences]
     tokens = [token.strip() for token in tokens.split(" ") if token]
     unk_flag = "<unk>" in tokens
     full = "".join(tokens).strip()
-    return full, unk_flag
+    return full, unk_flag, len(tokens)
 
 
 def parse_file(file_path: Path, examples_per: int = 10) -> List[dict]:
@@ -141,17 +142,19 @@ def parse_file(file_path: Path, examples_per: int = 10) -> List[dict]:
     target_examples = np.split(np.array(lines), len(lines) / (2 + 3 * examples_per))
     for target_example in tqdm(target_examples):
         sample_dict = {}
-        source, source_unk = parse_line(target_example[0], 1)
+        source, source_unk, source_len = parse_line(target_example[0], 1)
         sample_dict["source"] = source
         sample_dict["source_unk"] = source_unk
-        target, target_unk = parse_line(target_example[1], 1)
+        sample_dict["source_len"] = source_len
+        target, target_unk, target_len = parse_line(target_example[1], 1)
         sample_dict = sample_dict | compute_distances(source, target)
         sample_dict["target"] = target
         sample_dict["target_unk"] = target_unk
+        sample_dict["target_len"] = target_len
         predictions = []
         target_example = target_example[2:]
         for _ in range(examples_per):
-            prediction, prediction_unk = parse_line(target_example[0], 2)
+            prediction, prediction_unk, _ = parse_line(target_example[0], 2)
             predictions.append((prediction, prediction_unk))
             target_example = target_example[3:]
         sample_dict["predictions"] = predictions
