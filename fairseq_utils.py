@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -19,6 +18,7 @@ from tqdm import tqdm
 
 from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
 
+os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
 def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
@@ -164,7 +164,10 @@ def transform_to_translation_models():
             PROJECT_PATH / "fairseq_models" / tokenizer_suffix / "checkpoint_last.pt",
         )
 
+
 def get_embeddings(model, dataset, source_dictionary, cuda=3):
+    if isinstance(dataset, (Path, str)):
+        dataset = list(load_indexed_dataset(str(dataset), source_dictionary))
     embeddings = []
     for sample in tqdm(dataset):
         sample = sample[:1020]
@@ -246,3 +249,14 @@ def compute_attention_output(
         )[1]["attn"][0][0][0].tolist()
         attentions.append(list(zip(attention, parsed_tokens)))
     return attentions
+
+
+def preprocess_series(series: np.ndarray, output_path: Path, dictionary_path: Path):
+    file_path = str(output_path) + ".csv"
+    os.makedirs(output_path.parent, exist_ok=True)
+    series.tofile(file_path, sep="\n", format="%s")
+    os.system(
+        (
+            f"fairseq-preprocess --only-source --trainpref {file_path}  --destdir {output_path} --srcdict {dictionary_path} --workers 60"
+        )
+    )

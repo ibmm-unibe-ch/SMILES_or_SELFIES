@@ -12,10 +12,11 @@ from tqdm import tqdm
 
 from constants import PROJECT_PATH, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES
 from lexicographic_scores import compute_distances
-from preprocessing import canonize_smile, translate_smile
+from preprocessing import canonize_smile, check_valid, translate_smile
+from utils import parse_arguments
 
 
-def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool, int]:
+def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, int]:
     """Parse line after seperator_occurences of the seperator
 
     Args:
@@ -23,13 +24,12 @@ def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool, int
         separator_occurences (int, optional): how many seperator was seen before the good sequence. Defaults to 1.
 
     Returns:
-        Tuple[str, bool, int]: parsed mol, unknown flag, amount of NLP tokens
+        Tuple[str, bool, int]: parsed mol, amount of NLP tokens
     """
     tokens = line.split("\t", separator_occurences)[separator_occurences]
     tokens = [token.strip() for token in tokens.split(" ") if token]
-    unk_flag = "<unk>" in tokens
     full = "".join(tokens).strip()
-    return full, unk_flag, len(tokens)
+    return full, len(tokens)
 
 
 def parse_file(file_path: Path, examples_per: int = 10) -> dict:
@@ -51,20 +51,18 @@ def parse_file(file_path: Path, examples_per: int = 10) -> dict:
     target_examples = np.split(np.array(lines), len(lines) / (2 + 3 * examples_per))
     for target_example in tqdm(target_examples):
         sample_dict = {}
-        source, source_unk, source_len = parse_line(target_example[0], 1)
+        source, source_len = parse_line(target_example[0], 1)
         sample_dict["source"] = source
-        sample_dict["source_unk"] = source_unk
         sample_dict["source_len"] = source_len
-        target, target_unk, target_len = parse_line(target_example[1], 1)
+        target, target_len = parse_line(target_example[1], 1)
         sample_dict = sample_dict | compute_distances(source, target)
         sample_dict["target"] = target
-        sample_dict["target_unk"] = target_unk
         sample_dict["target_len"] = target_len
         predictions = []
         target_example = target_example[2:]
         for _ in range(examples_per):
-            prediction, prediction_unk, _ = parse_line(target_example[0], 2)
-            predictions.append((prediction, prediction_unk))
+            prediction, _ = parse_line(target_example[0], 2)
+            predictions.append(prediction)
             target_example = target_example[3:]
         sample_dict["predictions"] = predictions
         samples.append(sample_dict)
@@ -92,13 +90,32 @@ def find_match(target, predictions, selfies):
 
 
 def score_samples(samples, selfies=False):
-    matches = [
-        find_match(sample["target"], sample["predictions"], selfies)
-        for sample in tqdm(samples)
-    ]
     stats = {"all_samples": len(samples)}
-    for i in range(len(samples[0]["predictions"])):
-        stats[f"top_{i+1}"] = matches.count(i)
+    samples = pd.DataFrame(samples)
+    samples["matches"] = samples.apply(
+        lambda row: find_match(row["target"], row["predictions"], selfies),
+        axis="columns",
+    )
+    prediction_df = pd.DataFrame(
+        samples["predictions"].to_list(),
+        columns=[
+            f"prediction_{i+1}" for i in range(len(samples.loc[0]["predictions"]))
+        ],
+    )
+    rank_counts = samples["matches"].value_counts()
+    for rank in rank_counts.index:
+        stats[f"top_{int(float(str(rank).strip()))+1}"] = rank_counts[rank]
+    for column in prediction_df.columns:
+        stats[f'unk_{column[len("prediction_"):]}'] = sum(
+            prediction_df[column].str.contains("unk")
+        )
+        stats[f'valid_{column[len("prediction_"):]}'] = sum(
+            prediction_df[column].apply(
+                lambda x: not (translate_smile(x) is None)
+                if selfies
+                else check_valid(x)
+            )
+        )
     return stats
 
 
@@ -139,12 +156,18 @@ def score_distances(samples):
 
 
 if __name__ == "__main__":
-    cuda = 3
-    for task in ["lef", "jin", "schwaller"]:
-        for tokenizer in TOKENIZER_SUFFIXES:
-            # os.system(
-            #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam"/task/tokenizer}'
-            # )
+    cuda = parse_arguments(True, False, False)["cuda"]
+    for task in ["lef"]:  # , "jin", "schwaller"]:
+        for it, tokenizer in enumerate(TOKENIZER_SUFFIXES):
+            best_models = [
+                "1e-05_0.2_based_norm",
+                "1e-05_0.2_based_norm",
+                "1e-05_0.2_based_norm",
+                "1e-05_0.2_based_norm",
+            ]
+            os.system(
+                f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/best_models[it]/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam_new"/task/tokenizer}'
+            )
             samples = parse_file(
                 PROJECT_PATH
                 / "reaction_prediction_beam"
@@ -156,9 +179,13 @@ if __name__ == "__main__":
             output = {"model": tokenizer, "task": task}
             output = output | score_samples(samples, selfies)
             output = output | score_distances(samples)
+            os.makedirs(
+                PROJECT_PATH / "reaction_prediction_beam_neu" / task / tokenizer,
+                exist_ok=True,
+            )
             pd.DataFrame.from_dict([output]).to_csv(
                 PROJECT_PATH
-                / "reaction_prediction_beam"
+                / "reaction_prediction_beam_neu"
                 / task
                 / tokenizer
                 / "output.csv"

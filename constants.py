@@ -96,10 +96,10 @@ REACTION_PREDICTION_DIRECTORY = {
     },
 }
 TOKENIZER_SUFFIXES = [
-    "selfies_sentencepiece",
-    "smiles_sentencepiece",
     "smiles_atom",
     "selfies_atom",
+    "selfies_sentencepiece",
+    "smiles_sentencepiece",
 ]
 
 PROJECT_PATH = Path(__file__).parent

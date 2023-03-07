@@ -30,6 +30,8 @@ from fairseq_utils import (
     transform_to_translation_models,
     transplant_model,
 )
+from plotting import plot_representations
+from preprocessing import get_weight
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer, tokenize_dataset
 from utils import parse_arguments, pickle_object
@@ -182,19 +184,19 @@ def create_dataset(
 
 if __name__ == "__main__":
     cuda = parse_arguments(True, False, False)["cuda"]
-    transform_to_translation_models()
-    for tokenizer_suffix in TOKENIZER_SUFFIXES:
-        transplant_model(
-            taker_model_path=PROJECT_PATH
-            / "translation_models"
-            / tokenizer_suffix
-            / "checkpoint_last.pt",
-            giver_model_path=PROJECT_PATH
-            / "fairseq_models"
-            / tokenizer_suffix
-            / "checkpoint_last.pt",
-        )
-
+    # transform_to_translation_models()
+    #    for tokenizer_suffix in TOKENIZER_SUFFIXES:
+    #        transplant_model(
+    #            taker_model_path=PROJECT_PATH
+    #            / "translation_models"
+    #            / tokenizer_suffix
+    #            / "checkpoint_last.pt",
+    #            giver_model_path=PROJECT_PATH
+    #            / "fairseq_models"
+    #            / tokenizer_suffix
+    #            / "checkpoint_last.pt",
+    #        )
+    #
     for descriptor in [
         (
             "Heterocycles",
@@ -204,31 +206,31 @@ if __name__ == "__main__":
                 "NumSaturatedHeterocycles",
             ],
         ),
-        "NumHDonors",
-        "NumAromaticRings",
+        # "NumHDonors",
+        # "NumAromaticRings",
     ]:
-        create_dataset(
-            descriptor,
-            PROCESSED_PATH / "10m_deduplicated.csv",
-            PROJECT_PATH / "embeddings",
-            100000,
-        )
+        #        create_dataset(
+        #            descriptor,
+        #            PROCESSED_PATH / "10m_deduplicated.csv",
+        #            PROJECT_PATH / "embeddings",
+        #            100000,
+        #        )
         if isinstance(descriptor, tuple):
             descriptor_name = descriptor[0]
         else:
             descriptor_name = descriptor
+        weights = None
         for tokenizer_suffix in TOKENIZER_SUFFIXES:
-            transplant_model(
-                taker_model_path=PROJECT_PATH
-                / "translation_models"
-                / tokenizer_suffix
-                / "checkpoint_last.pt",
-                giver_model_path=PROJECT_PATH
-                / "fairseq_models"
-                / tokenizer_suffix
-                / "checkpoint_last.pt",
-            )
-
+            #            transplant_model(
+            #                taker_model_path=PROJECT_PATH
+            #                / "translation_models"
+            #                / tokenizer_suffix
+            #                / "checkpoint_last.pt",
+            #                giver_model_path=PROJECT_PATH
+            #                / "fairseq_models"
+            #                / tokenizer_suffix
+            #                / "checkpoint_last.pt",
+            #            )
             model = load_model(
                 PROJECT_PATH
                 / "translation_models"
@@ -242,26 +244,38 @@ if __name__ == "__main__":
                 PROJECT_PATH / "embeddings" / descriptor_name / tokenizer_suffix
             )
             embeddings_path = descriptor_path / "pickle"
-            for set_variation in ["train", "test"]:
+            if weights is None:
+                smiles = pd.read_csv(
+                    descriptor_path / "train.input", header=None
+                ).values
+                weights = [
+                    max(600, get_weight("".join(smile[0].split(" "))))
+                    for smile in smiles
+                ]
+
+            for set_variation in ["train"]:  # , "test"]:
                 dataset = load_dataset(descriptor_path / "input0" / set_variation)
                 source_dictionary = Dictionary.load(
                     str(descriptor_path / "input0" / "dict.txt")
                 )
-
                 embeddings = get_embeddings(model, dataset, source_dictionary, cuda)
-                os.makedirs(embeddings_path, exist_ok=True)
-                pickle_object(
-                    embeddings,
-                    descriptor_path / f"{tokenizer_suffix}_{set_variation}.pkl",
+                plot_representations(
+                    embeddings, weights, Path(f"plots/embeddings/{tokenizer_suffix}")
                 )
-                dataset_dict[f"{set_variation}_X"] = embeddings
-                dataset_dict[f"{set_variation}_y"] = np.fromfile(
-                    descriptor_path / f"{set_variation}.label", sep="\n"
-                )
-            eval_weak_estimators(
-                dataset_dict["train_X"],
-                dataset_dict["train_y"],
-                dataset_dict["test_X"],
-                dataset_dict["test_y"],
-                descriptor_path / "reports",
-            )
+#                os.makedirs(embeddings_path, exist_ok=True)
+#                pickle_object(
+#                    embeddings,
+#                    descriptor_path / f"{tokenizer_suffix}_{set_variation}.pkl",
+#                )
+#                dataset_dict[f"{set_variation}_X"] = embeddings
+#                dataset_dict[f"{set_variation}_y"] = np.fromfile(
+#                    descriptor_path / f"{set_variation}.label", sep="\n"
+#                )
+#            eval_weak_estimators(
+#                dataset_dict["train_X"],
+#                dataset_dict["train_y"],
+#                dataset_dict["test_X"],
+#                dataset_dict["test_y"],
+#                descriptor_path / "reports",
+#            )
+#

@@ -11,6 +11,7 @@ from typing import List, Tuple
 import pandas as pd
 import selfies
 from rdkit import Chem
+from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
@@ -95,6 +96,42 @@ def translate_selfie(smile: str) -> Tuple[str, int]:
     except Exception as e:
         logging.error(e)
         return (None, -1)
+
+
+def get_weight(smiles):
+    return ExactMolWt(Chem.MolFromSmiles(smiles))
+
+
+def create_identities(smiles: str) -> Tuple[str, str]:
+    """Create strings with connected atom identities
+
+    Args:
+        smiles (str): input SMILES with no identities
+
+    Returns:
+        Tuple[str,str]: SMILES with annotated identities, SELFIES with ID=index
+    """
+    selfies_string = selfies.encoder(smiles)
+    remaining_smiles_string, attributions = selfies.decoder(
+        selfies_string, attribute=True
+    )
+    result_smiles = ""
+    for att in attributions:
+        next_token = att.token
+        if not any([char.isalpha() for char in next_token]):
+            continue
+        while remaining_smiles_string:
+            if remaining_smiles_string.startswith(next_token):
+                remaining_smiles_string = remaining_smiles_string[len(next_token) :]
+                if len(next_token) == 1:
+                    idied_token = f"[{next_token}:{att.attribution[-1].index}]"
+                else:
+                    idied_token = f"[{next_token[1:-1]}:{att.attribution[-1].index}]"
+                result_smiles += idied_token
+                break
+            result_smiles += remaining_smiles_string[0]
+            remaining_smiles_string = remaining_smiles_string[1:]
+    return result_smiles, selfies_string
 
 
 def translate_smile(selfie: str) -> str:

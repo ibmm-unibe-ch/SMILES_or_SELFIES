@@ -10,13 +10,23 @@ import pandas as pd
 from deepchem.feat import RawFeaturizer
 from fairseq.data import Dictionary
 
-
 from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_PATH
 from fairseq_utils import compute_attention_output
 from preprocessing import canonize_smile, translate_selfie
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
 from utils import log_and_add, parse_arguments
+
+
+def find_attention_outliers(
+    attention: pd.Series, quantile: float = 0.25, ratio: float = 1.5
+):
+    lower_quantile = attention.quantile(quantile)
+    higher_quantile = attention.quantile(1 - quantile)
+    inter_quartile_range = higher_quantile - lower_quantile
+    return attention.gt(
+        higher_quantile + ratio * inter_quartile_range
+    )  # Series of bools
 
 
 def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
@@ -30,9 +40,17 @@ def aggregate_SMILE_attention(line: List[Tuple[float, str]]) -> dict:
         dict: dict with keys to indicate aggregation and scores
     """
     output_dict = {}
-    bond = ""
+    # bond = ""
     bond_att = 0
-    for (score, token) in line:
+    high_attention = find_attention_outliers(pd.Series([entry[0] for entry in line]))
+    for counter, (score, token) in enumerate(line):
+        output_dict[f"token count {token}"] = (
+            output_dict.get(f"token count {token}", 0) + 1
+        )
+        if high_attention[counter]:
+            output_dict[f"high count {token}"] = (
+                output_dict.get(f"high count {token}", 0) + 1
+            )
         # if token in ["C", "c"]:
         #    output_dict[f"{bond}C count"] = output_dict.get(f"{bond}C count", 0) + 1
         #    output_dict[f"{bond}C attention"] = (
@@ -113,24 +131,40 @@ def aggregate_SELFIE_attention(line: List[Tuple[float, str]]) -> dict:
     """
     output_dict = {}
     structure_tokens = 0
-    for (score, token) in line:
+    high_attention = find_attention_outliers(pd.Series([entry[0] for entry in line]))
+    remaining_structure_tokens = 0
+    for counter, (score, token) in enumerate(line):
         if structure_tokens > 0:
+            noting_token = str(token) + " overloaded"
+        else:
+            noting_token = token
+        if high_attention[counter]:
+            output_dict[f"high count {noting_token}"] = (
+                output_dict.get(f"high count {noting_token}", 0) + 1
+            )
+        output_dict[f"token count {noting_token}"] = (
+            output_dict.get(f"token count {noting_token}", 0) + 1
+        )
+        if remaining_structure_tokens > 0:
             # overloaded tokens
-            structure_tokens -= 1
-            output_dict["structure attention"] = (
-                output_dict.get("structure attention", 0) + score
-            )
-            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
+            remaining_structure_tokens -= 1
+            structure_score += score
         elif "Ring" in token or "Branch" in token:
-            output_dict["structure attention"] = (
-                output_dict.get("structure attention", 0) + score
-            )
-            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
             # parse overloading
+            output_dict["structure count"] = output_dict.get("structure count", 0) + 1
             structure_tokens = int(token[-2])
+            remaining_structure_tokens = structure_tokens + 1
+            structure_score = score
         else:
             output_dict["atom attention"] = output_dict.get("atom attention", 0) + score
             output_dict["atom count"] = output_dict.get("atom count", 0) + 1
+        if remaining_structure_tokens == 0 and structure_tokens > 0:
+            output_dict["structure attention"] = (
+                output_dict.get("structure attention", 0)
+                + structure_score / structure_tokens
+            )
+            structure_tokens = 0
+            structure_score = 0
             # if "C]" in token:
             #    if "C" == token[1]:
             #        token = list(token)
@@ -159,6 +193,8 @@ def parse_att_dict(
     for (representation, dikt) in [("SMILES", SMILE_dict), ("SELFIES", SELFIE_dict)]:
         text += log_and_add(text, f"{representation}:")
         for key in sorted(dikt.keys()):
+            if ("token" in key) or ("high" in key):
+                continue
             text = log_and_add(text, f"The amount of {key} is {dikt[key]:.3f}.")
             if "attention" in key:
                 modified_key = key.replace("attention", "count")
@@ -166,6 +202,17 @@ def parse_att_dict(
                     text,
                     f"The amount of {key} per token is {dikt[key]/dikt[modified_key]:.3f}",
                 )
+            if "high" in key:
+                token = key[len("high count ") :]
+                token_count_key = "token count " + token
+                text = log_and_add(
+                    text,
+                    f"The percentage of high attention token: {token} is {dikt[key]/dikt[token_count_key]:.3f}",
+                )
+                text = log_and_add(
+                    text, f"The amount of {token} is {dikt[token_count_key]}"
+                )
+                continue
             text = log_and_add(
                 text, f"The amount of {key} per sample is {dikt[key]/len_output:.3f}"
             )
@@ -300,14 +347,30 @@ def produce_att_samples(
             ["SMILES", "SELFIES", "SMILES SentencePiece", "SMILES SentencePiece"]
         ):
             md += f"## {tokenizer}" + r"\n"
+            outliers = find_attention_outliers(
+                pd.Series([token[0] for token in output[i][it]])
+            )
             input_data_corrected = np.array(
                 [
-                    (letter[1], f"{letter[0]-1/len(output[i][it]):.3f}")
-                    for letter in output[i][it]
+                    (
+                        "**" + str(letter[1]) + "**"
+                        if outliers[counter]
+                        else str(letter[1]),
+                        f"{letter[0]-1/len(output[i][it]):.3f}",
+                    )
+                    for counter, letter in enumerate(output[i][it])
                 ]
             )
             input_data_pure = np.array(
-                [(letter[1], f"{letter[0]:.3f}") for letter in output[i][it]]
+                [
+                    (
+                        "**" + str(letter[1]) + "**"
+                        if outliers[counter]
+                        else str(letter[1]),
+                        f"{letter[0]:.3f}",
+                    )
+                    for counter, letter in enumerate(output[i][it])
+                ]
             )
             df = pd.concat(
                 [
