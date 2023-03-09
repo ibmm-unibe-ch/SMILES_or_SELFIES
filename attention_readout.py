@@ -10,12 +10,19 @@ import pandas as pd
 from deepchem.feat import RawFeaturizer
 from fairseq.data import Dictionary
 
-from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_PATH
+from constants import (
+    MOLNET_DIRECTORY,
+    TASK_MODEL_PATH,
+    TASK_PATH,
+    TOKENIZER_PATH,
+    PARSING_REGEX,
+)
 from fairseq_utils import compute_attention_output
-from preprocessing import canonize_smile, translate_selfie
+from preprocessing import canonize_smile, translate_selfie, create_identities
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
 from utils import log_and_add, parse_arguments
+import re
 
 
 def find_attention_outliers(
@@ -336,13 +343,12 @@ def produce_att_samples(
     for i in range(samples):
         md += f"# Sample {i+1} with value {labels[i]:.3f}" + r"\n"
         md += "## Molecule" + r"\n"
-        input_data = np.array(
-            [
-                (letter[1], f"{letter[0]-1/len(output[i][0]):.3f}")
-                for letter in output[i][0]
-            ]
+        input_data = np.array([letter[1] for letter in output[i][0]])
+        md += f'{"".join(input_data)}' + r"\n"
+        md += (
+            f'{[token for token in re.split(PARSING_REGEX,create_identities("".join(input_data))[0]) if token] }'
+            + r"\n"
         )
-        md += f'{"".join(input_data[:,0])}' + r"\n"
         for it, tokenizer in enumerate(
             ["SMILES", "SELFIES", "SMILES SentencePiece", "SMILES SentencePiece"]
         ):
@@ -353,7 +359,7 @@ def produce_att_samples(
             input_data_corrected = np.array(
                 [
                     (
-                        "**" + str(letter[1]) + "**"
+                        "*" + str(letter[1]) + "*"
                         if outliers[counter]
                         else str(letter[1]),
                         f"{letter[0]-1/len(output[i][it]):.3f}",
@@ -364,7 +370,7 @@ def produce_att_samples(
             input_data_pure = np.array(
                 [
                     (
-                        "**" + str(letter[1]) + "**"
+                        "*" + str(letter[1]) + "*"
                         if outliers[counter]
                         else str(letter[1]),
                         f"{letter[0]:.3f}",
@@ -377,10 +383,14 @@ def produce_att_samples(
                     pd.DataFrame(
                         data=input_data_corrected[:, 1],
                         index=input_data_corrected[:, 0],
-                    ).transpose(),
+                    )
+                    .transpose()
+                    .reset_index(drop=True),
                     pd.DataFrame(
                         data=input_data_pure[:, 1], index=input_data_pure[:, 0]
-                    ).transpose(),
+                    )
+                    .transpose()
+                    .reset_index(drop=True),
                 ]
             )
             md += df.to_markdown() + r"\n"

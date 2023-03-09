@@ -249,7 +249,7 @@ if __name__ == "__main__":
                     descriptor_path / "train.input", header=None
                 ).values
                 weights = [
-                    max(600, get_weight("".join(smile[0].split(" "))))
+                    min(600, get_weight("".join(smile[0].split(" "))))
                     for smile in smiles
                 ]
 

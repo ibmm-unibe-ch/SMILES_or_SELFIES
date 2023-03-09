@@ -52,7 +52,7 @@ def check_valid(input_str: str) -> bool:
     return m is not None
 
 
-def canonize_smile(input_str: str) -> str:
+def canonize_smile(input_str: str, remove_identities: bool = True) -> str:
     """Canonize SMILES string
 
     Args:
@@ -64,7 +64,8 @@ def canonize_smile(input_str: str) -> str:
     mol = Chem.MolFromSmiles(input_str)
     if mol is None:
         return None
-    [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+    if remove_identities:
+        [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
     return Chem.MolToSmiles(mol)
 
 
@@ -123,15 +124,18 @@ def create_identities(smiles: str) -> Tuple[str, str]:
         while remaining_smiles_string:
             if remaining_smiles_string.startswith(next_token):
                 remaining_smiles_string = remaining_smiles_string[len(next_token) :]
-                if len(next_token) == 1:
-                    idied_token = f"[{next_token}:{att.attribution[-1].index}]"
-                else:
+                if next_token[0] == "[":
                     idied_token = f"[{next_token[1:-1]}:{att.attribution[-1].index}]"
+                else:
+                    idied_token = f"[{next_token}:{att.attribution[-1].index}]"
                 result_smiles += idied_token
                 break
             result_smiles += remaining_smiles_string[0]
             remaining_smiles_string = remaining_smiles_string[1:]
-    return result_smiles, selfies_string
+    return (
+        canonize_smile(result_smiles + remaining_smiles_string, False),
+        selfies_string,
+    )
 
 
 def translate_smile(selfie: str) -> str:
