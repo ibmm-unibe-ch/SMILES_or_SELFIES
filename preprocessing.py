@@ -11,6 +11,7 @@ from typing import List, Tuple
 import pandas as pd
 import selfies
 from rdkit import Chem
+from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
@@ -51,7 +52,7 @@ def check_valid(input_str: str) -> bool:
     return m is not None
 
 
-def canonize_smile(input_str: str) -> str:
+def canonize_smile(input_str: str, remove_identities: bool = True) -> str:
     """Canonize SMILES string
 
     Args:
@@ -63,7 +64,8 @@ def canonize_smile(input_str: str) -> str:
     mol = Chem.MolFromSmiles(input_str)
     if mol is None:
         return None
-    [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+    if remove_identities:
+        [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
     return Chem.MolToSmiles(mol)
 
 
@@ -95,6 +97,45 @@ def translate_selfie(smile: str) -> Tuple[str, int]:
     except Exception as e:
         logging.error(e)
         return (None, -1)
+
+
+def get_weight(smiles):
+    return ExactMolWt(Chem.MolFromSmiles(smiles))
+
+
+def create_identities(smiles: str) -> Tuple[str, str]:
+    """Create strings with connected atom identities
+
+    Args:
+        smiles (str): input SMILES with no identities
+
+    Returns:
+        Tuple[str,str]: SMILES with annotated identities, SELFIES with ID=index
+    """
+    selfies_string = selfies.encoder(smiles)
+    remaining_smiles_string, attributions = selfies.decoder(
+        selfies_string, attribute=True
+    )
+    result_smiles = ""
+    for att in attributions:
+        next_token = att.token
+        if not any([char.isalpha() for char in next_token]):
+            continue
+        while remaining_smiles_string:
+            if remaining_smiles_string.startswith(next_token):
+                remaining_smiles_string = remaining_smiles_string[len(next_token) :]
+                if next_token[0] == "[":
+                    idied_token = f"[{next_token[1:-1]}:{att.attribution[-1].index}]"
+                else:
+                    idied_token = f"[{next_token}:{att.attribution[-1].index}]"
+                result_smiles += idied_token
+                break
+            result_smiles += remaining_smiles_string[0]
+            remaining_smiles_string = remaining_smiles_string[1:]
+    return (
+        canonize_smile(result_smiles + remaining_smiles_string, False),
+        selfies_string,
+    )
 
 
 def translate_smile(selfie: str) -> str:

@@ -50,6 +50,8 @@ def log_and_add(text: str, string: str) -> str:
     logging.info(string)
     text += string + "\n"
     return text
+
+
 def parse_arguments(cuda=False, tokenizer=False, task=False) -> dict:
     """Parse command line arguments
 
