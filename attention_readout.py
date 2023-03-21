@@ -2,6 +2,7 @@
 SMILES or SELFIES
 """
 
+import re
 from pathlib import Path
 from typing import List, Tuple
 
@@ -12,17 +13,16 @@ from fairseq.data import Dictionary
 
 from constants import (
     MOLNET_DIRECTORY,
+    PARSING_REGEX,
     TASK_MODEL_PATH,
     TASK_PATH,
     TOKENIZER_PATH,
-    PARSING_REGEX,
 )
-from fairseq_utils import compute_attention_output
-from preprocessing import canonize_smile, translate_selfie, create_identities
+from fairseq_utils import compute_model_output
+from preprocessing import canonize_smile, create_identities, translate_selfie
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
 from utils import log_and_add, parse_arguments
-import re
 
 
 def find_attention_outliers(
@@ -293,8 +293,19 @@ def generate_attention_dict(
         else:
             tokenizer = None
         attention_encodings.append(
-            compute_attention_output(dataset, model, text, source_dictionary, tokenizer)
+            compute_model_output(
+                dataset,
+                model,
+                text,
+                source_dictionary,
+                False,
+                True,
+                False,
+                False,
+                tokenizer,
+            )[1]
         )
+    print(attention_encodings)
     output = list(zip(*attention_encodings))
     labels = np.array(task_labels).transpose()[0]
     return output, labels

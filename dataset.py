@@ -217,7 +217,7 @@ def prepare_molnet(
 
 
 if __name__ == "__main__":
-    molnets = MOLNET_DIRECTORY
+    molnets = []  # MOLNET_DIRECTORY
     for tokenizer_suffix in [
         "smiles_isomers_atom",
         "smiles_isomers_sentencepiece",
@@ -227,7 +227,7 @@ if __name__ == "__main__":
         selfies = tokenizer_suffix.startswith("selfies")
         tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
         preprocess_path = FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt"
-        for key in MOLNET_DIRECTORY:
+        for key in molnets:
             output_dir = TASK_PATH / key / tokenizer_suffix
             output_dir.mkdir(parents=True, exist_ok=True)
             prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path)
