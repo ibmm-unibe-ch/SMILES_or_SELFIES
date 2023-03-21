@@ -110,6 +110,7 @@ ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = PROJECT_PATH / "task"
 USPTO_PATH = PROJECT_PATH / "download_uspto"
 TASK_MODEL_PATH = Path("/data/jgut/SoS_models/")
+PLOT_PATH = PROJECT_PATH / "plots"
 
 PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
 

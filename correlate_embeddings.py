@@ -107,6 +107,8 @@ def get_distances(
     fixed_euclideans = []
     fixed_manhattans = []
     fixed_cosines = []
+    print(start_embeddings)
+    print(start_embeddings[0])
     for it, start_embedding in enumerate(start_embeddings):
         euclidean, manhattan, cos = compute_distances(
             end_embeddings[it], start_embedding

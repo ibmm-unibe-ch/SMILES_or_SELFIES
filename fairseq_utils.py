@@ -175,18 +175,17 @@ def get_embeddings(model, dataset, source_dictionary, cuda=3):
             device=f"cuda:{cuda}"
         )
         # same as in predict
-        features = model.model(
-            sample.unsqueeze(0).to(device=f"cuda:{cuda}"),
-            None,
-            prev_output_tokens,
-            features_only=True,
-        )[0][-1, :]
         embedding = (
-            features.view(features.size(0), -1, features.size(-1))[:, -1, :]
+            model.model(
+                sample.unsqueeze(0).to(device=f"cuda:{cuda}"),
+                None,
+                prev_output_tokens,
+                features_only=True,
+            )[0][0][-1, :]
             .cpu()
             .detach()
             .numpy()
-        ).squeeze()
+        )
         embeddings.append(embedding)
     return embeddings
 
@@ -201,10 +200,10 @@ def generate_prev_output_tokens(sample: np.ndarray, source_dictionary) -> np.nda
     Returns:
         np.ndarray: previous output tokens
     """
-    tokens = sample.unsqueeze(-1)
+    tokens = sample.unsqueeze(0)
     prev_output_tokens = tokens.clone()
     prev_output_tokens[:, 0] = tokens.gather(
-        0, (tokens.ne(source_dictionary.pad()).sum(0) - 1).unsqueeze(-1)
+        1, (tokens.ne(source_dictionary.pad()).sum(1) - 1).unsqueeze(-1)
     ).squeeze()
     prev_output_tokens[:, 1:] = tokens[:, :-1]
     return prev_output_tokens
@@ -228,7 +227,7 @@ def compute_attention_output(
     """
     # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
     device = next(model.parameters()).device
-    attentions = []
+    dataset_attentions = []
     for counter, sample in enumerate(dataset):
         if tokenizer is None:
             parsed_tokens = [
@@ -244,11 +243,125 @@ def compute_attention_output(
             device
         )
         # same as in predict
-        attention = model.model(
-            sample.unsqueeze(0).to(device), None, prev_output_tokens
-        )[1]["attn"][0][0][0].tolist()
-        attentions.append(list(zip(attention, parsed_tokens)))
-    return attentions
+        _, extra = model.model(sample.unsqueeze(0).to(device), None, prev_output_tokens)
+        token_attention = extra["attn"][0][0][-1].cpu().detach().tolist()
+        dataset_attentions.append(list(zip(token_attention, parsed_tokens)))
+    return dataset_attentions
+
+
+def compute_embedding_output(
+    dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
+) -> List[List[Tuple[float, str]]]:
+    """Compute embedding of whole dataset with model copied from fairseq
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        dataset (List[np.ndarray]): pre-processed dataset to get embeddings from
+        model (fairseq model): fairseq model
+        text (List[str]): human readable string of samples
+        source_dictionary: source dictionary for fairseq
+        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
+
+    Returns:
+        List[List[Tuple[float, str]]]: List[List[embedding, token]]
+    """
+    # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+    device = next(model.parameters()).device
+    dataset_embeddings = []
+    for counter, sample in enumerate(dataset):
+        if tokenizer is None:
+            parsed_tokens = [
+                parsed_token
+                for parsed_token in re.split(PARSING_REGEX, text[counter])
+                if parsed_token
+            ]
+        else:
+            parsed_tokens = tokenizer.convert_ids_to_tokens(
+                tokenizer(str(text[counter])).input_ids
+            )
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device
+        )
+        # same as in predict
+        token_embeddings, _ = model.model(
+            sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+        )
+        dataset_embeddings.append(
+            list(zip(token_embeddings[0][-1].cpu().detach().tolist(), parsed_tokens))
+        )
+    return dataset_embeddings
+
+
+def compute_model_output(
+    dataset: List[np.ndarray],
+    model,
+    text: List[str],
+    source_dictionary,
+    attentions=True,
+    eos_attentions=True,
+    embeddings=False,
+    eos_embedding=False,
+    tokenizer=None,
+) -> Tuple[
+    List[List[Tuple[float, str]]],
+    List[List[Tuple[List[float], str]]],
+    List[Tuple[List[float], str]],
+]:
+    """Compute embedding of whole dataset with model copied from fairseq
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        dataset (List[np.ndarray]): pre-processed dataset to get embeddings from
+        model (fairseq model): fairseq model
+        text (List[str]): human readable string of samples
+        source_dictionary: source dictionary for fairseq
+        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
+
+    Returns:
+        List[List[Tuple[float, str]]]: List[List[embedding, token]]
+    """
+    # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+    device = next(model.parameters()).device
+    dataset_attentions = [] if attentions else None
+    dataset_eos_attentions = [] if eos_attentions else None
+    dataset_embeddings = [] if embeddings else None
+    dataset_eos_embeddings = [] if eos_embedding else None
+    for counter, sample in enumerate(dataset):
+        if tokenizer is None:
+            parsed_tokens = [
+                parsed_token
+                for parsed_token in re.split(PARSING_REGEX, text[counter])
+                if parsed_token
+            ]
+        else:
+            parsed_tokens = tokenizer.convert_ids_to_tokens(
+                tokenizer(str(text[counter])).input_ids
+            )
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device
+        )
+        # same as in predict
+        token_embeddings, extra = model.model(
+            sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+        )
+        if attentions or eos_attentions:
+            attention = extra["attn"][0][0].cpu().detach().tolist()
+        if attentions:
+            dataset_attentions.append(list(zip(attention, parsed_tokens)))
+        if eos_attentions:
+            dataset_eos_attentions.append(list(zip(attention[-1], parsed_tokens)))
+        if embeddings or eos_embedding:
+            token_embeddings = token_embeddings[0].cpu().detach().tolist()
+        if embeddings:
+            dataset_embeddings.append(list(zip(token_embeddings, parsed_tokens)))
+        if eos_embedding:
+            dataset_eos_embeddings.append(token_embeddings[-1])
+    return (
+        dataset_attentions,
+        dataset_eos_attentions,
+        dataset_embeddings,
+        dataset_eos_embeddings,
+    )
 
 
 def preprocess_series(series: np.ndarray, output_path: Path, dictionary_path: Path):

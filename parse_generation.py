@@ -158,21 +158,23 @@ def score_distances(samples):
 if __name__ == "__main__":
     cuda = parse_arguments(True, False, False)["cuda"]
     for task in ["lef"]:  # , "jin", "schwaller"]:
-        for it, tokenizer in enumerate(TOKENIZER_SUFFIXES):
-            best_models = [
-                "1e-05_0.2_based_norm",
-                "1e-05_0.2_based_norm",
-                "1e-05_0.2_based_norm",
-                "1e-05_0.2_based_norm",
-            ]
+        tokenizer = "smiles_isomers_atom"
+        # for it, tokenizer in ["smiles_atom"]:#enumerate(TOKENIZER_SUFFIXES):
+        best_models = [
+            "full_normal",
+            "scale_window",
+            "half_time",
+        ]
+        for it, model in enumerate(best_models):
             os.system(
-                f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/best_models[it]/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam_new"/task/tokenizer}'
+                f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-regulation --task translation --path {TASK_PATH/task/tokenizer/model/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam_reg"/task/tokenizer/model}'
             )
             samples = parse_file(
                 PROJECT_PATH
-                / "reaction_prediction_beam"
+                / "reaction_prediction_beam_reg"
                 / task
                 / tokenizer
+                / model
                 / "generate-test.txt"
             )
             selfies = "selfies" in tokenizer
@@ -180,13 +182,18 @@ if __name__ == "__main__":
             output = output | score_samples(samples, selfies)
             output = output | score_distances(samples)
             os.makedirs(
-                PROJECT_PATH / "reaction_prediction_beam_neu" / task / tokenizer,
+                PROJECT_PATH
+                / "reaction_prediction_beam_reg"
+                / task
+                / tokenizer
+                / model,
                 exist_ok=True,
             )
             pd.DataFrame.from_dict([output]).to_csv(
                 PROJECT_PATH
-                / "reaction_prediction_beam_neu"
+                / "reaction_prediction_beam_reg"
                 / task
                 / tokenizer
+                / model
                 / "output.csv"
             )
