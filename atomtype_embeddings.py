@@ -202,7 +202,6 @@ if __name__ == "__main__":
     attention_encodings_clean = [(del attention_encodings[pos]) for pos in failedSmiPos]
 
     #within embeddings throw out all embeddings that belong to structural tokens etc accoridng to posToKeep_list
-        
     attention_encodings_cleaner = []
     for smiemb,pos_list in zip(attention_encodings,posToKeep_list):
         newembsforsmi = []
