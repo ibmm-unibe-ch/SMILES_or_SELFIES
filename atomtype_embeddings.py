@@ -1,25 +1,26 @@
 import pandas as pd
 import numpy as np
 import os
+import selfies
 from typing import List
 from io import StringIO
-from correlate_embeddings import sample_random_molecules,sample_synonym
+import logging
 
-from fairseq_utils import compute_embedding_output, compute_model_output
+from correlate_embeddings import sample_random_molecules
+from fairseq_utils import compute_model_output
 from preprocessing import translate_selfie
 from tokenisation import get_tokenizer
 from fairseq.data import Dictionary
-from scoring import load_dataset, load_model
+from scoring import load_model
 
 
 from constants import (
-    MOLNET_DIRECTORY,
-    PARSING_REGEX,
     TASK_MODEL_PATH,
     TASK_PATH,
     TOKENIZER_PATH,
+    PROJECT_PATH
 )
-from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
+from constants import TASK_PATH
 
 #translate SMILES to mol2 (obabel)
 def smilestofile(smiles,no,ftype):
@@ -37,7 +38,7 @@ def smilestofile(smiles,no,ftype):
 #call 
 def exec_antechamber(inputfile,ftype):
     inputfile_noex=os.path.splitext(inputfile)[0]
-    print("inputfile no extension",inputfile_noex)
+    #print("inputfile no extension",inputfile_noex)
     if ftype=="pdb":
         os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -at amber")
     elif ftype=="mol2":
@@ -103,11 +104,14 @@ def get_atom_assignments(smiles_arr):
     smi_num = 0
     failedSmiPos = list()
     for smi in smiles_arr:
+        print("##############################################################################################################")
+        print(f"SMILES: {smi}")
         smi_clean, posToKeep = clean_SMILES(smi)
         smi_fi = smilestofile(smi,no,"pdb")
-        if smilestofile is not None:
+        if os.path.isfile(smi_fi)==True:
+            print("Successful conversion of SMILES to file")
             smi_ac = exec_antechamber(smi_fi,"pdb")
-            if smi_ac is not None:
+            if os.path.isfile(smi_ac)==True:
                 #get antechamber assignment
                 atoms_ass_list, atoms_ass_set = getatom_ass(smi_ac)    
                 assignment_list.append(atoms_ass_list)
@@ -124,10 +128,10 @@ def get_atom_assignments(smiles_arr):
             failedSmiPos.append(smi_num)
         no+=1
         smi_num+=1
-    assert(len(dic.keys())==(len(smiles_arr)))
+    assert(len(dikt.keys())==(len(smiles_arr)))
     return dikt, dikt_clean, posToKeep_list, filecreation_fail, assignment_fail, failedSmiPos
 
-def get_embedding_outputs(rndm_smiles,task) -> Any:
+def get_embedding_outputs(rndm_smiles,task):
     #compute_embedding_output(
     #dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None) -> List[List[Tuple[float, str]]]:
     
@@ -144,6 +148,7 @@ def get_embedding_outputs(rndm_smiles,task) -> Any:
             / "checkpoint_best.pt"
         )
         data_path = TASK_PATH / task / encoding
+        cuda = False
         model = load_model(specific_model_path, data_path, cuda)
         model.zero_grad()
         data_path = data_path / "input0" / "test"
@@ -152,10 +157,10 @@ def get_embedding_outputs(rndm_smiles,task) -> Any:
         if encoding.startswith("selfies"):
             text = [translate_selfie(smile)[0] for smile in text]
 
-        if encoding.endswith("sentencepiece"):
-            tokenizer = get_tokenizer(TOKENIZER_PATH / encoding)
-        else:
-            tokenizer = None
+       # if encoding.endswith("sentencepiece"):
+       #     tokenizer = get_tokenizer(TOKENIZER_PATH / encoding)
+       # else:
+        tokenizer = None
             
         attention_encodings.append(
             compute_model_output(
@@ -176,9 +181,10 @@ def get_embedding_outputs(rndm_smiles,task) -> Any:
 
 if __name__ == "__main__":
     print("test")
-
+    print("project path",PROJECT_PATH)
+    print("project path",TASK_PATH)
     #get random smiles
-    rndm_mols = sample_random_molecules(100)
+    rndm_mols = sample_random_molecules(1)
     rndm_smiles = rndm_mols.loc[:,"rnd_smiles"]
     rndm_smiles_np = rndm_mols.loc[:,"rnd_smiles"].to_numpy()
     
@@ -187,19 +193,21 @@ if __name__ == "__main__":
     ##smiatomassign_dict as long as input smiles array
     
     #print number of fails
-    print(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
-    print(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
+    logging.info(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
+    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
+    #print(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
+    #print(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
     
     #get embeddings per token
     attention_encodings = []
-    task = "Classification"
+    task = "delaney"
     attention_encodings  = get_embedding_outputs(rndm_smiles,task)
     
     #check that attention encodings as long as keys in dict
     assert(len(smiToAtomAssign_dict.keys())==(len(attention_encodings)))
     
     #throw out all pos where smiles could not be translated into atom type assignments
-    attention_encodings_clean = [(del attention_encodings[pos]) for pos in failedSmiPos]
+    attention_encodings_clean = [(attention_encodings.remove(pos)) for pos in failedSmiPos]
 
     #within embeddings throw out all embeddings that belong to structural tokens etc accoridng to posToKeep_list
     attention_encodings_cleaner = []
