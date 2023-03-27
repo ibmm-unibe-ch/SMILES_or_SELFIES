@@ -15,10 +15,15 @@ from deepchem.molnet import (
     load_lipo,
     load_tox21,
 )
-from rdkit.Chem import Descriptors
 from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 
-DESCRIPTORS = [name for name, _ in Descriptors.descList]
+DESCRIPTORS = [
+    "NumAliphaticHeterocycles",
+    "NumAromaticHeterocycles",
+    "NumSaturatedHeterocycles",
+    "NumHDonors",
+    "NumAromaticRings",
+]
 CALCULATOR = MolecularDescriptorCalculator(DESCRIPTORS)
 
 # from https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/molnet_dataloader.py

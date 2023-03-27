@@ -10,6 +10,7 @@ from typing import List, Tuple
 
 import pandas as pd
 import selfies
+from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 from rdkit import Chem
 from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.EnumerateStereoisomers import (
@@ -17,8 +18,6 @@ from rdkit.Chem.EnumerateStereoisomers import (
     StereoEnumerationOptions,
 )
 from tqdm import tqdm
-
-from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
 
 
 def calc_descriptors(mol_string: str) -> dict:
@@ -311,7 +310,7 @@ def check_dups(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__ == "__main__":
     PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
-    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m", 1)
+    paths, statistics = process_mol_files(PROJECT_PATH / "download_full_pubchem", 2)
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
     valid = statistics.get("valid", 0)
@@ -395,8 +394,8 @@ if __name__ == "__main__":
     PROCESSED_PATH.mkdir(exist_ok=True)
     merged_dataframe = merge_dataframes(
         PROCESSED_PATH / "paths.pickle",
-        PROCESSED_PATH / "10m_pubchem_isomers.csv",
+        PROCESSED_PATH / "full_pubchem_isomers.csv",
         True,
     )
     deduplicated_dataframe = check_dups(merged_dataframe)
-    deduplicated_dataframe.to_csv(PROCESSED_PATH / "10m_deduplicated_isomers.csv")
+    deduplicated_dataframe.to_csv(PROCESSED_PATH / "full_deduplicated_isomers.csv")
