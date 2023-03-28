@@ -271,8 +271,8 @@ if __name__ == "__main__":
     print(smiToAtomAssign_dict)
     
     #print number of fails
-    logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out {len(rndm_smiles)}")
-    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
+    logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
+    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
     #print(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
     #print(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
     

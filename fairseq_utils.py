@@ -47,7 +47,8 @@ def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
 
     Args:
         data_path (Path): folder path of data (e.g. /input0/test)
-            for classification: TASK_PATH / task / tokenizer / "label" / "test" , for regression: TASK_PATH / task / tokenizer / "label" / "test.label"
+            for classification: TASK_PATH / task / tokenizer / "label" / "test" , 
+            for regression: TASK_PATH / task / tokenizer / "label" / "test.label"
         classification (bool): if classification(True) or regression(False) loading should be used. Defaults to classification.
 
 
