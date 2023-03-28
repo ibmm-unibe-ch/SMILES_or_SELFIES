@@ -47,6 +47,7 @@ def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
 
     Args:
         data_path (Path): folder path of data (e.g. /input0/test)
+            for classification: TASK_PATH / task / tokenizer / "label" / "test" , for regression: TASK_PATH / task / tokenizer / "label" / "test.label"
         classification (bool): if classification(True) or regression(False) loading should be used. Defaults to classification.
 
 
@@ -57,7 +58,7 @@ def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
         dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
         data = list(load_indexed_dataset(str(data_path), dikt))
         return data
-    with open(data_path, "r") as label_file:
+    with open(str(data_path / "test.label"), "r") as label_file:
         label_lines = label_file.readlines()
     return [float(line.strip()) for line in label_lines]
 
