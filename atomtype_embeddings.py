@@ -12,11 +12,11 @@ from preprocessing import translate_selfie
 from fairseq.data import Dictionary
 from scoring import load_model
 from attention_readout import load_molnet_test_set, canonize_smile
+from plotting import plot_representations
 
 from constants import (
     TASK_MODEL_PATH,
     TASK_PATH,
-    PROJECT_PATH,
     MOLNET_DIRECTORY
 )
 
@@ -154,10 +154,11 @@ def generate_attention_dict2(task: str, cuda: int
         data_path = TASK_PATH / task / encoding
         dataset = load_dataset(data_path, False)
         print(dataset)
+        print(len(dataset))
         model = load_model(specific_model_path, data_path, cuda)
         model.zero_grad()
         data_path = data_path / "input0" / "test"
-
+        print("datapath for source dict",data_path)
         source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
         assert len(task_SMILES) == len(
@@ -165,6 +166,7 @@ def generate_attention_dict2(task: str, cuda: int
         ), f"Real and filtered dataset {task} do not have same length."
 
         text = [canonize_smile(smile) for smile in task_SMILES]
+        print('text',text)
         #if encoding.startswith("selfies"):
         #    text = [translate_selfie(smile)[0] for smile in text]
 
@@ -179,8 +181,8 @@ def generate_attention_dict2(task: str, cuda: int
                 text,
                 source_dictionary,
                 False,
-                True,
-                False, #true for embeddings
+                False,
+                True, #true for embeddings
                 False,
                 tokenizer,
             )[1]
@@ -190,7 +192,66 @@ def generate_attention_dict2(task: str, cuda: int
     labels = np.array(task_labels).transpose()[0]
     return output, labels
 
+def generate_attention_dict3(task: str, cuda: int
+) -> Tuple[List[List[float]], np.ndarray]:
+    """Generate the attention dict of a task
+    Args:
+        task (str): Task to find attention of
+        cuda (int): CUDA device to use
+    Returns:
+        Tuple[List[List[float]], np.ndarray]: attention, labels
+    """
+    task_SMILES, task_labels = load_molnet_test_set(task)
+    for encoding in [
+        "smiles_atom"
+    ]:
+        specific_model_path = (
+            TASK_MODEL_PATH
+            / task
+            / encoding
+            / "5e-05_0.2_based_norm"
+            / "5e-05_0.2_based_norm"
+            / "checkpoint_best.pt"
+        )
+        data_path = TASK_PATH / task / encoding
+        model = load_model(specific_model_path, data_path, cuda)
+        model.zero_grad()
+        data_path = data_path / "input0" / "test"
+        dataset = load_dataset(data_path, True) #True for classification, false for regression
+        print(dataset)
+        print(len(dataset))
+        print("datapath for source dict",data_path)
+        source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
+
+        assert len(task_SMILES) == len(
+            dataset
+        ), f"Real and filtered dataset {task} do not have same length."
+
+        text = [canonize_smile(smile) for smile in task_SMILES]
+        print('text',text)
+        
+        tokenizer = None
+        embeds.append(
+            compute_model_output(
+                dataset,
+                model,
+                text,
+                source_dictionary,
+                False,
+                False,
+                True, #true for embeddings
+                True, #true for eos_embeddings
+                tokenizer,
+            )[3]
+        )
+   # print("attention encodings",len(attention_encodings[0]))
+   # print(len(attention_encodings))
+    output = list(zip(*embeds))
+    labels = np.array(task_labels).transpose()[0]
+    print("labels",labels)
+    print(len(labels))
+    return embeds
 
 def get_embedding_outputs_old(rndm_smiles,task):
     #compute_embedding_output(
@@ -230,9 +291,9 @@ def get_embedding_outputs_old(rndm_smiles,task):
             
         attention_encodings.append(
             compute_model_output(
-                dataset,
+                List[dataset],
                 model,
-                text,
+                List[text],
                 source_dictionary,
                 False,
                 False,
@@ -258,6 +319,7 @@ if __name__ == "__main__":
     
     #get SMILES from delaney
     task = "delaney"
+    #task = "bace_classification"
     assert task in list(
         MOLNET_DIRECTORY.keys()
     ), f"{task} not in MOLNET tasks."
@@ -266,20 +328,20 @@ if __name__ == "__main__":
     rndm_smiles = task_SMILES
     
     #get atom assignments
-    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, filecreation_fail, assignment_fail,failedSmiPos = get_atom_assignments(task_SMILES)
+    #smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, filecreation_fail, assignment_fail,failedSmiPos = get_atom_assignments(task_SMILES)
     ##smiatomassign_dict as long as input smiles array
-    print(smiToAtomAssign_dict)
+    #print(smiToAtomAssign_dict)
     
     #print number of fails
-    logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
-    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
+    #logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
+    #logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
     #print(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
     #print(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
     
     #get embeddings per token
-    attention_encodings = []
+    embeds = []
 
-    #attention_encodings  = generate_attention_dict2(task, False)
+    embeds = generate_attention_dict3(task, False)
     
     #check that attention encodings as long as keys in dict
     #assert(len(smiToAtomAssign_dict.keys())==(len(attention_encodings)))

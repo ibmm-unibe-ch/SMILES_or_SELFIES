@@ -55,13 +55,16 @@ def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
     Returns:
         List[str]: loaded fairseq dataset
     """
-    if classification:
-        dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
-        data = list(load_indexed_dataset(str(data_path), dikt))
-        return data
-    with open(str(data_path / "test.label"), "r") as label_file:
-        label_lines = label_file.readlines()
-    return [float(line.strip()) for line in label_lines]
+        #### to fix: how to deal with regression data #######
+    #old version for regression
+    # print("datapath for load dataset: ",str(data_path / "test.label"))
+    # with open(str(data_path / "test.label"), "r") as label_file:
+    #    label_lines = label_file.readlines()
+    #return [float(line.strip()) for line in label_lines]
+    #if classification:
+    dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
+    data = list(load_indexed_dataset(str(data_path), dikt))
+    return data
 
 
 def get_predictions(
