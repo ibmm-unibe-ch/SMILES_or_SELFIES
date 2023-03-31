@@ -13,11 +13,13 @@ from fairseq.data import Dictionary
 from scoring import load_model
 from attention_readout import load_molnet_test_set, canonize_smile
 from plotting import plot_representations
+from tokenisation import tokenize_dataset, get_tokenizer
 
 from constants import (
     TASK_MODEL_PATH,
     TASK_PATH,
-    MOLNET_DIRECTORY
+    MOLNET_DIRECTORY,
+    TOKENIZER_PATH
 )
 
 #translate SMILES to mol2 (obabel)
@@ -83,15 +85,19 @@ def clean_SMILES(SMILES_tok):
     for i in range(len(SMILES_tok)):
         #when it's an H in the SMILES, ignore, cannot deal
         #print(SMILES_tok[i])
-        if SMILES_tok[i]!="H" and not SMILES_tok[i].isdigit():
+        if SMILES_tok[i]!="H" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if any(elem in struc_toks for elem in SMILES_tok[i])==False:
                 SMILES_tok_prep.append(SMILES_tok[i])
                 posToKeep.append(pos) #keep pos where you keep SMILES token
         pos+=1
     assert(len(posToKeep)==(len(SMILES_tok_prep)))
+    print("SMILES_tok: ", SMILES_tok )
+    print("posToKeep: ",posToKeep)
+    print("SMILES_tok_prep: ",SMILES_tok_prep)
+    
     return SMILES_tok_prep,posToKeep
 
-def get_atom_assignments(smiles_arr):
+def get_atom_assignments(smiles_arr,smi_toks):
     no=0
     assignment_list=list()
     dikt=dict()
@@ -101,10 +107,13 @@ def get_atom_assignments(smiles_arr):
     assignment_fail = 0
     smi_num = 0
     failedSmiPos = list()
-    for smi in smiles_arr:
+    cleanSmis = list()
+    for smi,smi_tok in zip(smiles_arr,smi_toks):
         print("##############################################################################################################")
         print(f"SMILES: {smi}")
-        smi_clean, posToKeep = clean_SMILES(smi)
+        smi_clean, posToKeep = clean_SMILES(smi_tok)
+        cleanSmis.append(smi_clean)
+        #print(f"smi_tok turns to smi_clean: {smi_tok}  --->  {smi_clean}")
         smi_fi = smilestofile(smi,no,"pdb")
         if os.path.isfile(smi_fi)==True:
             print("Successful conversion of SMILES to file")
@@ -127,10 +136,10 @@ def get_atom_assignments(smiles_arr):
         no+=1
         smi_num+=1
     assert(len(dikt.keys())==(len(smiles_arr)))
-    return dikt, dikt_clean, posToKeep_list, filecreation_fail, assignment_fail, failedSmiPos
+    assert(len(dikt.keys())==(len(smi_toks)))
+    return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
-
-def generate_attention_dict2(task: str, cuda: int
+def get_embeddings(task: str, cuda: int
 ) -> Tuple[List[List[float]], np.ndarray]:
     """Generate the attention dict of a task
     Args:
@@ -146,68 +155,7 @@ def generate_attention_dict2(task: str, cuda: int
         specific_model_path = (
             TASK_MODEL_PATH
             / task
-            / encoding
-            / "5e-05_0.2_based_norm"
-            / "5e-05_0.2_based_norm"
-            / "checkpoint_best.pt"
-        )
-        data_path = TASK_PATH / task / encoding
-        dataset = load_dataset(data_path, False)
-        print(dataset)
-        print(len(dataset))
-        model = load_model(specific_model_path, data_path, cuda)
-        model.zero_grad()
-        data_path = data_path / "input0" / "test"
-        print("datapath for source dict",data_path)
-        source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
-
-        assert len(task_SMILES) == len(
-            dataset
-        ), f"Real and filtered dataset {task} do not have same length."
-
-        text = [canonize_smile(smile) for smile in task_SMILES]
-        print('text',text)
-        #if encoding.startswith("selfies"):
-        #    text = [translate_selfie(smile)[0] for smile in text]
-
-        #if encoding.endswith("sentencepiece"):
-        #    tokenizer = get_tokenizer(TOKENIZER_PATH / encoding)
-        #else:
-        tokenizer = None
-        attention_encodings.append(
-            compute_model_output(
-                dataset,
-                model,
-                text,
-                source_dictionary,
-                False,
-                False,
-                True, #true for embeddings
-                False,
-                tokenizer,
-            )[1]
-        )
-    print(attention_encodings)
-    output = list(zip(*attention_encodings))
-    labels = np.array(task_labels).transpose()[0]
-    return output, labels
-
-def generate_attention_dict3(task: str, cuda: int
-) -> Tuple[List[List[float]], np.ndarray]:
-    """Generate the attention dict of a task
-    Args:
-        task (str): Task to find attention of
-        cuda (int): CUDA device to use
-    Returns:
-        Tuple[List[List[float]], np.ndarray]: attention, labels
-    """
-    task_SMILES, task_labels = load_molnet_test_set(task)
-    for encoding in [
-        "smiles_atom"
-    ]:
-        specific_model_path = (
-            TASK_MODEL_PATH
-            / task
+      #      / "smiles_isomers_atom"
             / encoding
             / "5e-05_0.2_based_norm"
             / "5e-05_0.2_based_norm"
@@ -218,9 +166,9 @@ def generate_attention_dict3(task: str, cuda: int
         model.zero_grad()
         data_path = data_path / "input0" / "test"
         dataset = load_dataset(data_path, True) #True for classification, false for regression
-        print(dataset)
-        print(len(dataset))
-        print("datapath for source dict",data_path)
+        #print(dataset)
+        #print(len(dataset))
+        #print("datapath for source dict",data_path)
         source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
 
@@ -229,7 +177,7 @@ def generate_attention_dict3(task: str, cuda: int
         ), f"Real and filtered dataset {task} do not have same length."
 
         text = [canonize_smile(smile) for smile in task_SMILES]
-        print('text',text)
+        #print('text',text)
         
         tokenizer = None
         embeds.append(
@@ -243,79 +191,18 @@ def generate_attention_dict3(task: str, cuda: int
                 True, #true for embeddings
                 True, #true for eos_embeddings
                 tokenizer,
-            )[3]
+            )[2]
         )
    # print("attention encodings",len(attention_encodings[0]))
    # print(len(attention_encodings))
     output = list(zip(*embeds))
     labels = np.array(task_labels).transpose()[0]
-    print("labels",labels)
-    print(len(labels))
+    #print("labels",labels)
+    #print(len(labels))
     return embeds
-
-def get_embedding_outputs_old(rndm_smiles,task):
-    #compute_embedding_output(
-    #dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None) -> List[List[Tuple[float, str]]]:
-    
-    for encoding in [
-        "smiles_atom"#,
-        #"selfies_atom",
-    ]:
-        specific_model_path = (
-            TASK_MODEL_PATH
-            / task
-            / encoding
-            / "5e-05_0.2_based_norm"
-            / "5e-05_0.2_based_norm"
-            / "checkpoint_best.pt"
-        )
-        data_path = TASK_PATH / task / encoding
-        cuda = False
-        model = load_model(specific_model_path, data_path, cuda)
-        model.zero_grad()
-        dataset = load_dataset(data_path, False) #false since regression, remark: loading dataset before atting input0/test since this is a regression task
-        print("the dataset: ",dataset)
-        data_path = data_path / "input0" / "test"
-
-        source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
-        print(source_dictionary)
-        
-        text = [canonize_smile(smile) for smile in task_SMILES]
-        if encoding.startswith("selfies"):
-            text = [translate_selfie(smile)[0] for smile in text]
-
-       # if encoding.endswith("sentencepiece"):
-       #     tokenizer = get_tokenizer(TOKENIZER_PATH / encoding)
-       # else:
-        tokenizer = None
-            
-        attention_encodings.append(
-            compute_model_output(
-                List[dataset],
-                model,
-                List[text],
-                source_dictionary,
-                False,
-                False,
-                True, #true for embeddings
-                False,
-                tokenizer,
-            )[2] #2 for dataset_embeddings
-        )
-    return attention_encodings
-    
 
 
 if __name__ == "__main__":
-
-    testmol = "[N-]=[P-][C-][H]"
-    #get random smiles
-    rndm_mols = sample_random_molecules(1)
-    rndm_smiles = rndm_mols.loc[:,"rnd_smiles"]
-    rndm_smiles_np = rndm_mols.loc[:,"rnd_smiles"].to_numpy()
-    rndm_smiles_new = [smi for smi in rndm_smiles]
-    print(rndm_smiles_new)
-    print(rndm_smiles_np)
     
     #get SMILES from delaney
     task = "delaney"
@@ -325,13 +212,21 @@ if __name__ == "__main__":
     ), f"{task} not in MOLNET tasks."
     task_SMILES, task_labels = load_molnet_test_set(task)
     print(f"SMILES: {task_SMILES} \n len task_SMILES delaney: {len(task_SMILES)}")
+    #print(f"task labels",task_labels)
     rndm_smiles = task_SMILES
+    print(f"first smiles {task_SMILES[0]} and length {len(task_SMILES[0])}")
     
+    #get tokenized version of dataset
+    tokenizer = get_tokenizer(TOKENIZER_PATH)
+    smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
+    #smi_toks = [smi_tok.replace(" ","") for smi_tok in smi_toks]
+    smi_toks = [smi_tok.split() for smi_tok in smi_toks]
     #get atom assignments
-    #smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, filecreation_fail, assignment_fail,failedSmiPos = get_atom_assignments(task_SMILES)
+    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
     ##smiatomassign_dict as long as input smiles array
-    #print(smiToAtomAssign_dict)
-    
+    print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
+    print(smiToAtomAssign_dict)
+    print("[][]][][][][][][][][][][][][][][][][][][][][][][][]][][][][][][][][][]][][][][][][][][][][][][][][][][][][][][]")
     #print number of fails
     #logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
     #logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
@@ -340,22 +235,55 @@ if __name__ == "__main__":
     
     #get embeddings per token
     embeds = []
-
-    embeds = generate_attention_dict3(task, False)
+    embeds = get_embeddings(task, False)
+    #print(embeds)
+    print("length of embeds",len(embeds))
+    print("length of embeds",len(embeds[0]))
+    print("length smitoatomassign",len(smiToAtomAssign_dict.keys()))
     
     #check that attention encodings as long as keys in dict
-    #assert(len(smiToAtomAssign_dict.keys())==(len(attention_encodings)))
+    assert(len(smiToAtomAssign_dict.keys())==(len(embeds[0])))
+    
+    #iterate through smiles and embeds compare lens
+    samenums=0
+    diffnums=0
+    smismaller=0
+    new_embs=list() #only embeds that have same length as smiles
+    for smi,embs in zip(smi_toks,embeds[0]):
+        if len(smi)==len(embs):
+            samenums+=1
+            new_embs.append(embs)
+        else:
+            print(f"smilen: {len(smi)} emblen: {len(embs)}")
+            print(f"{smi} and len diff {len(smi2)-len(embs)}")
+            diffnums+=1
+            if len(smi)<len(embs):
+                smismaller+=1
+    print(f"samenums: {samenums} and diffnums: {diffnums} of which smiles have smaller length: {smismaller}")
+    perc = (diffnums/(diffnums+samenums))*100
+    print("percentage of embeddings not correct compared to smiles: {:.2f}".format(perc))
+        
     
     #throw out all pos where smiles could not be translated into atom type assignments
-    #attention_encodings_clean = [(attention_encodings.remove(pos)) for pos in failedSmiPos]
+    embeds_clean = list()
+    for count,emb in enumerate(embeds[0]):
+        if count not in failedSmiPos: #assignment for this SMILES did not fail
+            embeds_clean.append(emb)
+    print(f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed: {len(embeds_clean)}")
+    assert creation_assignment_fail == (len(embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fail}) and number of deleted embeddings do not agree ({(len(embeds[0])-len(embeds_clean))})."
 
-    #within embeddings throw out all embeddings that belong to structural tokens etc accoridng to posToKeep_list
-    #attention_encodings_cleaner = []
-   # for smiemb,pos_list in zip(attention_encodings,posToKeep_list):
-     #   newembsforsmi = []
+    #print(embeds_clean)
+    #within embeddings throw out all embeddings that belong to structural tokens etc according to posToKeep_list
+    embeds_cleaner = []
+    assert len(embeds_clean)==(len(posToKeep_list)), "Not the same amount of embeddings as assigned SMILES."
+    print(f"{len(embeds_clean)} vs. {(len(posToKeep_list))}")
+    for smiemb,pos_list in zip(embeds_clean,posToKeep_list):
+        newembsforsmi = []
         #check that atom assignment is not null
-     #   if pos_list is not None:
-     #       newembsforsmi = [smiemb[pos] for pos in pos_list]
-     #       attention_encodings_cleaner.append(newembsforsmi)
+        newembsforsmi = [smiemb[pos] for pos in pos_list]
+        embeds_cleaner.append(newembsforsmi)
+        
+    for smiemb, pos_list in zip(embeds_cleaner,posToKeep_list):
+        assert len(smiemb)==len(pos_list), "Final selected embeddings for assigned atoms do not have same length as list of assigned atoms."
     
     
