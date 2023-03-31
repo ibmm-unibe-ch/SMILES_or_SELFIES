@@ -5,6 +5,7 @@ import selfies
 from typing import List, Tuple
 from io import StringIO
 import logging
+import re
 
 from correlate_embeddings import sample_random_molecules
 from fairseq_utils import compute_model_output, load_dataset
@@ -87,8 +88,9 @@ def clean_SMILES(SMILES_tok):
         #print(SMILES_tok[i])
         if SMILES_tok[i]!="H" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if any(elem in struc_toks for elem in SMILES_tok[i])==False:
-                SMILES_tok_prep.append(SMILES_tok[i])
-                posToKeep.append(pos) #keep pos where you keep SMILES token
+                if SMILES_tok[i]!="-":
+                    SMILES_tok_prep.append(SMILES_tok[i])
+                    posToKeep.append(pos) #keep pos where you keep SMILES token
         pos+=1
     assert(len(posToKeep)==(len(SMILES_tok_prep)))
     print("SMILES_tok: ", SMILES_tok )
@@ -137,6 +139,9 @@ def get_atom_assignments(smiles_arr,smi_toks):
         smi_num+=1
     assert(len(dikt.keys())==(len(smiles_arr)))
     assert(len(dikt.keys())==(len(smi_toks)))
+    assert len(posToKeep_list)==len(dikt_clean.keys()), f"Length of list of positions of assigned atoms in SMILES ({len(posToKeep_list)}) and number of SMILES ({len(posToKeep_list)}) is not the same."
+    logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
+    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
     return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
 def get_embeddings(task: str, cuda: int
@@ -201,6 +206,72 @@ def get_embeddings(task: str, cuda: int
     #print(len(labels))
     return embeds
 
+def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
+    #throw out all pos where smiles could not be translated into atom type assignments
+    embeds_clean = list()
+    for count,emb in enumerate(embeds[0]):
+        if count not in failedSmiPos: #assignment for this SMILES did not fail
+            embeds_clean.append(emb)
+    print(f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed: {len(embeds_clean)}")
+    assert creation_assignment_fail == (len(embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fail}) and number of deleted embeddings do not agree ({(len(embeds[0])-len(embeds_clean))})."
+
+    #print(embeds_clean)
+    #within embeddings throw out all embeddings that belong to structural tokens etc according to posToKeep_list
+    embeds_cleaner = []
+    assert len(embeds_clean)==(len(posToKeep_list)), f"Not the same amount of embeddings as assigned SMILES. {len(embeds_clean)} embeddings vs. {(len(posToKeep_list))} SMILES with positions"
+    for smiemb,pos_list in zip(embeds_clean,posToKeep_list):
+        newembsforsmi = []
+        #check that atom assignment is not null
+        newembsforsmi = [smiemb[pos] for pos in pos_list]
+        embeds_cleaner.append(newembsforsmi)
+        
+    for smiemb, pos_list in zip(embeds_cleaner,posToKeep_list):
+        assert len(smiemb)==len(pos_list), "Final selected embeddings for assigned atoms do not have same length as list of assigned atoms."
+    return embeds_cleaner
+
+def correctLengths(smi_toks,embeds):
+        #iterate through smiles and embeds compare lens
+    samenums=0
+    diffnums=0
+    smismaller=0
+    new_embs=list() #only embeds that have same length as smiles
+    for smi,embs in zip(smi_toks,embeds[0]):
+        if len(smi)==len(embs):
+            samenums+=1
+            new_embs.append(embs)
+        else:
+            print(f"smilen: {len(smi)} emblen: {len(embs)}")
+            print(f"{smi} and len diff {len(smi)-len(embs)}")
+            diffnums+=1
+            if len(smi)<len(embs):
+                smismaller+=1
+    if diffnums==0:
+        return True
+    else:
+        print(f"samenums: {samenums} and diffnums: {diffnums} of which smiles have smaller length: {smismaller}")
+        perc = (diffnums/(diffnums+samenums))*100
+        print("percentage of embeddings not correct compared to smiles: {:.2f}".format(perc))
+        return False
+
+
+def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
+    #dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
+    #dict[smiles]=(embedding of SMILES, assigned atoms)
+    embass_dikt = dict()
+    assert (len(smiToAtomAssign_dict_clean.keys())==(len(embeds_clean))), f"Number of assigned SMILES ({len(smiToAtomAssign_dict_clean.keys())}) and embeddings {len(embeds_clean)} do not agree."
+    it = 0
+    for smi, value in smiToAtomAssign_dict_clean.items():
+        clean_toks=value[1]
+        assigns = value[2]
+        #print("SMILES: ",smi)
+        #print(f"{clean_toks}")
+        assert len(clean_toks)==(len(embeds_clean[it])), f"Number of tokens ({len(clean_toks)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
+        assert len(assigns)==(len(embeds_clean[it])), f"Number of assignments ({len(assigns)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
+        embass_dikt[smi]=(embeds_clean[it],assigns)
+        #print(f"final link: {smi}: {clean_toks} \n {assigns} embedding")
+        it+=1
+    return embass_dikt
+        
 
 if __name__ == "__main__":
     
@@ -227,63 +298,22 @@ if __name__ == "__main__":
     print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
     print(smiToAtomAssign_dict)
     print("[][]][][][][][][][][][][][][][][][][][][][][][][][]][][][][][][][][][]][][][][][][][][][][][][][][][][][][][][]")
-    #print number of fails
-    #logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
-    #logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
-    #print(f"File creation from SMILES to pdb by obable failed {filecreation_fail} times out {len(rndm_smiles)}")
-    #print(f"Atom assignment by antechamber failed {assignment_fail} times out {len(rndm_smiles)}")
     
     #get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False)
     #print(embeds)
-    print("length of embeds",len(embeds))
-    print("length of embeds",len(embeds[0]))
-    print("length smitoatomassign",len(smiToAtomAssign_dict.keys()))
+    #print("length of embeds",len(embeds))
+    #print("length of embeds",len(embeds[0]))
+    #print("length smitoatomassign",len(smiToAtomAssign_dict.keys()))
     
     #check that attention encodings as long as keys in dict
-    assert(len(smiToAtomAssign_dict.keys())==(len(embeds[0])))
+    assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
+    assert correctLengths(smi_toks,embeds)
+    embeds_clean = get_clean_embeds(embeds,failedSmiPos,posToKeep_list)
     
-    #iterate through smiles and embeds compare lens
-    samenums=0
-    diffnums=0
-    smismaller=0
-    new_embs=list() #only embeds that have same length as smiles
-    for smi,embs in zip(smi_toks,embeds[0]):
-        if len(smi)==len(embs):
-            samenums+=1
-            new_embs.append(embs)
-        else:
-            print(f"smilen: {len(smi)} emblen: {len(embs)}")
-            print(f"{smi} and len diff {len(smi2)-len(embs)}")
-            diffnums+=1
-            if len(smi)<len(embs):
-                smismaller+=1
-    print(f"samenums: {samenums} and diffnums: {diffnums} of which smiles have smaller length: {smismaller}")
-    perc = (diffnums/(diffnums+samenums))*100
-    print("percentage of embeddings not correct compared to smiles: {:.2f}".format(perc))
-        
-    
-    #throw out all pos where smiles could not be translated into atom type assignments
-    embeds_clean = list()
-    for count,emb in enumerate(embeds[0]):
-        if count not in failedSmiPos: #assignment for this SMILES did not fail
-            embeds_clean.append(emb)
-    print(f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed: {len(embeds_clean)}")
-    assert creation_assignment_fail == (len(embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fail}) and number of deleted embeddings do not agree ({(len(embeds[0])-len(embeds_clean))})."
+    embass_dikt = link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean)
 
-    #print(embeds_clean)
-    #within embeddings throw out all embeddings that belong to structural tokens etc according to posToKeep_list
-    embeds_cleaner = []
-    assert len(embeds_clean)==(len(posToKeep_list)), "Not the same amount of embeddings as assigned SMILES."
-    print(f"{len(embeds_clean)} vs. {(len(posToKeep_list))}")
-    for smiemb,pos_list in zip(embeds_clean,posToKeep_list):
-        newembsforsmi = []
-        #check that atom assignment is not null
-        newembsforsmi = [smiemb[pos] for pos in pos_list]
-        embeds_cleaner.append(newembsforsmi)
-        
-    for smiemb, pos_list in zip(embeds_cleaner,posToKeep_list):
-        assert len(smiemb)==len(pos_list), "Final selected embeddings for assigned atoms do not have same length as list of assigned atoms."
+    
     
     
