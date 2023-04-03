@@ -279,38 +279,33 @@ def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
         it+=1
     return embass_dikt
 
-def plot_umap(embeddings, labels, colours, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
+def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
     logging.info("Started plotting UMAP")
     os.makedirs(save_path.parent, exist_ok=True)
     reducer = umap.UMAP(
         n_neighbors=n_neighbors, min_dist=min_dist, random_state=SEED + 6539
     )
     umap_embeddings = reducer.fit_transform(embeddings)
-    if isinstance(colours[0], str):
-        for counter, label in enumerate(colours.unique()):
-            plt.scatter(
-                umap_embeddings[colours == label, 0],
-                umap_embeddings[colours == label, 1],
-                s=plt.rcParams["lines.markersize"] ** 2 / 3,
-                alpha=alpha,
-                c=default_colours[counter % len(default_colours)],
-                marker=markers[counter % len(markers)],
-                label=label,
-            )
-        plt.legend()
-    else:
-        plt.scatter(
-            umap_embeddings[:, 0],
-            umap_embeddings[:, 1],
-            s=plt.rcParams["lines.markersize"] ** 2 / 3,
-            c=colours,
-        )
-        plt.colorbar()
+    
+    colours = [colour for colour in colours_dict.values()] #all colours used
+    labels_tocols = [lab for lab in colours_dict.keys() ]
+   # plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap=[colours[x] for x in labels])
+    scatterplot = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='x', c=[colours_dict[x] for x in labels])
+    
+    #cb = plt.colorbar(scatterplot)
+    cb = plt.colorbar(scatterplot)
+    loc = np.arange(0,len(colours),1)
+    cb.set_ticks(loc)
+    cb.set_ticklabels(labels_tocols)
+    
     plt.ylabel("UMAP 2")
     plt.xlabel("UMAP 1")
+    #plt.text(umap_embeddings[:, 0], umap_embeddings[:, 1], labels)
     plt.tight_layout()
+    plt.title("UMAP - Embeddings resp. to atom types")
     plt.savefig(save_path, format="svg")
     plt.clf()
+
         
 def getcolorstoatomtype(big_set):
     cmap = matplotlib.cm.get_cmap('viridis')
@@ -319,10 +314,15 @@ def getcolorstoatomtype(big_set):
     
     #create atomtypetocolor_dict
     atomtype2color = dict()
-    for atype, col in zip(big_set,colors_vir):
+    #sort big set according to alphabet to keep carbons closer together
+    set_list = sorted(list(big_set))
+    #print(f"set_before sorting: {big_set}")
+    #print(f"sorted big set: {set_list}")
+    
+    for atype, col in zip(set_list,colors_vir):
         atomtype2color[atype]=col
     #print(atomtype2color)
-    return atomtype2color
+    return atomtype2color, set_list
 
 if __name__ == "__main__":
     
@@ -366,13 +366,13 @@ if __name__ == "__main__":
     embass_dikt = link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean)
     
     #from 112 pick 30 first and only embedding not description of atom
-    embeds_fin = [val[0] for val in embass_dikt.values()][0:30]
-    print(f"length of 1 embedding: {len(embeds_fin)} which is {embeds_fin[0]}")
-    atom_assigns_fin = [val[1] for val in embass_dikt.values()][0:30]
+    embeds_fin = [val[0] for val in embass_dikt.values()]
+    #print(f"length of 1 embedding: {len(embeds_fin)} which is {embeds_fin[0]}")
+    atom_assigns_fin = [val[1] for val in embass_dikt.values()]
     #print(f"length of 1 atomassigns: {len(atom_assigns_fin[0])} which is {atom_assigns_fin[0][0]}")
     #print(embeds_fin)
     #print(len(atom_assigns_fin)==(len(embeds_fin)))
-    mol_labels = [num for num in range(0,30)]
+    mol_labels = [num for num in range(0,len(embeds_fin))]
     #print(mol_labels)
     
     #extract embeddings without atoms from  embeds_fin 
@@ -395,10 +395,11 @@ if __name__ == "__main__":
     atomtype_set = [set(type_list) for type_list in atom_assigns_fin]
     big_set = set().union(*atomtype_set)
     
-    atomtype2color = getcolorstoatomtype(big_set)
+    atomtype2color, set_list = getcolorstoatomtype(big_set)
+    print(atomtype2color)
     
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap.svg"), min_dist, n_neighbors, alpha)
+    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap.svg"), min_dist, n_neighbors, alpha)
