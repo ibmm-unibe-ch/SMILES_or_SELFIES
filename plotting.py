@@ -7,13 +7,12 @@ from typing import List, Tuple
 import matplotlib
 import matplotlib.pyplot as plt
 import umap
+from constants import SEED
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 
-from constants import SEED
-
 matplotlib.use("Agg")
-plt.style.use("seaborn-colorblind")
+plt.style.use("seaborn-v0_8-colorblind")
 markers = list(Line2D.markers.keys())
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 default_colours = prop_cycle.by_key()["color"]
@@ -40,7 +39,7 @@ def plot_correlation(
             marker=markers[number % len(markers)],
             label=label,
         )
-    plt.legend()
+    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.ylabel("Embedding distance")
     plt.xlabel("Fingerprint distance")
     plt.tight_layout()
@@ -65,7 +64,7 @@ def plot_umap(embeddings, colours, save_path, min_dist=0.1, n_neighbors=15, alph
                 marker=markers[counter % len(markers)],
                 label=label,
             )
-        plt.legend()
+        plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     else:
         plt.scatter(
             umap_embeddings[:, 0],
@@ -99,7 +98,7 @@ def plot_pca(embeddings, colours, save_path, alpha=0.2):
                 marker=markers[counter % len(markers)],
                 label=label,
             )
-        plt.legend()
+        plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     else:
         plt.scatter(
             pca_embeddings[:, 0],
@@ -120,6 +119,7 @@ def plot_representations(
     embeddings, colours, save_path_prefix, min_dist=0.1, n_neighbors=15, alpha=0.2
 ):
     logging.info("Started plotting PCA")
+    plt.axis("square")
     plot_pca(embeddings, colours, Path(str(save_path_prefix) + "_pca.svg"), alpha)
     logging.info("Started plotting UMAP")
     plot_umap(
@@ -151,13 +151,7 @@ def plot_scores(scores: dict, tests, y_label, save_path, bar_width=None):
             .replace("smiles", "SMILES"),
             hatch=default_hatches[it % len(default_hatches)],
         )
-    plt.legend(
-        bbox_to_anchor=(1.04, 0.5),
-        loc="center left",
-        borderaxespad=0,
-        handleheight=2,
-        handlelength=2,
-    )
+    plt.legend()
     plt.xticks([x_tick + 0.5 for x_tick in range(len(tests))], tests, rotation=45)
     plt.xlabel("Tasks")
     plt.ylabel(y_label)
