@@ -48,13 +48,32 @@ def exec_antechamber(inputfile,ftype):
     inputfile_noex=os.path.splitext(inputfile)[0]
     #print("inputfile no extension",inputfile_noex)
     if ftype=="pdb":
-        os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -at amber")
+        #os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
+        os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -at gaff2")
     elif ftype=="mol2":
-        os.system(f"antechamber -i {inputfile} -fi mol2 -o {inputfile_noex}_ass.mol2 -fo mol2 -at amber")
+        os.system(f"antechamber -i {inputfile} -fi mol2 -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
     else:
         print("Execution of antechamber failed. Wrong filetype given. Filetype needs to be pdb or mol2.")
         return None
     return f"{inputfile_noex}_ass.mol2"
+
+def run_parmchk2(ac_outfile):
+    acout_noex=os.path.splitext(ac_outfile)[0]
+    print("acout_noex",acout_noex)
+    os.system(f"parmchk2 -i {ac_outfile} -f mol2 -o {acout_noex}.frcmod -s gaff2")
+    #check whether file was generated
+    if os.path.isfile(f"{acout_noex}.frcmod")==True:
+        with open(f"{acout_noex}.frcmod") as infile:
+            lines = infile.read().splitlines()
+            for line in lines:
+                if "ATTN: needs revision" in line:
+                    print("###############################################################################")
+                    print("###############################################################################")
+                    print("##########################################ATTENTION###############################")
+                    print("###############################################################################")
+                    print("###############################################################################")
+                    return False
+    return True
 
 #get atom assignment
 def getatom_ass(mol2):
@@ -125,16 +144,18 @@ def get_atom_assignments(smiles_arr,smi_toks):
             print("Successful conversion of SMILES to file")
             smi_ac = exec_antechamber(smi_fi,"pdb")
             if os.path.isfile(smi_ac)==True:
-                #get antechamber assignment
-                atoms_ass_list, atoms_ass_set = getatom_ass(smi_ac)    
-                assignment_list.append(atoms_ass_list)
-                dikt[smi] = (posToKeep,smi_clean,atoms_ass_list)
-                dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
-                posToKeep_list.append(posToKeep)
-            else:
-                assignment_fail +=1
-                dikt[smi] = (None,None,None)
-                failedSmiPos.append(smi_num)
+                #if smi_ac was generated check if with parmchk2, returns True if output is ok
+                if True==run_parmchk2(smi_ac):
+                    #get antechamber assignment
+                    atoms_ass_list, atoms_ass_set = getatom_ass(smi_ac)    
+                    assignment_list.append(atoms_ass_list)
+                    dikt[smi] = (posToKeep,smi_clean,atoms_ass_list)
+                    dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
+                    posToKeep_list.append(posToKeep)
+                else:
+                    assignment_fail +=1
+                    dikt[smi] = (None,None,None)
+                    failedSmiPos.append(smi_num)
         else:
             filecreation_fail +=1
             dikt[smi] = (None,None,None) 
@@ -299,6 +320,11 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     colours = [colour for colour in colours_dict.values()] #all colours used
     labels_tocols = [lab for lab in colours_dict.keys() ]
    # plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap=[colours[x] for x in labels])
+    # only plot carbons
+    #for label,umap_emb in zip(labels,umap_embeddings):
+    #    if label.startswith("C") and label!="Cl":
+    #        ax.scatter(umap_emb[0],umap_emb[1], marker='.', c=[colours_dict[x] for x in labels])
+   
     scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
@@ -407,4 +433,4 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_discol.svg"), min_dist, n_neighbors, alpha)
+    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_discol_gaff2.svg"), min_dist, n_neighbors, alpha)
