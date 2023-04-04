@@ -69,9 +69,6 @@ def getatom_ass(mol2):
     #extract 5th column with atom_asss
     atoms_ass_list = pddf.iloc[:,5].tolist()
     atoms_ass_set = set(atoms_ass_list)
-    #print("atoms assigned", atoms_ass_list)
-    #print()
-    #print("assignments set", atoms_ass_set)
     return atoms_ass_list, atoms_ass_set
 
 def clean_acout(ac_out) -> list:
@@ -302,7 +299,7 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     colours = [colour for colour in colours_dict.values()] #all colours used
     labels_tocols = [lab for lab in colours_dict.keys() ]
    # plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap=[colours[x] for x in labels])
-    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='x', c=[colours_dict[x] for x in labels])
+    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("UMAP 2")
@@ -316,6 +313,8 @@ def getcolorstoatomtype(big_set):
     cmap = mpl.cm.get_cmap('viridis')
     nums = np.linspace(0,1.0,(len(big_set)))
     colors_vir = [cmap(num) for num in nums]
+    # https://sashamaps.net/docs/resources/20-colors/
+    colors_sash = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000']
     
     #create atomtypetocolor_dict
     atomtype2color = dict()
@@ -325,7 +324,18 @@ def getcolorstoatomtype(big_set):
     #print(f"sorted big set: {set_list}")
     
     for atype, col in zip(set_list,colors_vir):
-        atomtype2color[atype]=col
+        if atype=="Cl":
+            atomtype2color[atype]='#e6194B'
+        elif atype=="F":
+            atomtype2color[atype]='#f58231'
+        elif atype=="O":
+            atomtype2color[atype]='#f032e6'
+        elif atype=="OS":
+            atomtype2color[atype]='#dcbeff'
+        elif atype=="DU":
+            atomtype2color[atype]='#42d4f4'
+        else:
+            atomtype2color[atype]=col
     #print(atomtype2color)
     return atomtype2color, set_list
 
@@ -351,17 +361,13 @@ if __name__ == "__main__":
     #get atom assignments
     smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
     ##smiatomassign_dict as long as input smiles array
-    print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
-    print(smiToAtomAssign_dict)
-    print("[][]][][][][][][][][][][][][][][][][][][][][][][][]][][][][][][][][][]][][][][][][][][][][][][][][][][][][][][]")
-    
+    #print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
+    #print(smiToAtomAssign_dict)
+    #print("[][]][][][][][][][][][][][][][][][][][][][][][][][]][][][][][][][][][]][][][][][][][][][][][][][][][][][][][][]")
+
     #get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False)
-    #print(embeds)
-    #print("length of embeds",len(embeds))
-    #print("length of embeds",len(embeds[0]))
-    #print("length smitoatomassign",len(smiToAtomAssign_dict.keys()))
     
     #check that attention encodings as long as keys in dict
     assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
@@ -372,13 +378,8 @@ if __name__ == "__main__":
     
     #from 112 pick 30 first and only embedding not description of atom
     embeds_fin = [val[0] for val in embass_dikt.values()]
-    #print(f"length of 1 embedding: {len(embeds_fin)} which is {embeds_fin[0]}")
     atom_assigns_fin = [val[1] for val in embass_dikt.values()]
-    #print(f"length of 1 atomassigns: {len(atom_assigns_fin[0])} which is {atom_assigns_fin[0][0]}")
-    #print(embeds_fin)
-    #print(len(atom_assigns_fin)==(len(embeds_fin)))
     mol_labels = [num for num in range(0,len(embeds_fin))]
-    #print(mol_labels)
     
     #extract embeddings without atoms from  embeds_fin 
     for emb, ass in zip(embeds_fin,atom_assigns_fin):
@@ -401,10 +402,9 @@ if __name__ == "__main__":
     big_set = set().union(*atomtype_set)
     
     atomtype2color, set_list = getcolorstoatomtype(big_set)
-    print(atomtype2color)
     
-    min_dist = 0.1
+    min_dist = 0.3
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap.svg"), min_dist, n_neighbors, alpha)
+    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_discol.svg"), min_dist, n_neighbors, alpha)
