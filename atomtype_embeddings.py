@@ -6,7 +6,7 @@ from io import StringIO
 import logging
 import umap
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib as mpl
 from matplotlib.lines import Line2D
 from pathlib import Path
 
@@ -279,6 +279,16 @@ def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
         it+=1
     return embass_dikt
 
+def build_legend(data):
+    """
+    Build a legend for matplotlib plt from dict
+    """
+    legend_elements = []
+    for key in data:
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', label=key,
+                                        markerfacecolor=data[key], markersize=9))
+    return legend_elements
+
 def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
     logging.info("Started plotting UMAP")
     os.makedirs(save_path.parent, exist_ok=True)
@@ -287,28 +297,23 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     )
     umap_embeddings = reducer.fit_transform(embeddings)
     
+    
+    fig,ax = plt.subplots(1)
     colours = [colour for colour in colours_dict.values()] #all colours used
     labels_tocols = [lab for lab in colours_dict.keys() ]
    # plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap=[colours[x] for x in labels])
-    scatterplot = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='x', c=[colours_dict[x] for x in labels])
-    
-    #cb = plt.colorbar(scatterplot)
-    cb = plt.colorbar(scatterplot)
-    loc = np.arange(0,len(colours),1)
-    cb.set_ticks(loc)
-    cb.set_ticklabels(labels_tocols)
-    
-    plt.ylabel("UMAP 2")
-    plt.xlabel("UMAP 1")
-    #plt.text(umap_embeddings[:, 0], umap_embeddings[:, 1], labels)
-    plt.tight_layout()
-    plt.title("UMAP - Embeddings resp. to atom types")
-    plt.savefig(save_path, format="svg")
-    plt.clf()
+    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='x', c=[colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("UMAP 2")
+    ax.set_xlabel("UMAP 1")
+    ax.set_title("UMAP - Embeddings resp. to atom types")
+    fig.savefig(save_path, format="svg")
+    fig.clf()
 
         
 def getcolorstoatomtype(big_set):
-    cmap = matplotlib.cm.get_cmap('viridis')
+    cmap = mpl.cm.get_cmap('viridis')
     nums = np.linspace(0,1.0,(len(big_set)))
     colors_vir = [cmap(num) for num in nums]
     
