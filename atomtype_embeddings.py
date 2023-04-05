@@ -49,7 +49,7 @@ def exec_antechamber(inputfile,ftype):
     #print("inputfile no extension",inputfile_noex)
     if ftype=="pdb":
         #os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
-        os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -at gaff2")
+        os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
     elif ftype=="mol2":
         os.system(f"antechamber -i {inputfile} -fi mol2 -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
     else:
@@ -75,6 +75,17 @@ def run_parmchk2(ac_outfile):
                     return False
     return True
 
+def clean_acout(ac_out) -> list:
+    ac_out_noH=list()
+    for j in ac_out:
+        #save only when it's mot H
+        if not j.startswith('H') and not j.startswith('h'):
+            ac_out_noH.append(j)
+            #print(f"-----------------this is not H, this is: {j}")
+    print("before: ", ac_out)
+    print("after: ", ac_out_noH)
+    return ac_out_noH
+
 #get atom assignment
 def getatom_ass(mol2):
     #extract lines between @<TRIPOS>ATOM and @<TRIPOS>BOND to get atom asss
@@ -87,19 +98,11 @@ def getatom_ass(mol2):
     pddf = pd.read_csv(StringIO(extract), header=None, delimiter=r"\s+")
     #extract 5th column with atom_asss
     atoms_ass_list = pddf.iloc[:,5].tolist()
-    atoms_ass_set = set(atoms_ass_list)
-    return atoms_ass_list, atoms_ass_set
+    #clean H from atom assignment
+    atoms_ass_list_clean = clean_acout(atoms_ass_list)
+    atoms_ass_set = set(atoms_ass_list_clean)
+    return atoms_ass_list_clean, atoms_ass_set
 
-def clean_acout(ac_out) -> list:
-    ac_out_noH=list()
-    for j in ac_out:
-        #save only when it's mot H
-        if not j.startswith('H'):
-            ac_out_noH.append(j)
-            #print(f"-----------------this is not H, this is: {j}")
-    #print("before: ", ac_out)
-    #print("after: ", ac_out_noH)
-    return ac_out_noH
 
 def clean_SMILES(SMILES_tok):
     SMILES_tok_prep=list()
@@ -109,7 +112,7 @@ def clean_SMILES(SMILES_tok):
     for i in range(len(SMILES_tok)):
         #when it's an H in the SMILES, ignore, cannot deal
         #print(SMILES_tok[i])
-        if SMILES_tok[i]!="H" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
+        if SMILES_tok[i]!="H" and SMILES_tok[i]!="h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if any(elem in struc_toks for elem in SMILES_tok[i])==False:
                 if SMILES_tok[i]!="-":
                     SMILES_tok_prep.append(SMILES_tok[i])
@@ -139,14 +142,14 @@ def get_atom_assignments(smiles_arr,smi_toks):
         smi_clean, posToKeep = clean_SMILES(smi_tok)
         cleanSmis.append(smi_clean)
         #print(f"smi_tok turns to smi_clean: {smi_tok}  --->  {smi_clean}")
-        smi_fi = smilestofile(smi,no,"pdb")
+        smi_fi = smilestofile(smi,no,"mol2")
         if os.path.isfile(smi_fi)==True:
             print("Successful conversion of SMILES to file")
-            smi_ac = exec_antechamber(smi_fi,"pdb")
+            smi_ac = exec_antechamber(smi_fi,"mol2")
             if os.path.isfile(smi_ac)==True:
                 #if smi_ac was generated check if with parmchk2, returns True if output is ok
                 if True==run_parmchk2(smi_ac):
-                    #get antechamber assignment
+                    #get antechamber assignment (without hydrogens)
                     atoms_ass_list, atoms_ass_set = getatom_ass(smi_ac)    
                     assignment_list.append(atoms_ass_list)
                     dikt[smi] = (posToKeep,smi_clean,atoms_ass_list)
@@ -156,6 +159,10 @@ def get_atom_assignments(smiles_arr,smi_toks):
                     assignment_fail +=1
                     dikt[smi] = (None,None,None)
                     failedSmiPos.append(smi_num)
+            else:
+                assignment_fail +=1
+                dikt[smi] = (None,None,None)
+                failedSmiPos.append(smi_num)
         else:
             filecreation_fail +=1
             dikt[smi] = (None,None,None) 
@@ -291,7 +298,7 @@ def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
         #print("SMILES: ",smi)
         #print(f"{clean_toks}")
         assert len(clean_toks)==(len(embeds_clean[it])), f"Number of tokens ({len(clean_toks)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
-        assert len(assigns)==(len(embeds_clean[it])), f"Number of assignments ({len(assigns)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
+        assert len(assigns)==(len(embeds_clean[it])), f"Number of assignments ({len(assigns)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string.\n Assigns: {assigns} vs. Embeddings"
         embass_dikt[smi]=(embeds_clean[it],assigns)
         #print(f"final link: {smi}: {clean_toks} \n {assigns} embedding")
         it+=1
@@ -350,11 +357,11 @@ def getcolorstoatomtype(big_set):
     #print(f"sorted big set: {set_list}")
     
     for atype, col in zip(set_list,colors_vir):
-        if atype=="Cl":
+        if atype=="cl":
             atomtype2color[atype]='#e6194B'
-        elif atype=="F":
+        elif atype=="f":
             atomtype2color[atype]='#f58231'
-        elif atype=="O":
+        elif atype=="o":
             atomtype2color[atype]='#f032e6'
         elif atype=="OS":
             atomtype2color[atype]='#dcbeff'
@@ -384,6 +391,11 @@ if __name__ == "__main__":
     smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
     #smi_toks = [smi_tok.replace(" ","") for smi_tok in smi_toks]
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
+    
+    #reduce number of SMILES for testing
+    #smi_toks=smi_toks[:10]
+    #task_SMILES=task_SMILES[:10]
+    
     #get atom assignments
     smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
     ##smiatomassign_dict as long as input smiles array
@@ -394,6 +406,10 @@ if __name__ == "__main__":
     #get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False)
+    
+    #reduce number of embeddings for testing
+    #embeds[0]=embeds[0][:10]
+    #print(f"len embeds {len(embeds)}")
     
     #check that attention encodings as long as keys in dict
     assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
@@ -421,16 +437,20 @@ if __name__ == "__main__":
     for smiassigns in atom_assigns_fin:
         for singleatomassign in smiassigns:
             atom_assigns_fin_singlelist.append(singleatomassign)
-    print(f"final list of assignmnets: {len(atom_assigns_fin_singlelist)}")
+    print(f"final list of assignments: {len(atom_assigns_fin_singlelist)}")
     
     #create a set from atom types for each list, create a a greater set from it, assign each atom type a color
     atomtype_set = [set(type_list) for type_list in atom_assigns_fin]
     big_set = set().union(*atomtype_set)
     
+    
+    #for atoms in big set create separate embedding lists
+    
+    
     atomtype2color, set_list = getcolorstoatomtype(big_set)
     
-    min_dist = 0.3
+    min_dist = 0.1
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_discol_gaff2.svg"), min_dist, n_neighbors, alpha)
+    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_withchargegaff2.svg"), min_dist, n_neighbors, alpha)
