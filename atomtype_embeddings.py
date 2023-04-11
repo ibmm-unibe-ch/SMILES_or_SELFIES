@@ -10,6 +10,7 @@ import matplotlib as mpl
 from matplotlib.lines import Line2D
 from pathlib import Path
 import re
+from string import ascii_lowercase as alc
 
 from correlate_embeddings import sample_random_molecules
 from fairseq_utils import compute_model_output, load_dataset
@@ -150,7 +151,7 @@ def load_assignments_from_folder(folder,smiles_arr,smi_toks):
     print("len of mol2files: ",len(mol2_files))
 
     filecreation_fail = len(smiles_arr)-(len(mol2_files))
-    assert(len(mol2_files)==(len(smiles_arr))) #I assume all file creations worked, if not this fails.
+    assert(len(mol2_files)==(len(smiles_arr))), "Not every SMILES has a corresponding file created for it. Needs more checking." #I assume all file creations worked, if not this fails.
     for mol2 in mol2_files:
         num = int((re.findall(r'\d+', mol2.split('.')[0]))[0])
         print(num)
@@ -433,21 +434,93 @@ def getcolorstoatomtype(big_set):
     #print(f"set_before sorting: {big_set}")
     #print(f"sorted big set: {set_list}")
     
-    for atype, col in zip(set_list,colors_vir):
-        if atype=="cl":
-            atomtype2color[atype]='#e6194B'
-        elif atype=="f":
-            atomtype2color[atype]='#f58231'
-        elif atype=="o":
-            atomtype2color[atype]='#f032e6'
-        elif atype=="OS":
-            atomtype2color[atype]='#dcbeff'
-        elif atype=="DU":
-            atomtype2color[atype]='#42d4f4'
-        else:
-            atomtype2color[atype]=col
+    for atype, col in zip(set_list,colors_sash[0:len(set_list)]):
+        atomtype2color[atype]=col
+    
+    #for atype, col in zip(set_list,colors_vir):
+     #   if atype=="cl":
+     #       atomtype2color[atype]='#e6194B'
+     #   elif atype=="f":
+     #       atomtype2color[atype]='#f58231'
+     #   elif atype=="o":
+     #       atomtype2color[atype]='#f032e6'
+     #   elif atype=="OS":
+     #       atomtype2color[atype]='#dcbeff'
+     #   elif atype=="DU":
+     #       atomtype2color[atype]='#42d4f4'
+     #   else:
+     #       atomtype2color[atype]=col
     #print(atomtype2color)
     return atomtype2color, set_list
+
+def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist):
+    dikt = dict()
+    last_firstval = ''
+    curr_liste = list()
+    ctr=0
+    print(big_set)
+    for s in big_set:
+        if ctr==0:
+            last_firstval=s[0]
+        if last_firstval!=s[0] or ctr==len(big_set)-1 and s!='cl': #cl will be treated differently
+            dikt[last_firstval]=curr_liste
+            curr_liste=list()
+            last_firstval=s[0]
+        if last_firstval==s[0]:
+            if s!='cl': #cl will be treated differently
+                curr_liste.append(s)   
+        ctr+=1  
+    dikt['cl']=['cl'] #cl
+    print(dikt.items())
+         
+    it=0
+    keylist = dikt.keys()
+    print("keylist",keylist)
+    dikt_forelems = dict()
+    for elem in keylist:
+        curr_emblist = list()
+        curr_asslist = list()
+        for ass, emb in zip(atom_assigns_fin_singlelist,embeds_fin_singlelist):
+            if elem==ass[0] and ass!='cl':
+                #print(f"elem {elem} equals assignment {ass}")
+                curr_emblist.append(emb)
+                curr_asslist.append(ass)
+        dikt_forelems[elem]=(curr_emblist,curr_asslist)
+    curr_emblist = list()
+    curr_asslist = list()   
+    for ass, emb in zip(atom_assigns_fin_singlelist,embeds_fin_singlelist):
+        if ass=='cl':
+            print("ass is cl",ass)
+            #print(f"elem {elem} equals assignment {ass}")
+            curr_emblist.append(emb)
+            curr_asslist.append(ass)
+    dikt_forelems['cl']=(curr_emblist,curr_asslist)
+    print("dikt for elems keys:",dikt_forelems.keys())
+    assert len(keylist)==(len(dikt_forelems.keys())), "Keylist and list of elements in dict not the same."
+    #assert (totlen)==(len(embeds_fin_singlelist)), f"Number embeddings in subsetslist {totlen} differs from original {len(embeds_fin_singlelist)}."
+    return keylist, dikt_forelems
+    
+def create_umapsforelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix):
+    p_f_list_embs = (dikt_forelems['p'][0]) + dikt_forelems['f'][0]
+    #print("dikt for elems cl",(dikt_forelems['cl'][0]))
+    p_f_cl_list_embs = p_f_list_embs + (dikt_forelems['cl'][0])
+    p_f_list_assigs = (dikt_forelems['p'][1]) + dikt_forelems['f'][1]
+    p_f_cl_list_assigs = p_f_list_assigs + (dikt_forelems['cl'][1])
+    assert len(p_f_cl_list_embs)==len(p_f_cl_list_assigs)
+    print("assiglist",p_f_cl_list_assigs)
+    atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_list_assigs))
+    pathway=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_pfcl.svg")
+    plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
+    
+    for key in keylist:
+        pathway=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_{key}.svg")
+        embeddings = dikt_forelems[key][0]
+        assignments = dikt_forelems[key][1]
+        atomtype2color, set_list = getcolorstoatomtype(set(assignments))
+        assert len(embeddings)==(len(assignments)), "Assignments and embeddings do not have same length."
+        plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
+    
+    
 
 if __name__ == "__main__":
     
@@ -496,12 +569,11 @@ if __name__ == "__main__":
     
     embass_dikt = link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean)
     
-    #from 112 pick 30 first and only embedding not description of atom
     embeds_fin = [val[0] for val in embass_dikt.values()]
     atom_assigns_fin = [val[1] for val in embass_dikt.values()]
     mol_labels = [num for num in range(0,len(embeds_fin))]
     
-    #extract embeddings without atoms from  embeds_fin 
+    #extract embeddings without atoms from embeds_fin 
     for emb, ass in zip(embeds_fin,atom_assigns_fin):
         assert len(emb)==(len(ass)), f"embeddings for smi and assignments do not have same length: {len(emb)} vs {len(ass)}"
     
@@ -520,15 +592,19 @@ if __name__ == "__main__":
     #create a set from atom types for each list, create a a greater set from it, assign each atom type a color
     atomtype_set = [set(type_list) for type_list in atom_assigns_fin]
     big_set = set().union(*atomtype_set)
-    
+    big_set = sorted(list(big_set))
+    print(big_set)
     
     #for atoms in big set create separate embedding lists
-    
-    
-    atomtype2color, set_list = getcolorstoatomtype(big_set)
+    keylist, dikt_forelems = create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist)
     
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_fromfolder.svg"), min_dist, n_neighbors, alpha)
+    create_umapsforelem(keylist,dikt_forelems,min_dist,n_neighbors,alpha,save_path_prefix)
+    
+    atomtype2color, set_list = getcolorstoatomtype(big_set)
+    
+
+    #plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_fromfolder.svg"), min_dist, n_neighbors, alpha)
