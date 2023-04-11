@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.lines import Line2D
 from pathlib import Path
+import re
 
 from correlate_embeddings import sample_random_molecules
 from fairseq_utils import compute_model_output, load_dataset
@@ -57,23 +58,29 @@ def exec_antechamber(inputfile,ftype):
         return None
     return f"{inputfile_noex}_ass.mol2"
 
+def check_parmchk2(file):
+    with open(file) as infile:
+            lines = infile.read().splitlines()
+            for line in lines:
+                if "ATTN: needs revision" in line:
+                    logging.info(f"Atom assignment failed: parmchk2 calls for revision for file {file}")
+                    print("###############################################################################")
+                    print("###############################################################################")
+                    print("################################ATTENTION######################################")
+                    print("#####################Parmchk2: atomtypes need revision#########################")
+                    print("###############################################################################")
+                    return False
+            return True
+
 def run_parmchk2(ac_outfile):
     acout_noex=os.path.splitext(ac_outfile)[0]
     print("acout_noex",acout_noex)
     os.system(f"parmchk2 -i {ac_outfile} -f mol2 -o {acout_noex}.frcmod -s gaff2")
     #check whether file was generated
     if os.path.isfile(f"{acout_noex}.frcmod")==True:
-        with open(f"{acout_noex}.frcmod") as infile:
-            lines = infile.read().splitlines()
-            for line in lines:
-                if "ATTN: needs revision" in line:
-                    print("###############################################################################")
-                    print("###############################################################################")
-                    print("##########################################ATTENTION###############################")
-                    print("###############################################################################")
-                    print("###############################################################################")
-                    return False
-    return True
+        return check_parmchk2(f"{acout_noex}.frcmod")
+    else:
+        return False
 
 def clean_acout(ac_out) -> list:
     ac_out_noH=list()
@@ -124,6 +131,76 @@ def clean_SMILES(SMILES_tok):
     print("SMILES_tok_prep: ",SMILES_tok_prep)
     
     return SMILES_tok_prep,posToKeep
+
+def load_assignments_from_folder(folder,smiles_arr,smi_toks):
+    #iterate through all mol 2 files that were generated, keep track of number, check that no number is missing, count how many there are
+    failedSmiPos=list()
+    assignment_list=list()
+    dikt=dict()
+    dikt_clean = dict()
+    posToKeep_list = list()
+    mol2_files=list()
+    cleanSmis=list()
+    assignment_fail=0
+    for file in os.listdir(folder):
+        if file.endswith(".mol2") and not file.endswith("ass.mol2"):
+            mol2_files.append(file)
+    mol2_files.sort(key=lambda f: int(re.sub('\D', '', f))) #sort according to numbers
+    print(mol2_files)
+    print("len of mol2files: ",len(mol2_files))
+
+    filecreation_fail = len(smiles_arr)-(len(mol2_files))
+    assert(len(mol2_files)==(len(smiles_arr))) #I assume all file creations worked, if not this fails.
+    for mol2 in mol2_files:
+        num = int((re.findall(r'\d+', mol2.split('.')[0]))[0])
+        print(num)
+        parmcheck_file = f"mol_{num}_ass.frcmod" 
+        assignment_file = f"mol_{num}_ass.mol2"
+        smi = smiles_arr[num]
+        smi_clean, posToKeep = clean_SMILES(smi_toks[num])
+        
+        print(f"num {num} extracted from mol2 {mol2}")
+        #check whether assignment exists
+        if os.path.isfile(f"{folder}/{assignment_file}")==True:
+            print("assignment exists")
+            #check whether parmcheck is ok, if yes, save output of assignment file
+            if os.path.isfile(f"{folder}/{parmcheck_file}")==True:
+                print("parmchk file exists and is ok")
+                if check_parmchk2(f"{folder}/{parmcheck_file}")==True:
+                    #get atom assignments from ass file
+                    atoms_ass_list, atoms_ass_set = getatom_ass(f"{folder}/{assignment_file}")
+                    assignment_list.append(atoms_ass_list)
+                    dikt[smi] = (posToKeep,smi_clean,atoms_ass_list)
+                    dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
+                    posToKeep_list.append(posToKeep)
+                else:
+                    dikt[smi] = (None,None,None)
+                    failedSmiPos.append(num)
+                    assignment_fail+=1  
+            else:
+                dikt[smi] = (None,None,None)
+                failedSmiPos.append(num)
+                assignment_fail+=1  
+        else:
+            dikt[smi] = (None,None,None)
+            failedSmiPos.append(num)
+            assignment_fail+=1     
+            
+    cleanSmis=list()
+    for smi,smi_tok in zip(smiles_arr,smi_toks):
+        print("##############################################################################################################")
+        print(f"SMILES: {smi}")
+        smi_clean, posToKeep = clean_SMILES(smi_tok)
+        cleanSmis.append(smi_clean)
+        
+    assert(len(dikt.keys())==(len(smiles_arr)))
+    assert(len(dikt.keys())==(len(smi_toks)))
+    assert len(posToKeep_list)==len(dikt_clean.keys()), f"Length of list of positions of assigned atoms in SMILES ({len(posToKeep_list)}) and number of SMILES ({len(posToKeep_list)}) is not the same."
+    logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
+    logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
+    
+    #return smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis
+    return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
 def get_atom_assignments(smiles_arr,smi_toks):
     no=0
@@ -389,15 +466,16 @@ if __name__ == "__main__":
     #get tokenized version of dataset
     tokenizer = get_tokenizer(TOKENIZER_PATH)
     smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
-    #smi_toks = [smi_tok.replace(" ","") for smi_tok in smi_toks]
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
-    
     #reduce number of SMILES for testing
     #smi_toks=smi_toks[:10]
     #task_SMILES=task_SMILES[:10]
     
-    #get atom assignments
-    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
+    #get atom assignments from SMILES
+    #smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
+    
+    #get atom assignment from folder
+    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = load_assignments_from_folder("./delaney_mols_bccc0_gaff2_assigned", task_SMILES, smi_toks)
     ##smiatomassign_dict as long as input smiles array
     #print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
     #print(smiToAtomAssign_dict)
@@ -453,4 +531,4 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_withchargegaff2.svg"), min_dist, n_neighbors, alpha)
+    plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_fromfolder.svg"), min_dist, n_neighbors, alpha)
