@@ -12,15 +12,14 @@ from pathlib import Path
 import re
 from string import ascii_lowercase as alc
 
-from correlate_embeddings import sample_random_molecules
 from fairseq_utils import compute_model_output, load_dataset
-from preprocessing import translate_selfie
 from fairseq.data import Dictionary
 from scoring import load_model
 from attention_readout import load_molnet_test_set, canonize_smile
 from plotting import plot_representations
 from tokenisation import tokenize_dataset, get_tokenizer
 from constants import SEED
+from sklearn.decomposition import PCA
 
 from constants import (
     TASK_MODEL_PATH,
@@ -32,8 +31,18 @@ markers = list(Line2D.markers.keys())
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 default_colours = prop_cycle.by_key()["color"]
 
-#translate SMILES to mol2 (obabel)
+
 def smilestofile(smiles,no,ftype):
+    """Execution of babel - generatio  of file from SMILES
+
+    Args:
+        smiles (_string_): _description_
+        no (_int_): Number that goes in input file name
+        ftype (_string_): pdb or mol2
+
+    Returns:
+        _string_: Resulting filename or None if execution fails
+    """
     #obabel [-i<input-type>] <infilename> [-o<output-type>] -O<outfilename> [Options]
     if ftype=="pdb":
         os.system(f'obabel -:"{smiles}" -o pdb -O ./mols/mol_{no}.pdb')
@@ -47,6 +56,15 @@ def smilestofile(smiles,no,ftype):
 
 #call 
 def exec_antechamber(inputfile,ftype):
+    """Execution of antechamber - atomtype assignment of atoms from file
+
+    Args:
+        inputfile (_string_): Name of the inputfile
+        ftype (_string_): Filtetype of the input: pdb or mol2
+
+    Returns:
+        _string_: Name of resulting antechamber-file or None if assignment failed.
+    """
     inputfile_noex=os.path.splitext(inputfile)[0]
     #print("inputfile no extension",inputfile_noex)
     if ftype=="pdb":
@@ -60,6 +78,14 @@ def exec_antechamber(inputfile,ftype):
     return f"{inputfile_noex}_ass.mol2"
 
 def check_parmchk2(file):
+    """Checking of antechamber-assignment file with parmchk2
+
+    Args:
+        file (_string_): Inputfile name
+
+    Returns:
+        _bool_: True if parmchk2 file is ok, False if it calls for revision of antechamber file
+    """
     with open(file) as infile:
             lines = infile.read().splitlines()
             for line in lines:
@@ -74,6 +100,14 @@ def check_parmchk2(file):
             return True
 
 def run_parmchk2(ac_outfile):
+    """Running of parmchk2 to check assignment of files with antechamber
+
+    Args:
+        ac_outfile (_string_): Name of antechamber-file that contains assigned atoms
+
+    Returns:
+        _bool_: True if parmchk2 file is ok, False if it calls for revision of antechamber file
+    """
     acout_noex=os.path.splitext(ac_outfile)[0]
     print("acout_noex",acout_noex)
     os.system(f"parmchk2 -i {ac_outfile} -f mol2 -o {acout_noex}.frcmod -s gaff2")
@@ -84,18 +118,31 @@ def run_parmchk2(ac_outfile):
         return False
 
 def clean_acout(ac_out) -> list:
+    """Clear hydrogens from atom type 
+
+    Args:
+        ac_out (_list_): List of atomtypes from antechamber output
+
+    Returns:
+        list: List of antechamber assigned atom types without hydrogens.
+    """
     ac_out_noH=list()
     for j in ac_out:
-        #save only when it's mot H
         if not j.startswith('H') and not j.startswith('h'):
             ac_out_noH.append(j)
-            #print(f"-----------------this is not H, this is: {j}")
     print("before: ", ac_out)
     print("after: ", ac_out_noH)
     return ac_out_noH
 
-#get atom assignment
 def getatom_ass(mol2):
+    """Extracting the assignment of atom types to atoms from antechamber output
+
+    Args:
+        mol2 (_string_): Name of antechamber-mol2-outputfile
+
+    Returns:
+        _list,set_: List of assigned atom types without cleared of hydrogens and set of assigned atomtypes
+    """
     #extract lines between @<TRIPOS>ATOM and @<TRIPOS>BOND to get atom asss
     with open(mol2) as infile:
         lines = infile.read().splitlines()
@@ -113,6 +160,15 @@ def getatom_ass(mol2):
 
 
 def clean_SMILES(SMILES_tok):
+    """Cleaning of SMILES tokens input from hydrogens and digits
+
+    Args:
+        SMILES_tok (_list_): List of SMILES_tokens for a given SMILES
+
+    Returns:
+        _list,list_: Processed SMILES_token list and list of positions in input tokens list that were kept 
+        (needed to distinguish which embeddings are relevant)
+    """
     SMILES_tok_prep=list()
     struc_toks=r"()=:~1234567890#"
     posToKeep=list()
@@ -134,7 +190,17 @@ def clean_SMILES(SMILES_tok):
     return SMILES_tok_prep,posToKeep
 
 def load_assignments_from_folder(folder,smiles_arr,smi_toks):
-    #iterate through all mol 2 files that were generated, keep track of number, check that no number is missing, count how many there are
+    """Function to load atom assignments from folder given foder with mol2-files, atomassignment outputs from antechamber 
+    and parmchk2-outputfiles that were created when checking the antechamber output
+
+    Args:
+        folder (_string_): Name of folder from which to load files
+        smiles_arr (_list_): Array of SMILES
+        smi_toks (_list_): List of lists that corresponds to smiles_arr and contains the tokens to th corresponding SMILES
+
+    Returns:
+        _dict,dict,list,int,list,list_: Many: dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
+    """
     failedSmiPos=list()
     assignment_list=list()
     dikt=dict()
@@ -200,10 +266,18 @@ def load_assignments_from_folder(folder,smiles_arr,smi_toks):
     logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
     logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
     
-    #return smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis
     return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
 def get_atom_assignments(smiles_arr,smi_toks):
+    """Getting the atom assignments
+
+    Args:
+        smiles_arr (_list_): Array of SMILES
+        smi_toks (_list_): List of lists that corresponds to smiles_arr and contains the tokens to th corresponding SMILES
+
+    Returns:
+         _dict,dict,list,int,list,list_: Many: dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
+    """
     no=0
     assignment_list=list()
     dikt=dict()
@@ -317,6 +391,16 @@ def get_embeddings(task: str, cuda: int
     return embeds
 
 def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
+    """Clean emeddings of embeddings that encode information for digitis or hydrogens
+
+    Args:
+        embeds (_List[List[float]_): Embeddings of a SMILES
+        failedSmiPos (_list_): Positions of SMILES in list where no file and/or assignment could be generated
+        posToKeep_list (_list_): List of positions in a SMILES according to tokens that need to be kept (not digits or hydrogens)
+
+    Returns:
+        _list[float]_: Embeddings that do not encode hydrogens or digits, but only atoms
+    """
     #throw out all pos where smiles could not be translated into atom type assignments
     embeds_clean = list()
     for count,emb in enumerate(embeds[0]):
@@ -340,6 +424,12 @@ def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
     return embeds_cleaner
 
 def correctLengths(smi_toks,embeds):
+    """Check that number of tokens corresponds to number of embeddings, otherwise sth went wrong
+
+    Args:
+        smi_toks (_list[string]_): SMILES tokens for a SMILES
+        embeds (_list[float]_): Embeddings
+    """
         #iterate through smiles and embeds compare lens
     samenums=0
     diffnums=0
@@ -365,6 +455,15 @@ def correctLengths(smi_toks,embeds):
 
 
 def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
+    """Linking the embeddings to their atom assignments
+
+    Args:
+        embeds_clean (list[float]): Embeddings that do not encode hydrogens or digits, but only atoms
+        smiToAtomAssign_dict_clean (dict): Dictionary that links SMILES to their atom assignments
+
+    Returns:
+        _dict_: Dictionary that links SMILES to their corresponding embeddings and assignmnets
+    """
     #dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
     #dict[smiles]=(embedding of SMILES, assigned atoms)
     embass_dikt = dict()
@@ -393,22 +492,27 @@ def build_legend(data):
     return legend_elements
 
 def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
+    """Performing UMAP and plotting it
+
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        set_list (_set(string)_): Set of atomtypes
+        save_path (_string_): Path where to save plot
+        min_dist (float, optional): Minimum distance for UMAP. Defaults to 0.1.
+        n_neighbors (int, optional): Number of neighbors for UMAP. Defaults to 15.
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
     logging.info("Started plotting UMAP")
     os.makedirs(save_path.parent, exist_ok=True)
     reducer = umap.UMAP(
         n_neighbors=n_neighbors, min_dist=min_dist, random_state=SEED + 6539
     )
     umap_embeddings = reducer.fit_transform(embeddings)
-    
-    
     fig,ax = plt.subplots(1)
     colours = [colour for colour in colours_dict.values()] #all colours used
     labels_tocols = [lab for lab in colours_dict.keys() ]
-   # plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap=[colours[x] for x in labels])
-    # only plot carbons
-    #for label,umap_emb in zip(labels,umap_embeddings):
-    #    if label.startswith("C") and label!="Cl":
-    #        ax.scatter(umap_emb[0],umap_emb[1], marker='.', c=[colours_dict[x] for x in labels])
    
     scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
@@ -418,9 +522,42 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     ax.set_title("UMAP - Embeddings resp. to atom types")
     fig.savefig(save_path, format="svg")
     fig.clf()
+    
+def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
+    """Performing PCA and plotting it
 
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        save_path (_string_): Path where to save plot
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
+    os.makedirs(save_path.parent, exist_ok=True)
+    pca = PCA(n_components=2, random_state=SEED + 6541)
+    pca_embeddings = pca.fit_transform(embeddings)
+    logging.info(
+        f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    )
+    fig,ax = plt.subplots(1)
+    ax.scatter(pca_embeddings[:, 0],pca_embeddings[:, 1],marker='.',c=[colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("PCA 2")
+    ax.set_xlabel("PCA 1")
+    ax.set_title("PCA - Embeddings resp. atom types")
+    fig.savefig(save_path, format="svg")
+    fig.clf()     
         
 def getcolorstoatomtype(big_set):
+    """Generating a dictionary of colors given a set of atom types
+
+    Args:
+        big_set (_set_): Set of atom types
+
+    Returns:
+        _dict,set_: Dictionary that maps atom types to colors, alphabetically sorted list of input set
+    """
     cmap = mpl.cm.get_cmap('viridis')
     nums = np.linspace(0,1.0,(len(big_set)))
     colors_vir = [cmap(num) for num in nums]
@@ -454,6 +591,16 @@ def getcolorstoatomtype(big_set):
     return atomtype2color, set_list
 
 def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist):
+    """Creation of element subsets according to alphabet
+
+    Args:
+        big_set (_set_): Set of atom types
+        embeds_fin_singlelist (_list[float]_): List of embeddings
+        atom_assigns_fin_singlelist (_list[string]_): List of atom assignments
+
+    Returns:
+        _list,dict[string][list[float],list[string]]_: List of keys (elements), dictionary that contains ambeddings and their atomtypes sorted by element
+    """
     dikt = dict()
     last_firstval = ''
     curr_liste = list()
@@ -497,10 +644,19 @@ def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlel
     dikt_forelems['cl']=(curr_emblist,curr_asslist)
     print("dikt for elems keys:",dikt_forelems.keys())
     assert len(keylist)==(len(dikt_forelems.keys())), "Keylist and list of elements in dict not the same."
-    #assert (totlen)==(len(embeds_fin_singlelist)), f"Number embeddings in subsetslist {totlen} differs from original {len(embeds_fin_singlelist)}."
     return keylist, dikt_forelems
     
-def create_umapsforelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix):
+def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix):
+    """Create plot per element
+
+    Args:
+        keylist (_list_): List of keys/elements
+        dikt_forelems (_dict[string][list[float],list[string]]): Dictionary that contains ambeddings and their atomtypes sorted by element
+        min_dist (_float_): Number of min dist to use in UMAP
+        n_neighbors (_int_): Number of neighbors to use in UMAP
+        alpha (_int_): Level of opacity
+        save_path_prefix (_string_): Path prefix where to save output plot
+    """
     p_f_list_embs = (dikt_forelems['p'][0]) + dikt_forelems['f'][0]
     #print("dikt for elems cl",(dikt_forelems['cl'][0]))
     p_f_cl_list_embs = p_f_list_embs + (dikt_forelems['cl'][0])
@@ -512,15 +668,19 @@ def create_umapsforelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     pathway=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_pfcl.svg")
     plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
     
+    
     for key in keylist:
-        pathway=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_{key}.svg")
+        print(key)
+        pathway_umap=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_{key}.svg")
+        pathway_pca=Path(str(save_path_prefix)+ f"pca{alpha}_{key}.svg")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments))
         assert len(embeddings)==(len(assignments)), "Assignments and embeddings do not have same length."
-        plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
-    
-    
+        #plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
+        plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
+    pathway_pca=Path(str(save_path_prefix)+ f"pca{alpha}_pfcl.svg")
+    plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color,pathway_pca,alpha)
 
 if __name__ == "__main__":
     
@@ -540,27 +700,16 @@ if __name__ == "__main__":
     tokenizer = get_tokenizer(TOKENIZER_PATH)
     smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
-    #reduce number of SMILES for testing
-    #smi_toks=smi_toks[:10]
-    #task_SMILES=task_SMILES[:10]
     
     #get atom assignments from SMILES
     #smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks)
     
-    #get atom assignment from folder
+    #get atom assignments from folder
     smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = load_assignments_from_folder("./delaney_mols_bccc0_gaff2_assigned", task_SMILES, smi_toks)
-    ##smiatomassign_dict as long as input smiles array
-    #print("[][]][][][][][][][][][][][][][][][][][][][][]Atom assignment dict[][]][][][][][][][][][][][][][][][][][][][][]")
-    #print(smiToAtomAssign_dict)
-    #print("[][]][][][][][][][][][][][][][][][][][][][][][][][]][][][][][][][][][]][][][][][][][][][][][][][][][][][][][][]")
 
     #get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False)
-    
-    #reduce number of embeddings for testing
-    #embeds[0]=embeds[0][:10]
-    #print(f"len embeds {len(embeds)}")
     
     #check that attention encodings as long as keys in dict
     assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
@@ -602,7 +751,7 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    create_umapsforelem(keylist,dikt_forelems,min_dist,n_neighbors,alpha,save_path_prefix)
+    create_plotsperelem(keylist,dikt_forelems,min_dist,n_neighbors,alpha,save_path_prefix)
     
     atomtype2color, set_list = getcolorstoatomtype(big_set)
     
