@@ -514,7 +514,7 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     colours = [colour for colour in colours_dict.values()] #all colours used
     labels_tocols = [lab for lab in colours_dict.keys() ]
    
-    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', c=[colours_dict[x] for x in labels])
+    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', alpha=alpha, c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("UMAP 2")
@@ -540,7 +540,7 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
         f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
     )
     fig,ax = plt.subplots(1)
-    ax.scatter(pca_embeddings[:, 0],pca_embeddings[:, 1],marker='.',c=[colours_dict[x] for x in labels])
+    ax.scatter(pca_embeddings[:, 0],pca_embeddings[:, 1],marker='.',alpha=alpha,c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("PCA 2")
@@ -672,14 +672,14 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     for key in keylist:
         print(key)
         pathway_umap=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_{key}.svg")
-        pathway_pca=Path(str(save_path_prefix)+ f"pca{alpha}_{key}.svg")
+        pathway_pca=Path(str(save_path_prefix)+ f"pca_{key}.svg")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments))
         assert len(embeddings)==(len(assignments)), "Assignments and embeddings do not have same length."
-        #plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
+        plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
         plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-    pathway_pca=Path(str(save_path_prefix)+ f"pca{alpha}_pfcl.svg")
+    pathway_pca=Path(str(save_path_prefix)+ f"pca_pfcl.svg")
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color,pathway_pca,alpha)
 
 if __name__ == "__main__":
