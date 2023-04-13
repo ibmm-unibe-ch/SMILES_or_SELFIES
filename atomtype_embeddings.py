@@ -10,8 +10,6 @@ import matplotlib as mpl
 from matplotlib.lines import Line2D
 from pathlib import Path
 import re
-from string import ascii_lowercase as alc
-
 from fairseq_utils import compute_model_output, load_dataset
 from fairseq.data import Dictionary
 from scoring import load_model
@@ -52,8 +50,7 @@ def smilestofile(smiles,no,ftype):
     else:
         print("Execution of obabel failed, no file could be created. Wrong filetype given. Output filetype needs to be pdb or mol2.")
         return None
-
-#call 
+ 
 def exec_antechamber(inputfile,ftype):
     """Execution of antechamber - atomtype assignment of atoms from file
 
@@ -108,7 +105,7 @@ def run_parmchk2(ac_outfile):
     acout_noex=os.path.splitext(ac_outfile)[0]
     print("acout_noex",acout_noex)
     os.system(f"parmchk2 -i {ac_outfile} -f mol2 -o {acout_noex}.frcmod -s gaff2")
-    if os.path.isfile(f"{acout_noex}.frcmod")==True:
+    if os.path.isfile(f"{acout_noex}.frcmod"):
         return check_parmchk2(f"{acout_noex}.frcmod")
     else:
         return False
@@ -323,8 +320,7 @@ def get_atom_assignments(smiles_arr,smi_toks):
     logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
     return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
-def get_embeddings(task: str, cuda: int
-) -> Tuple[List[List[float]], np.ndarray]:
+def get_embeddings(task: str, cuda: int):
     """Generate the attention dict of a task
     Args:
         task (str): Task to find attention of
@@ -358,7 +354,6 @@ def get_embeddings(task: str, cuda: int
         ), f"Real and filtered dataset {task} do not have same length."
 
         text = [canonize_smile(smile) for smile in task_SMILES]
-        #print('text',text)
         
         tokenizer = None
         embeds.append(
@@ -494,10 +489,7 @@ def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.
     )
     umap_embeddings = reducer.fit_transform(embeddings)
     fig,ax = plt.subplots(1)
-    colours = [colour for colour in colours_dict.values()] #all colours used
-    labels_tocols = [lab for lab in colours_dict.keys() ]
-   
-    scatterplot = ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', alpha=alpha, c=[colours_dict[x] for x in labels])
+    ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', alpha=alpha, c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("UMAP 2")
@@ -523,7 +515,7 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
         f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
     )
     fig,ax = plt.subplots(1)
-    ax.scatter(pca_embeddings[:, 0],pca_embeddings[:, 1],marker='.',alpha=alpha,c=[colours_dict[x] for x in labels])
+    ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker='.', alpha=alpha, c=[colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("PCA 2")
@@ -628,21 +620,21 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     assert len(p_f_cl_list_embs)==len(p_f_cl_list_assigs)
     print("assiglist",p_f_cl_list_assigs)
     atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_list_assigs))
-    pathway=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_pfcl.svg")
+    pathway=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_pfcl.svg")
     plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
     
     
     for key in keylist:
         print(key)
-        pathway_umap=Path(str(save_path_prefix)+ f"{min_dist}_{n_neighbors}_{key}.svg")
+        pathway_umap=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_{key}.svg")
         pathway_pca=Path(str(save_path_prefix)+ f"pca_{key}.svg")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments))
         assert len(embeddings)==(len(assignments)), "Assignments and embeddings do not have same length."
-        plot_umap(embeddings, assignments, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
+        plot_umap(embeddings, assignments, atomtype2color, set_list, pathway_umap, min_dist, n_neighbors, alpha)
         plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-    pathway_pca=Path(str(save_path_prefix)+ f"pca_pfcl.svg")
+    pathway_pca=Path(str(save_path_prefix)+ "pca_pfcl.svg")
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color,pathway_pca,alpha)
 
 if __name__ == "__main__":
