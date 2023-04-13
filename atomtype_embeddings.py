@@ -36,14 +36,13 @@ def smilestofile(smiles,no,ftype):
     """Execution of babel - generatio  of file from SMILES
 
     Args:
-        smiles (_string_): _description_
+        smiles (_string_): SMILES
         no (_int_): Number that goes in input file name
         ftype (_string_): pdb or mol2
 
     Returns:
         _string_: Resulting filename or None if execution fails
     """
-    #obabel [-i<input-type>] <infilename> [-o<output-type>] -O<outfilename> [Options]
     if ftype=="pdb":
         os.system(f'obabel -:"{smiles}" -o pdb -O ./mols/mol_{no}.pdb')
         return f"./mols/mol_{no}.pdb"
@@ -66,9 +65,7 @@ def exec_antechamber(inputfile,ftype):
         _string_: Name of resulting antechamber-file or None if assignment failed.
     """
     inputfile_noex=os.path.splitext(inputfile)[0]
-    #print("inputfile no extension",inputfile_noex)
     if ftype=="pdb":
-        #os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
         os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
     elif ftype=="mol2":
         os.system(f"antechamber -i {inputfile} -fi mol2 -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
@@ -111,7 +108,6 @@ def run_parmchk2(ac_outfile):
     acout_noex=os.path.splitext(ac_outfile)[0]
     print("acout_noex",acout_noex)
     os.system(f"parmchk2 -i {ac_outfile} -f mol2 -o {acout_noex}.frcmod -s gaff2")
-    #check whether file was generated
     if os.path.isfile(f"{acout_noex}.frcmod")==True:
         return check_parmchk2(f"{acout_noex}.frcmod")
     else:
@@ -175,7 +171,6 @@ def clean_SMILES(SMILES_tok):
     pos=0
     for i in range(len(SMILES_tok)):
         #when it's an H in the SMILES, ignore, cannot deal
-        #print(SMILES_tok[i])
         if SMILES_tok[i]!="H" and SMILES_tok[i]!="h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if any(elem in struc_toks for elem in SMILES_tok[i])==False:
                 if SMILES_tok[i]!="-":
@@ -355,9 +350,6 @@ def get_embeddings(task: str, cuda: int
         model.zero_grad()
         data_path = data_path / "input0" / "test"
         dataset = load_dataset(data_path, True) #True for classification, false for regression
-        #print(dataset)
-        #print(len(dataset))
-        #print("datapath for source dict",data_path)
         source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
 
@@ -391,7 +383,7 @@ def get_embeddings(task: str, cuda: int
     return embeds
 
 def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
-    """Clean emeddings of embeddings that encode information for digitis or hydrogens
+    """Clean embeddings of embeddings that encode for digitis or hydrogens
 
     Args:
         embeds (_List[List[float]_): Embeddings of a SMILES
@@ -401,7 +393,7 @@ def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
     Returns:
         _list[float]_: Embeddings that do not encode hydrogens or digits, but only atoms
     """
-    #throw out all pos where smiles could not be translated into atom type assignments
+    
     embeds_clean = list()
     for count,emb in enumerate(embeds[0]):
         if count not in failedSmiPos: #assignment for this SMILES did not fail
@@ -409,13 +401,10 @@ def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
     print(f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed: {len(embeds_clean)}")
     assert creation_assignment_fail == (len(embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fail}) and number of deleted embeddings do not agree ({(len(embeds[0])-len(embeds_clean))})."
 
-    #print(embeds_clean)
-    #within embeddings throw out all embeddings that belong to structural tokens etc according to posToKeep_list
     embeds_cleaner = []
     assert len(embeds_clean)==(len(posToKeep_list)), f"Not the same amount of embeddings as assigned SMILES. {len(embeds_clean)} embeddings vs. {(len(posToKeep_list))} SMILES with positions"
     for smiemb,pos_list in zip(embeds_clean,posToKeep_list):
         newembsforsmi = []
-        #check that atom assignment is not null
         newembsforsmi = [smiemb[pos] for pos in pos_list]
         embeds_cleaner.append(newembsforsmi)
         
@@ -430,11 +419,10 @@ def correctLengths(smi_toks,embeds):
         smi_toks (_list[string]_): SMILES tokens for a SMILES
         embeds (_list[float]_): Embeddings
     """
-        #iterate through smiles and embeds compare lens
     samenums=0
     diffnums=0
     smismaller=0
-    new_embs=list() #only embeds that have same length as smiles
+    new_embs=list()
     for smi,embs in zip(smi_toks,embeds[0]):
         if len(smi)==len(embs):
             samenums+=1
@@ -464,20 +452,15 @@ def link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean):
     Returns:
         _dict_: Dictionary that links SMILES to their corresponding embeddings and assignmnets
     """
-    #dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
-    #dict[smiles]=(embedding of SMILES, assigned atoms)
     embass_dikt = dict()
     assert (len(smiToAtomAssign_dict_clean.keys())==(len(embeds_clean))), f"Number of assigned SMILES ({len(smiToAtomAssign_dict_clean.keys())}) and embeddings {len(embeds_clean)} do not agree."
     it = 0
     for smi, value in smiToAtomAssign_dict_clean.items():
         clean_toks=value[1]
         assigns = value[2]
-        #print("SMILES: ",smi)
-        #print(f"{clean_toks}")
         assert len(clean_toks)==(len(embeds_clean[it])), f"Number of tokens ({len(clean_toks)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
         assert len(assigns)==(len(embeds_clean[it])), f"Number of assignments ({len(assigns)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string.\n Assigns: {assigns} vs. Embeddings"
         embass_dikt[smi]=(embeds_clean[it],assigns)
-        #print(f"final link: {smi}: {clean_toks} \n {assigns} embedding")
         it+=1
     return embass_dikt
 
@@ -561,33 +544,16 @@ def getcolorstoatomtype(big_set):
     cmap = mpl.cm.get_cmap('viridis')
     nums = np.linspace(0,1.0,(len(big_set)))
     colors_vir = [cmap(num) for num in nums]
-    # https://sashamaps.net/docs/resources/20-colors/
+    # https://sashamaps.net/docs/resources/20-colors/ #95% accessible only, subject to change
     colors_sash = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000']
     
-    #create atomtypetocolor_dict
     atomtype2color = dict()
     #sort big set according to alphabet to keep carbons closer together
     set_list = sorted(list(big_set))
-    #print(f"set_before sorting: {big_set}")
-    #print(f"sorted big set: {set_list}")
     
     for atype, col in zip(set_list,colors_sash[0:len(set_list)]):
         atomtype2color[atype]=col
     
-    #for atype, col in zip(set_list,colors_vir):
-     #   if atype=="cl":
-     #       atomtype2color[atype]='#e6194B'
-     #   elif atype=="f":
-     #       atomtype2color[atype]='#f58231'
-     #   elif atype=="o":
-     #       atomtype2color[atype]='#f032e6'
-     #   elif atype=="OS":
-     #       atomtype2color[atype]='#dcbeff'
-     #   elif atype=="DU":
-     #       atomtype2color[atype]='#42d4f4'
-     #   else:
-     #       atomtype2color[atype]=col
-    #print(atomtype2color)
     return atomtype2color, set_list
 
 def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist):
@@ -629,7 +595,6 @@ def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlel
         curr_asslist = list()
         for ass, emb in zip(atom_assigns_fin_singlelist,embeds_fin_singlelist):
             if elem==ass[0] and ass!='cl':
-                #print(f"elem {elem} equals assignment {ass}")
                 curr_emblist.append(emb)
                 curr_asslist.append(ass)
         dikt_forelems[elem]=(curr_emblist,curr_asslist)
@@ -638,7 +603,6 @@ def create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlel
     for ass, emb in zip(atom_assigns_fin_singlelist,embeds_fin_singlelist):
         if ass=='cl':
             print("ass is cl",ass)
-            #print(f"elem {elem} equals assignment {ass}")
             curr_emblist.append(emb)
             curr_asslist.append(ass)
     dikt_forelems['cl']=(curr_emblist,curr_asslist)
@@ -658,7 +622,6 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         save_path_prefix (_string_): Path prefix where to save output plot
     """
     p_f_list_embs = (dikt_forelems['p'][0]) + dikt_forelems['f'][0]
-    #print("dikt for elems cl",(dikt_forelems['cl'][0]))
     p_f_cl_list_embs = p_f_list_embs + (dikt_forelems['cl'][0])
     p_f_list_assigs = (dikt_forelems['p'][1]) + dikt_forelems['f'][1]
     p_f_cl_list_assigs = p_f_list_assigs + (dikt_forelems['cl'][1])
@@ -710,8 +673,7 @@ if __name__ == "__main__":
     #get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False)
-    
-    #check that attention encodings as long as keys in dict
+
     assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
     assert correctLengths(smi_toks,embeds)
     embeds_clean = get_clean_embeds(embeds,failedSmiPos,posToKeep_list)
@@ -721,8 +683,7 @@ if __name__ == "__main__":
     embeds_fin = [val[0] for val in embass_dikt.values()]
     atom_assigns_fin = [val[1] for val in embass_dikt.values()]
     mol_labels = [num for num in range(0,len(embeds_fin))]
-    
-    #extract embeddings without atoms from embeds_fin 
+     
     for emb, ass in zip(embeds_fin,atom_assigns_fin):
         assert len(emb)==(len(ass)), f"embeddings for smi and assignments do not have same length: {len(emb)} vs {len(ass)}"
     
@@ -742,7 +703,6 @@ if __name__ == "__main__":
     atomtype_set = [set(type_list) for type_list in atom_assigns_fin]
     big_set = set().union(*atomtype_set)
     big_set = sorted(list(big_set))
-    print(big_set)
     
     #for atoms in big set create separate embedding lists
     keylist, dikt_forelems = create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist)
@@ -752,8 +712,3 @@ if __name__ == "__main__":
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
     create_plotsperelem(keylist,dikt_forelems,min_dist,n_neighbors,alpha,save_path_prefix)
-    
-    atomtype2color, set_list = getcolorstoatomtype(big_set)
-    
-
-    #plot_umap(embeds_fin_singlelist, atom_assigns_fin_singlelist, atomtype2color, set_list, Path(str(save_path_prefix) + f"{min_dist}_{n_neighbors}_umap_fromfolder.svg"), min_dist, n_neighbors, alpha)
