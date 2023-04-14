@@ -30,8 +30,8 @@ prop_cycle = plt.rcParams["axes.prop_cycle"]
 default_colours = prop_cycle.by_key()["color"]
 
 
-def smilestofile(smiles,no,ftype):
-    """Execution of babel - generatio  of file from SMILES
+def smilestofile(smiles, no, ftype):
+    """Execution of babel - generation  of file from SMILES
 
     Args:
         smiles (_string_): SMILES
@@ -51,7 +51,7 @@ def smilestofile(smiles,no,ftype):
         print("Execution of obabel failed, no file could be created. Wrong filetype given. Output filetype needs to be pdb or mol2.")
         return None
  
-def exec_antechamber(inputfile,ftype):
+def exec_antechamber(inputfile, ftype):
     """Execution of antechamber - atomtype assignment of atoms from file
 
     Args:
@@ -62,14 +62,15 @@ def exec_antechamber(inputfile,ftype):
         _string_: Name of resulting antechamber-file or None if assignment failed.
     """
     inputfile_noex=os.path.splitext(inputfile)[0]
+    outfile = f"{inputfile_noex}_assigned.mol2"
     if ftype=="pdb":
-        os.system(f"antechamber -i {inputfile} -fi pdb -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
+        os.system(f"antechamber -i {inputfile} -fi pdb -o {outfile} -fo mol2 -c bcc -nc 0 -at gaff2")
     elif ftype=="mol2":
-        os.system(f"antechamber -i {inputfile} -fi mol2 -o {inputfile_noex}_ass.mol2 -fo mol2 -c bcc -nc 0 -at gaff2")
+        os.system(f"antechamber -i {inputfile} -fi mol2 -o {outfile} -fo mol2 -c bcc -nc 0 -at gaff2")
     else:
         print("Execution of antechamber failed. Wrong filetype given. Filetype needs to be pdb or mol2.")
         return None
-    return f"{inputfile_noex}_ass.mol2"
+    return outfile
 
 def check_parmchk2(file):
     """Checking of antechamber-assignment file with parmchk2
@@ -145,11 +146,11 @@ def getatom_ass(mol2):
     print("\n_______________________extraction \n", extract)
     pddf = pd.read_csv(StringIO(extract), header=None, delimiter=r"\s+")
     #extract 5th column with atom_asss
-    atoms_ass_list = pddf.iloc[:,5].tolist()
+    atoms_assigned_list = pddf.iloc[:,5].tolist()
     #clean H from atom assignment
-    atoms_ass_list_clean = clean_acout(atoms_ass_list)
-    atoms_ass_set = set(atoms_ass_list_clean)
-    return atoms_ass_list_clean, atoms_ass_set
+    atoms_assigned_list_clean = clean_acout(atoms_assigned_list)
+    atoms_assigned_set = set(atoms_assigned_list_clean)
+    return atoms_assigned_list_clean, atoms_assigned_set
 
 
 def clean_SMILES(SMILES_tok):
@@ -162,10 +163,10 @@ def clean_SMILES(SMILES_tok):
         _list,list_: Processed SMILES_token list and list of positions in input tokens list that were kept 
         (needed to distinguish which embeddings are relevant)
     """
-    SMILES_tok_prep=list()
-    struc_toks=r"()=:~1234567890#"
-    posToKeep=list()
-    pos=0
+    SMILES_tok_prep = list()
+    struc_toks = r"()=:~1234567890#"
+    posToKeep = list()
+    pos = 0
     for i in range(len(SMILES_tok)):
         #when it's an H in the SMILES, ignore, cannot deal
         if SMILES_tok[i]!="H" and SMILES_tok[i]!="h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
@@ -174,7 +175,7 @@ def clean_SMILES(SMILES_tok):
                     SMILES_tok_prep.append(SMILES_tok[i])
                     posToKeep.append(pos) #keep pos where you keep SMILES token
         pos+=1
-    assert(len(posToKeep)==(len(SMILES_tok_prep)))
+    assert(len(posToKeep)==(len(SMILES_tok_prep))), f"Length of positions-to-keep-array ({len(posToKeep)}) and length of SMILES_tok_prep ({len(SMILES_tok_prep)}) are not the same"
     print("SMILES_tok: ", SMILES_tok )
     print("posToKeep: ",posToKeep)
     print("SMILES_tok_prep: ",SMILES_tok_prep)
@@ -209,7 +210,7 @@ def load_assignments_from_folder(folder,smiles_arr,smi_toks):
     print("len of mol2files: ",len(mol2_files))
 
     filecreation_fail = len(smiles_arr)-(len(mol2_files))
-    assert(len(mol2_files)==(len(smiles_arr))), "Not every SMILES has a corresponding file created for it. Needs more checking." #I assume all file creations worked, if not this fails.
+    assert(len(mol2_files)==(len(smiles_arr))), f"Not every SMILES ({len(smiles_arr)}) has a corresponding file ({len(mol2_files)}) created for it. Needs more checking." #I assume all file creations worked, if not this fails.
     for mol2 in mol2_files:
         num = int((re.findall(r'\d+', mol2.split('.')[0]))[0])
         print(num)
@@ -227,10 +228,10 @@ def load_assignments_from_folder(folder,smiles_arr,smi_toks):
                 print("parmchk file exists and is ok")
                 if check_parmchk2(f"{folder}/{parmcheck_file}")==True:
                     #get atom assignments from ass file
-                    atoms_ass_list, atoms_ass_set = getatom_ass(f"{folder}/{assignment_file}")
-                    assignment_list.append(atoms_ass_list)
-                    dikt[smi] = (posToKeep,smi_clean,atoms_ass_list)
-                    dikt_clean[smi] = (posToKeep,smi_clean,atoms_ass_list)
+                    atoms_assignment_list, atoms_assignment_set = getatom_ass(f"{folder}/{assignment_file}")
+                    assignment_list.append(atoms_assignment_list)
+                    dikt[smi] = (posToKeep,smi_clean,atoms_assignment_list)
+                    dikt_clean[smi] = (posToKeep,smi_clean,atoms_assignment_list)
                     posToKeep_list.append(posToKeep)
                 else:
                     dikt[smi] = (None,None,None)
@@ -252,8 +253,8 @@ def load_assignments_from_folder(folder,smiles_arr,smi_toks):
         smi_clean, posToKeep = clean_SMILES(smi_tok)
         cleanSmis.append(smi_clean)
         
-    assert(len(dikt.keys())==(len(smiles_arr)))
-    assert(len(dikt.keys())==(len(smi_toks)))
+    assert(len(dikt.keys())==(len(smiles_arr))), f"Number of keys for SMILES in dictionary ({len(dikt.keys())}) not equal to number of SMILES in original array ({len(smiles_arr)})"
+    assert(len(dikt.keys())==(len(smi_toks))), f"Number of keys for SMILES in dictionary ({len(dikt.keys())}) not equal to number of SMILES in original array of tokens ({len(smi_toks)})"
     assert len(posToKeep_list)==len(dikt_clean.keys()), f"Length of list of positions of assigned atoms in SMILES ({len(posToKeep_list)}) and number of SMILES ({len(posToKeep_list)}) is not the same."
     logging.info(f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
     logging.info(f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
@@ -281,6 +282,7 @@ def get_atom_assignments(smiles_arr,smi_toks):
     failedSmiPos = list()
     cleanSmis = list()
     for smi,smi_tok in zip(smiles_arr,smi_toks):
+        #print statements only to structure obabel and antechamber output
         print("##############################################################################################################")
         print(f"SMILES: {smi}")
         smi_clean, posToKeep = clean_SMILES(smi_tok)
@@ -377,7 +379,7 @@ def get_embeddings(task: str, cuda: int):
     #print(len(labels))
     return embeds
 
-def get_clean_embeds(embeds,failedSmiPos,posToKeep_list):
+def get_clean_embeds(embeds, failedSmiPos, posToKeep_list):
     """Clean embeddings of embeddings that encode for digitis or hydrogens
 
     Args:
@@ -620,21 +622,21 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     assert len(p_f_cl_list_embs)==len(p_f_cl_list_assigs)
     print("assiglist",p_f_cl_list_assigs)
     atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_list_assigs))
-    pathway=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_pfcl.svg")
+    pathway=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_pfcl_1.svg")
     plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, set_list, pathway, min_dist, n_neighbors, alpha)
     
     
     for key in keylist:
         print(key)
-        pathway_umap=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_{key}.svg")
-        pathway_pca=Path(str(save_path_prefix)+ f"pca_{key}.svg")
+        pathway_umap=Path(str(save_path_prefix)+ f"umap_{min_dist}_{n_neighbors}_{key}_1.svg")
+        pathway_pca=Path(str(save_path_prefix)+ f"pca_{key}_1.svg")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments))
         assert len(embeddings)==(len(assignments)), "Assignments and embeddings do not have same length."
         plot_umap(embeddings, assignments, atomtype2color, set_list, pathway_umap, min_dist, n_neighbors, alpha)
         plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-    pathway_pca=Path(str(save_path_prefix)+ "pca_pfcl.svg")
+    pathway_pca=Path(str(save_path_prefix)+ "pca_pfcl_1.svg")
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color,pathway_pca,alpha)
 
 if __name__ == "__main__":
@@ -667,7 +669,7 @@ if __name__ == "__main__":
     embeds = get_embeddings(task, False)
 
     assert len(smiToAtomAssign_dict.keys())==(len(embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
-    assert correctLengths(smi_toks,embeds)
+    assert correctLengths(smi_toks,embeds), "Length of SMILES_tokens and embeddings do not agree."
     embeds_clean = get_clean_embeds(embeds,failedSmiPos,posToKeep_list)
     
     embass_dikt = link_embeds_to_atomassigns(embeds_clean,smiToAtomAssign_dict_clean)
@@ -697,10 +699,10 @@ if __name__ == "__main__":
     big_set = sorted(list(big_set))
     
     #for atoms in big set create separate embedding lists
-    keylist, dikt_forelems = create_elementsubsets(big_set,embeds_fin_singlelist,atom_assigns_fin_singlelist)
+    keylist, dikt_forelems = create_elementsubsets(big_set, embeds_fin_singlelist, atom_assigns_fin_singlelist)
     
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.2
     save_path_prefix = f"plots/embeddingsvsatomtype/{task}"
-    create_plotsperelem(keylist,dikt_forelems,min_dist,n_neighbors,alpha,save_path_prefix)
+    create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix)
