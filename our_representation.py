@@ -1,4 +1,4 @@
-def get_atom(smiles: str, print_messages: bool = True) -> tuple(str, str):
+def get_atom(smiles: str, print_messages: bool = True) -> tuple[str, str]:
     if len(smiles) == 0:
         return None, ""
     if print_messages:
@@ -53,7 +53,7 @@ def get_atom_end(smiles: str, print_messages: bool = True) -> str:
     return output
 
 
-def find_branch_end(smiles: str) -> tuple(str, str):
+def find_branch_end(smiles: str) -> tuple[str, str]:
     if len(smiles) == 0 or smiles[0] != "(":
         return "", smiles
     branch = ""
@@ -127,7 +127,7 @@ def parse_overlap(overlap_ids: list) -> str:
 
 def translate_ring(
     ring_smile: str, last_ring_char: str, ring_id: str, print_messages: bool = True
-) -> tuple(str, str):
+) -> tuple[str, str]:
     overlap_ids = []
     curr_id = 0
     overlap = ""
@@ -158,7 +158,7 @@ def translate_ring(
     return output_append + parse_overlap(overlap_ids), overlap
 
 
-def order_starts(curr_smile, print_messages: bool = True) -> tuple(str, int):
+def order_starts(curr_smile, print_messages: bool = True) -> tuple[str, int]:
     ring_starts = []
     for curr_index, char in enumerate(curr_smile):
         if char.isnumeric():  # other ring starts
@@ -204,7 +204,7 @@ def order_ends(curr_smile: str, end_offset: int, print_messages: bool = True) ->
     )
 
 
-def deal_ring(curr_smile, curr_atom, print_messages: bool = True) -> tuple(str, str):
+def deal_ring(curr_smile, curr_atom, print_messages: bool = True) -> tuple[str, str]:
     curr_smile, end_offset = order_starts(curr_smile, print_messages)
     curr_smile = order_ends(curr_smile, end_offset, print_messages)
     ring_id = curr_smile[0]
