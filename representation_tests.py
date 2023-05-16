@@ -60,10 +60,22 @@ def test_wikipedia_examples():
 
 # Ring ordering
 def test_ring_ordering():
-    assert translate_to_own("F12CC1F1CC21") == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    assert translate_to_own("F12CC1F1CC12") == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    assert translate_to_own("F21CC1F1CC21") == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    assert translate_to_own("F21CC1F1CC12") == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
+    assert (
+        translate_to_own("F12CC1F1CC21", False)
+        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
+    )
+    assert (
+        translate_to_own("F12CC1F1CC12", False)
+        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
+    )
+    assert (
+        translate_to_own("F21CC1F1CC21", False)
+        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
+    )
+    assert (
+        translate_to_own("F21CC1F1CC12", False)
+        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
+    )
 
 
 # Ring ordering and % test
@@ -94,7 +106,7 @@ def test_ring_in_branch():
 # hard SMILES
 def test_hard_smiles():
     assert (
-        translate_to_own("N#Cc1c(Oc2cccc(N)c2)ccc2nc(NC(=O)C3CC3)sc12", False)
+        translate_to_own("N#Cc3c(Oc1cccc(N)c1)ccc4nc(NC(=O)C2CC2)sc34", False)
         == "N#C<0;cccccc>?{1}cO<0;cccccc>?{4}cN!!?{4,5}<3;sccnc>?{4}cNC(C=O)C<0;CCC>!!"
     )
     assert (
@@ -111,3 +123,17 @@ def test_hard_smiles():
         )
         == "CC<13;[C@][C@H]OC[C@H][C@@H][C@H][C@@H][C@]C[C@@H]C[C@H][C@@H]>?{3}C=O!?{4}[C@H]C!?{5}[C@@H]O<4;[C@H]O[C@H]C[C@@][C@@H]>?{0}[C@H]C!?{4}[C@@]C!?{4}[C@@]OC!?{5}[C@@H]O!!?{6}[C@H]C!?{7}[C@@H]O<4;[C@H][C@H][C@@H]O[C@H]C>?{0}[C@H]N(NC)NC!?{4}[C@H]C![C@H]O!?{8}[C@]C!?{8}[C@]O!?{10}[C@@H]C!?{11}C=O!?{12}[C@H]C!?{13}[C@@H]O![C@]([C@]C)[C@]O"
     )
+    assert (
+        translate_to_own(
+            "C#C[C@]4(O)CC[C@H]3[C@@H]2CCc1cc(O)ccc1[C@H]2CC[C@@]34C", False
+        )
+        == "C#C<0;[C@]CC[C@H][C@@]>?{0}[C@]O!?{3,4}<0;[C@H][C@@H][C@H]CC[C@@]>?{1,2}<3;cc[C@H][C@@H]CC>?{0,1}<0;cccccc>?{2}cO!!!![C@@]C"
+    )
+
+
+if __name__ == "__main__":
+    test_ring_ordering()
+    test_wikipedia_examples()
+    test_ring_in_branch()
+    test_hard_smiles()
+    test_ring_ordering_and_perc()
