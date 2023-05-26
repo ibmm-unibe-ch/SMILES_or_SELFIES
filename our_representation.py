@@ -1,3 +1,8 @@
+import re
+from typing import List
+
+from constants import OUR_REGEX
+
 BONDS = [".", "-", "=", "#", "$", ":", "/", "\\"]
 
 
@@ -20,7 +25,6 @@ def get_atom(smiles: str, print_messages: bool = True) -> tuple[str, str]:
         return get_atom(smiles[1:], print_messages)
     if smiles[0] == "%":
         return get_atom(smiles[3:], print_messages)
-    # TODO throw exception?
     raise Exception("Tried to get atom from empty/indifferent SMILES", smiles)
 
 
@@ -133,11 +137,13 @@ def parse_post(
         if print_messages:
             print(post_item[0])
         if isinstance(post_item[0], (tuple, list)):
+            numbers = [(numb - ring_start_index) % ring_length for numb in post_item[0]]
             printable = ",".join(
-                [str((numb - ring_start_index) % ring_length) for numb in post_item[0]]
+                ["%" + str(number) if number > 9 else str(number) for number in numbers]
             )
         elif isinstance(printable, int):
-            printable = str((printable - ring_start_index) % ring_length)
+            number = (printable - ring_start_index) % ring_length
+            printable = "%" + str(number) if number > 9 else str(number)
         output += "?{" + str(printable) + "}" + post_item[1] + "!"
     return output
 
@@ -147,8 +153,8 @@ def parse_overlap(overlap_ids: list) -> str:
         ids = "{"
         for i in overlap_ids:
             if isinstance(i, (tuple, list)):
-                i = ",".join(i)
-            ids += str(i) + ","
+                i = ",".join(["%" + str(elem) if elem > 9 else str(elem) for elem in i])
+            ids += str("%" + str(i) if isinstance(i, int) and i > 9 else str(i)) + ","
         ids = ids[:-1] + "}"
         return ids
     return ""
@@ -310,7 +316,7 @@ def deal_ring(curr_smile, curr_atom, print_messages: bool = True) -> tuple[str, 
 
 def check_if_unclosed_ring_in_branch(branch: str):
     drain = 0
-    output = dict()
+    output = {}
     for branch_counter, char in enumerate(branch):
         if drain > 0:
             drain -= 1
@@ -361,3 +367,7 @@ def translate_to_own(curr_smile: str, print_messages: bool = True) -> str:
             output += curr_atom
 
     return output
+
+
+def tokenise_our_representation(our_representation: str) -> List[str]:
+    return [token for token in re.split(OUR_REGEX, our_representation) if token]
