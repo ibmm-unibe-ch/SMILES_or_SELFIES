@@ -288,7 +288,9 @@ def deal_ring(curr_smile, curr_atom, print_messages: bool = True) -> tuple[str, 
         print(f"ring {ring_id}, {curr_smile}")
         print(f"updated string: {curr_smile}")
     offset = 1 if len_ring_id == 1 else 3
-    ring_end = curr_smile[len_ring_id:].index(ring_id) + offset
+    tokenised = tokenise_our_representation(curr_smile[len_ring_id:])
+    end_pointer = tokenised.index(ring_id)
+    ring_end = len("".join(tokenised[:end_pointer])) + offset
     output_append, overlap, last_atom = translate_ring(
         curr_smile[len_ring_id:ring_end], curr_atom, ring_id, print_messages
     )
