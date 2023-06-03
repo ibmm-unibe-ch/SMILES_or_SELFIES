@@ -161,13 +161,11 @@ if __name__ == "__main__":
         tokenizer = "smiles_isomers_atom"
         # for it, tokenizer in ["smiles_atom"]:#enumerate(TOKENIZER_SUFFIXES):
         best_models = [
-            "full_normal",
-            "scale_window",
-            "half_time",
+            "0.0001_0.25_large_norm", "5e-05_0.25_large_norm"
         ]
         for it, model in enumerate(best_models):
             os.system(
-                f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-regulation --task translation --path {TASK_PATH/task/tokenizer/model/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam_reg"/task/tokenizer/model}'
+                f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"reaction_prediction"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-regulation --task translation --path /ibmm_data/jgut/big_SoS_models/{task}/{tokenizer}/{model}/checkpoint_best.pt --batch-size 1 --skip-invalid-size-inputs-valid-test --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam_reg"/task/tokenizer/model}'
             )
             samples = parse_file(
                 PROJECT_PATH
