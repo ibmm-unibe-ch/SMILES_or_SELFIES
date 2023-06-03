@@ -7,6 +7,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from constants import PROCESSED_PATH, TOKENIZER_PATH
+from preprocessing import canonize_smile, translate_selfie
 from rdkit import RDLogger
 from tokenizers import (
     Regex,
@@ -18,9 +20,7 @@ from tokenizers import (
 )
 from tqdm import tqdm
 from transformers import BartTokenizerFast
-
-from constants import PROCESSED_PATH, TOKENIZER_PATH
-from preprocessing import canonize_smile, translate_selfie
+from our_representation import OUR_REGEX
 
 RDLogger.DisableLog("rdApp.warning")
 
@@ -50,6 +50,24 @@ def train_sentencepiece(
     tokenizer = BartTokenizerFast(tokenizer_object=tk_tokenizer)
     logging.info(f"Saving tokenizer to {save_path}")
     # BERTpost-processor needed?
+    tokenizer.save_pretrained(save_path)
+    return tokenizer
+
+def train_our_tokenizer(training_data, save_path, vocab_size=1000):
+    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
+    # copied from https://colab.research.google.com/drive/1tsiTpC4i26QNdRzBHFfXIOFVToE54-9b?usp=sharing#scrollTo=UHzrWuFpCtzs
+    # same in DeepChem
+    splitting_regex = Regex(OUR_REGEX)
+    tk_tokenizer.pre_tokenizer = pre_tokenizers.Split(
+        pattern=splitting_regex, behavior="isolated"
+    )
+    special_tokens = ["<s>", "<pad>", "</s>", "<unk>", "<cls>", "<sep>", "<mask>"]
+    trainer = trainers.WordLevelTrainer(
+        vocab_size=vocab_size, show_progress=True, special_tokens=special_tokens
+    )
+    tk_tokenizer.train_from_iterator(training_data, trainer=trainer)
+    tokenizer = BartTokenizerFast(tokenizer_object=tk_tokenizer)
+    logging.info(f"Saving tokenizer to {save_path}")
     tokenizer.save_pretrained(save_path)
     return tokenizer
 
@@ -142,23 +160,26 @@ if __name__ == "__main__":
     SMILES = pd.read_csv(
         PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
     ).values
-    atom_SMILES_tokenizer = train_atomwise_tokenizer(
-        SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
+    our_SMILES_tokenizer = train_our_tokenizer(
+        SMILES, TOKENIZER_PATH / "smiles_our_isomers", vocab_size=1000
     )
-    SELFIES = pd.read_csv(
-        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["208"]
-    ).values
-    atom_SELFIES_tokenizer = train_atomwise_tokenizer(
-        SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
-    )
-    SMILES = pd.read_csv(
-        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
-    ).values
-    SMILES_tokenizer = train_sentencepiece(
-        SMILES, TOKENIZER_PATH / "smiles_sentencepiece_isomers_small", vocab_size=1000
-    )
-
-    SELFIES = pd.read_csv("processed/10m_only_isomers.csv", usecols=["208"]).values
-    SELFIES_tokenizer = train_sentencepiece(
-        SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
-    )
+#    atom_SMILES_tokenizer = train_atomwise_tokenizer(
+#        SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
+#    )
+#    SELFIES = pd.read_csv(
+#        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["208"]
+#    ).values
+#    atom_SELFIES_tokenizer = train_atomwise_tokenizer(
+#        SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
+#    )
+#    SMILES = pd.read_csv(
+#        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
+#    ).values
+#    SMILES_tokenizer = train_sentencepiece(
+#        SMILES, TOKENIZER_PATH / "smiles_sentencepiece_isomers_small", vocab_size=1000
+#    )
+#
+#    SELFIES = pd.read_csv("processed/10m_only_isomers.csv", usecols=["208"]).values
+#    SELFIES_tokenizer = train_sentencepiece(
+#        SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
+#    )

@@ -19,7 +19,7 @@ from rdkit.Chem.EnumerateStereoisomers import (
 from tqdm import tqdm
 
 from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
-
+from our_representation import translate_to_own
 
 def calc_descriptors(mol_string: str) -> dict:
     """Calculate the descriptors (features) of the given molecule
@@ -177,6 +177,7 @@ def process_mol(mol: str) -> Tuple[dict, str]:
     descriptors["SELFIE"] = selfie
     descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
+    descriptors["own"] = translate_to_own(canon)
     return descriptors.values(), "valid"
 
 
@@ -252,7 +253,7 @@ def process_mol_files(
     for input_file in input_files:
         result = process_mol_file(input_file, isomers)
         curr_output, curr_statistics = result
-        curr_path = PROCESSED_PATH / "".join(
+        curr_path = PROCESSED_PATH/"own" / "".join(
             [letter for letter in str(uuid.uuid4()) if letter.isalnum()]
         )
         curr_df = pd.DataFrame(curr_output)
@@ -310,8 +311,8 @@ def check_dups(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
-    paths, statistics = process_mol_files(PROJECT_PATH / "download_10m", 1)
+    (PROCESSED_PATH/"own").mkdir(parents=True, exist_ok=True)
+    paths, statistics = process_mol_files(PROJECT_PATH/"processed" / "download_10m", 1)
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
     valid = statistics.get("valid", 0)
@@ -390,13 +391,13 @@ if __name__ == "__main__":
         f"This amounts to a percentage of {100*(1-curr_mols_comb/all_mols_comb):.2f}."
     )
     logging.info(f"The arrays are saved in {paths}")
-    with open(PROCESSED_PATH / "paths.pickle", "wb") as handle:
+    with open(PROCESSED_PATH/"own"/ "paths.pickle", "wb") as handle:
         pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    PROCESSED_PATH.mkdir(exist_ok=True)
+    (PROCESSED_PATH/"own").mkdir(exist_ok=True)
     merged_dataframe = merge_dataframes(
-        PROCESSED_PATH / "paths.pickle",
-        PROCESSED_PATH / "10m_pubchem_isomers.csv",
+        PROCESSED_PATH/"own" / "paths.pickle",
+        PROCESSED_PATH/"own" / "10m_pubchem_isomers.csv",
         True,
     )
     deduplicated_dataframe = check_dups(merged_dataframe)
-    deduplicated_dataframe.to_csv(PROCESSED_PATH / "10m_deduplicated_isomers.csv")
+    deduplicated_dataframe.to_csv(PROCESSED_PATH/"own" / "10m_deduplicated_isomers.csv")
