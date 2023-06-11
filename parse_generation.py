@@ -8,11 +8,10 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
 from constants import PROJECT_PATH, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES
 from lexicographic_scores import compute_distances
 from preprocessing import canonize_smile, check_valid, translate_smile
+from tqdm import tqdm
 from utils import parse_arguments
 
 

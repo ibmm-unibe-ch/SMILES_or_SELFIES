@@ -24,6 +24,8 @@ def get_atom(smiles: str, print_messages: bool = True) -> tuple[str, str]:
         return get_atom(smiles[1:], print_messages)
     if smiles[0] == "%":
         return get_atom(smiles[3:], print_messages)
+    if smiles[0] in ["(", ")"]:
+        return get_atom(smiles[1:], print_messages)
     raise Exception("Tried to get atom from empty/indifferent SMILES", smiles)
 
 
@@ -89,6 +91,8 @@ def find_branch_end(smiles: str) -> tuple[str, str]:
 
 def deal_inner_ring(ring_smile, curr_id, last_ring_char, print_messages: bool = True):
     overlap = ""
+    ring_smile, end_offset = order_starts(ring_smile, print_messages)
+    ring_smile = order_ends(ring_smile, end_offset, print_messages)
     ring_id = ring_smile[:3] if ring_smile[0] == "%" else ring_smile[0]
     len_ring_id = len(ring_id)
     if ring_id in ring_smile[len_ring_id:]:  # nested
@@ -99,6 +103,9 @@ def deal_inner_ring(ring_smile, curr_id, last_ring_char, print_messages: bool = 
             ring_id,
             print_messages,
         )
+        while len(post_append_smiles) > 0 and post_append_smiles[-1] == "(":
+            post_append_smiles = post_append_smiles[:-1]
+            last_atom += "("
         post_append = (
             (curr_id, curr_id + 1),
             post_append_smiles,
@@ -196,7 +203,9 @@ def translate_ring(
             post.append(post_append)
         elif ring_smile[0] == "(":
             branch, ring_smile = find_branch_end(ring_smile)
-            if branch:
+            if len(branch) > 1:  # more than only )
+                if print_messages:
+                    print(f"branch {branch}")
                 post.append(
                     (
                         curr_id,
@@ -205,6 +214,8 @@ def translate_ring(
                         ),
                     )
                 )
+            elif branch:
+                pass
             else:  # ring ends in branch
                 ring_smile = ring_smile[1:]
                 append_brack = "("
@@ -348,8 +359,10 @@ def translate_to_own(curr_smile: str, print_messages: bool = True) -> str:
                 curr_smile, curr_atom, print_messages
             )
             output += output_append
-            if curr_smile:
+            if curr_smile:  # and curr_smile[0] != ")":
                 curr_smile = shave_bond(last_atom) + curr_smile
+        #            elif curr_smile and curr_smile[0] == ")":
+        #                curr_smile = curr_smile[1:]
         elif curr_smile[0] == "(":
             branch, curr_smile = find_branch_end(curr_smile)
             if output[-1] == ")":

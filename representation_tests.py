@@ -4,20 +4,20 @@ from our_representation import tokenise_our_representation, translate_to_own
 
 # Wikipedia examples
 def test_wikipedia_examples():
-    assert translate_to_own("C2CCC1CCCCC1C2", False) == "<0;CCCCCC>?{3,4}<0;CCCCCC>!"
+    assert translate_to_own("C1CCCC2CCCCC21", False) == "<0;CCCCCC>?{4,5}<0;CCCCCC>!"
     assert translate_to_own("CN=C=O", False) == "CN=C=O"
     assert translate_to_own("COc1cc(C=O)ccc1O", False) == "CO<0;cccccc>?{2}cC=O!cO"
     assert (
-        translate_to_own("COc2ccc1[nH]cc(CCNC(C)=O)c1c2", False)
-        == "CO<0;cccccc>?{3,4}<2;cccc[nH]>?{1}cCCNC(CC)C=O!!"
+        translate_to_own("CC(=O)NCCc1c[nH]c2ccc(cc12)OC", False)
+        == "CC(C=O)CNCC(<3;cccc[nH]>?{0,1}<0;cccccc>!)cOC"
     )
     assert (
-        translate_to_own("CCc4ccc3c2[nH]c1ccccc1c2cc[n+]3c4", False)
-        == "CC<5;ccccc[n+]>?{4,5}<0;ccccc[n+]>?{1,2}<2;cccc[nH]>?{0,1}<0;cccccc>!!!"
+        translate_to_own("CCc1c[n+]2ccc3c([nH]c4ccccc34)c2cc1", False)
+        == "CC<3;ccccc[n+]>?{5,0}<1;ccccc[n+]>?{2,3}<3;cccc[nH]>?{0,1}<0;cccccc>!!!"
     )
     assert (
-        translate_to_own("CN1CCC[C@H]1c2cccnc2", False)
-        == "C<4;[C@H]NCCC>[C@H]<4;nccccc>"
+        translate_to_own("CN1CCC[C@H]1c1c[n]ccc1", False)
+        == "C<4;[C@H]NCCC>[C@H]<3;ccccc[n]>"
     )
     assert (
         translate_to_own("CCC[C@@H](O)CC/C=C/C=C/C#CC#C/C=C/CO", False)
@@ -25,14 +25,14 @@ def test_wikipedia_examples():
     )
     assert (
         translate_to_own(
-            "C=C/C=C\CC2=C(C)[C@@H](OC(=O)[C@@H]1[C@@H](/C=C(C)/C(=O)OC)C1(C)C)CC2=O",
+            "COC(=O)/C(/C)=C/[C@@H]1[C@@H](C(=O)O[C@H]2CC(=O)C(C/C=C\C=C)=C2C)C1(C)C",
             False,
         )
-        == "C=C/C=C\C<2;[C@@H]CCC=C>?{0}[C@@H]OC(C=O)C<0;[C@@H][C@@H]C>?{1}[C@@H]/C=C(CC)C/C(C=O)COC!C(CC)CC!?{4}CC!C=O"
+        == "COC(C=O)C/C(C/C)C=C<1;[C@@H]C/[C@@H]>?{0}[C@@H]C(C=O)CO<0;[C@H]CCC=C>?{2}C=O!?{3}CC/C=C\C=C!CC!C(CC)CC"
     )
     assert (
-        translate_to_own("COc4cc2O[C@H]1OC=C[C@H]1c2c5oc(=O)c3C(=O)CCc3c45", False)
-        == "CO<0;cccccc>?{2,3}<4;ccO[C@H][C@H]>?{3,4}<4;[C@H][C@H]OC=C>!!?{4,5}<1;occccc>?{1}c=O!?{2,3}<4;ccCCC>?{2}C=O!!!"
+        translate_to_own("COc1cc2O[C@H]3OC=C[C@H]3c2c2oc(=O)c3c(CCC3=O)c12", False)
+        == "CO<0;cccccc>?{2,3}<4;ccO[C@H][C@H]>?{3,4}<4;[C@H][C@H]OC=C>!!?{4,5}<1;occCcc>?{1}c=O!?{2,3}<0;ccCCC>!?{3}C=O!!"
     )
     assert (
         translate_to_own("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", False)
@@ -40,21 +40,21 @@ def test_wikipedia_examples():
     )
     assert (
         translate_to_own(
-            "COc3c(O)cc2C(=O)O[C@@H]1[C@@H](O)[C@H](O)[C@@H](CO)O[C@H]1c2c3O", False
+            "COc1c(O)cc2C(=O)O[C@H]3[C@@H](O[C@H](CO)[C@@H](O)[C@@H]3O)c2c1O", False
         )
-        == "CO<0;cccccc>?{1}cO!?{3,4}<5;ccCO[C@@H][C@H]>?{2}C=O!?{4,5}<5;[C@H][C@@H][C@@H][C@H][C@@H]O>?{2}[C@@H]O!?{3}[C@H]O!?{4}[C@@H]CO!!!cO"
+        == "CO<0;cccccc>?{1}cO!?{3,4}<5;ccCO[C@H][C@@H]>?{2}C=O!?{4,5}<3;[C@H][C@@H][C@@H][C@H][C@@H]O>?{0}[C@H]CO!?{1}[C@@H]O!!?{5}[C@@H]O!!cO"
     )
     assert (
-        translate_to_own("C=CCC[C@H](C/C=C(C)\CCOC(C)=O)C(=C)C", False)
-        == "C=CCC[C@H]([C@H]C/C=C(CC)C\CCOC(CC)C=O)[C@H]C(C=C)CC"
+        translate_to_own("CC(=C)[C@@H](C/C=C(/C)\CCOC(C)=O)CCC=C", False)
+        == "CC(C=C)C[C@@H]([C@@H]C/C=C(C/C)C\CCOC(CC)C=O)[C@@H]CCC=C"
     )
     assert (
-        translate_to_own("CC(C)[C@]12CC(=O)[C@H](C)[C@H]1C2", False)
-        == "CC(CC)C<0;[C@][C@H]C>?{0,1}<0;[C@]CC[C@H][C@H]>?{2}C=O!?{3}[C@H]C!!"
+        translate_to_own("CC(C)[C@@]12C[C@@H]1[C@@H](C)C(=O)C2", False)
+        == "CC(CC)C<0;[C@@][C@@H][C@@H]CC>?{0,1}<0;[C@@]C[C@@H]>!?{2}[C@@H]C!?{3}C=O!"
     )
     assert (
-        translate_to_own("Cc2ncc(C[n+]1csc(CCO)c1C)c(N)n2", False)
-        == "C<5;ncnccc>?{4}cC<2;scc[n+]c>?{1}cCCO!cC!?{5}cN!"
+        translate_to_own("Cc1[n]c(N)c(C[n+]2c[s]c(CCO)c2C)c[n]1", False)
+        == "C<2;ccc[n]c[n]>?{0}cN!?{1}cC<3;cc[n+]c[s]>?{0}cCCO!cC!"
     )
 
 
@@ -805,8 +805,8 @@ def test_ring_in_branch():
 # hard SMILES
 def test_hard_smiles():
     assert (
-        translate_to_own("N#Cc3c(Oc1cccc(N)c1)ccc4nc(NC(=O)C2CC2)sc34", False)
-        == "N#C<0;cccccc>?{1}cO<0;cccccc>?{4}cN!!?{4,5}<3;sccnc>?{4}cNC(C=O)C<0;CCC>!!"
+        translate_to_own("Nc1cc(ccc1)Oc1ccc2[n]c(NC(=O)C3CC3)[s]c2c1C#N", False)
+        == "N(<0;cccccc>)cO<0;cccccc>?{3,4}<4;cc[n]c[s]>?{3}cNC(C=O)C<0;CCC>!!cC#N"
     )
     assert (
         translate_to_own(
@@ -817,20 +817,20 @@ def test_hard_smiles():
     )
     assert (
         translate_to_own(
-            "CC[C@H]3OC(=O)[C@H](C)[C@@H](O[C@H]1C[C@@](C)(OC)[C@@H](O)[C@H](C)O1)[C@H](C)[C@@H](O[C@@H]2O[C@H](C)C[C@H](N(C)C)[C@H]2O)[C@](C)(O)C[C@@H](C)C(=O)[C@H](C)[C@@H](O)[C@]3(C)O",
+            "CO[C@]1(C)C[C@H](O[C@@H]2[C@@H](C)C(=O)O[C@H](CC)[C@@](C)(O)[C@H](O)[C@@H](C)C(=O)[C@H](C)C[C@@](C)(O)[C@H](O[C@@H]3O[C@H](C)C[C@@H]([C@H]3O)N(C)C)[C@H]2C)O[C@@H](C)[C@@H]1O",
             False,
         )
-        == "CC<13;[C@][C@H]OC[C@H][C@@H][C@H][C@@H][C@]C[C@@H]C[C@H][C@@H]>?{3}C=O!?{4}[C@H]C!?{5}[C@@H]O<4;[C@H]O[C@H]C[C@@][C@@H]>?{0}[C@H]C!?{4}[C@@]C!?{4}[C@@]OC!?{5}[C@@H]O!!?{6}[C@H]C!?{7}[C@@H]O<4;[C@H][C@H][C@@H]O[C@H]C>?{0}[C@H]N(NC)NC!?{4}[C@H]C![C@H]O!?{8}[C@]C!?{8}[C@]O!?{%10}[C@@H]C!?{%11}C=O!?{%12}[C@H]C!?{%13}[C@@H]O![C@]([C@]C)[C@]O"
+        == "CO<0;[C@]C[C@H]O[C@@H][C@@H]>?{0}[C@]C!?{2}[C@H]O<12;[C@H][C@H][C@@H][C@@H]CO[C@H][C@@][C@H][C@@H]C[C@H]C[C@@]>?{0}[C@H]O(<5;[C@H][C@@H]O[C@H]C[C@@H]>?{3}[C@H]C!O)[C@@H]N(NC)NC!?{3}[C@@H]C!?{4}C=O!?{6}[C@H]CC!?{7}[C@@]C!?{7}[C@@]O!?{8}[C@H]O!?{9}[C@@H]C!?{%10}C=O!?{%11}[C@H]C!?{%13}[C@@]C!?{%13}[C@@]O![C@H]C!?{4}[C@@H]C![C@@H]O"
     )
     assert (
         translate_to_own(
-            "C#C[C@]4(O)CC[C@H]3[C@@H]2CCc1cc(O)ccc1[C@H]2CC[C@@]34C", False
+            "C[C@]12CC[C@H]3[C@@H](CCc4cc(O)ccc43)[C@@H]1CC[C@@]2(O)C#C", False
         )
-        == "C#C<0;[C@]CC[C@H][C@@]>?{0}[C@]O!?{3,4}<0;[C@H][C@@H][C@H]CC[C@@]>?{1,2}<3;cc[C@H][C@@H]CC>?{0,1}<0;cccccc>?{2}cO!!!![C@@]C"
+        == "C<0;[C@][C@@H]CC[C@@]>?{0,1}<4;c[C@@H][C@]CC[C@H]>?{5,0}<4;cc[C@H][C@@H]CC>?{0,1}<0;cccccc>?{2}cO!!!![C@@]([C@@]O)[C@@]C#C"
     )
     assert (
-        translate_to_own("N2CCCCCCCCC1CCCC1CCCCC2", False)
-        == "<0;NCCCCCCCCCCCCCCC>?{9,%10}<0;CCCCC>!"
+        translate_to_own("C1CCC2CCCCCNCCCCCCCCC21", False)
+        == "<0;CCCCC>?{3,4}<6;NCCCCCCCCCCCCCCC>!"
     )
 
 
