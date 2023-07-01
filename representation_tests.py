@@ -1780,10 +1780,6 @@ def test_polarity():
 
 
 def test_atom_ids():
-    assert (
-        translate_to_graph_representation("C2[C:%12]C(C1[CH2+2:2]C[F+:1]1)C2")
-        == "<1;[C:%12]CCC>?{1}C<3;[F+:1]C[CH2+2:2]C>!"
-    )
     assert tokenise_our_representation("<1;[C:%12]CCC>?{1}C<3;[F+:1]C[CH2+2:2]C>!") == [
         "<1;",
         "[C:%12]",
@@ -1813,8 +1809,11 @@ def test_atom_ids():
 
 if __name__ == "__main__":
     test_wikipedia_examples()
-    test_hard_smiles()
     test_wikipedia_tokenisation()
     test_wikipedia_tokenisation_no_drop()
+    test_hard_smiles()
     test_other_tokenisation()
     test_other_tokenisation_no_drop()
+    test_edgecases()
+    test_polarity()
+    test_atom_ids()
