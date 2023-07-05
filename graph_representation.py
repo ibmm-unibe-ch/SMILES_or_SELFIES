@@ -139,7 +139,6 @@ class Molecule_Graph:
         return node_ids_node_ids[index_best : index_best + len_ring]
 
     def process_ring(self, node_ids, start_id):
-        outputs = []
         self.edges = self.edges - generate_edges_to_remove(node_ids)
         canonised_ring_ids = self.canonize_ring(tuple(node_ids))
         ring_start = canonised_ring_ids.index(start_id)
@@ -147,7 +146,7 @@ class Molecule_Graph:
         output = f"<{ring_start};{canonised_ring_string}>"
         todo_nodes = [node_id for node_id in node_ids if node_id in self.nodes]
         self.nodes = self.nodes - set(todo_nodes)
-
+        additional_chains = []
         for node in todo_nodes:
             if node in self.cycles:
                 cycles_node = list(self.cycles[node])
@@ -161,12 +160,21 @@ class Molecule_Graph:
                         str(canonised_ring_ids.index(overlap_id))
                         for overlap_id in overlap_ids
                     ]
-                    overlap_string = f'{{{",".join(sorted(overlap_indices, key=int))}}}'
-                    output += f"?{overlap_string}{self.process_ring(cycle,node)}!"
+                    sorted_overlap_indices = sorted(overlap_indices, key=int)
+                    additional_chains.append((sorted_overlap_indices, self.process_ring(cycle,node)))
+                    
             node_output = self.process_node(node)
-            if node_output == self.get_atom_symbol(node):
-                continue
-            output += f"?{{{canonised_ring_ids.index(node)}}}{node_output}!"
+            if node_output != self.get_atom_symbol(node):
+                additional_chains.append(([str(canonised_ring_ids.index(node))],node_output))
+        sorted_additional_chains = sorted(additional_chains, key=lambda x: int(x[0][0]))
+        for sorted_additional_chain in sorted_additional_chains[:-1]:
+            output += f"?{{{','.join(sorted_additional_chain[0])}}}{sorted_additional_chain[1]}!"
+        if sorted_additional_chains:
+            len_last_overlap = len(sorted_additional_chains[-1][0])
+            if sorted_additional_chains[-1][0] == [str(elem) for elem in list(range(len(node_ids))[-len_last_overlap:])]: 
+                output += f"{sorted_additional_chains[-1][1]}"
+            else:
+                output += f"?{{{','.join(sorted_additional_chains[-1][0])}}}{sorted_additional_chains[-1][1]}!"
         return output
 
     def process_node(self, node_id):
@@ -211,7 +219,8 @@ class Molecule_Graph:
 
 def translate_to_graph_representation(input_smiles):
     graph = Molecule_Graph(input_smiles)
-    return graph.process_graph()
+    output = graph.process_graph()
+    return output
 
 
 def tokenise_our_representation(our_representation: str) -> List[str]:

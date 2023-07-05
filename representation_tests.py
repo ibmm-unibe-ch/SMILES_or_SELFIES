@@ -14,7 +14,7 @@ def test_wikipedia_examples():
     assert translate_to_graph_representation("CN=C=O") == "CN=C=O"
     assert (
         translate_to_graph_representation("COc1cc(C=O)ccc1O")
-        == "CO<0;cccccc>?{2}cC=O!?{5}cO!"
+        == "CO<0;cccccc>?{2}cC=O!cO"
     )
     assert (
         translate_to_graph_representation("CC(=O)NCCc1c[nH]c2ccc(cc12)OC")
@@ -35,14 +35,14 @@ def test_wikipedia_examples():
     assert (
         translate_to_graph_representation(
             "COC(=O)/C(/C)=C/[C@@H]1[C@@H](C(=O)O[C@H]2CC(=O)C(C/C=C\C=C)=C2C)C1(C)C"
-        )
-        == "C=CC=CC<2;CCC=C[C@@H]>?{3}CC!?{4}[C@@H]OC(=O)C<2;C[C@@H][C@H]>?{1}[C@@H]C=C(C)CC(=O)COC!?{0}C(C)CC!!?{1}C=O!"
+        )   
+        == "C=CC=CC<2;CCC=C[C@@H]>?{1}C=O!?{3}CC![C@@H]OC(=O)C<2;C[C@@H][C@H]>?{0}C(C)CC!?{1}[C@@H]C=C(C)CC(=O)COC!"
     )
     assert (
         translate_to_graph_representation(
             "COc1cc2O[C@H]3OC=C[C@H]3c2c2oc(=O)c3c(CCC3=O)c12"
-        )
-        == "CO<0;cccccc>?{2,3}<1;Occ[C@H][C@H]>?{3,4}<4;C=CO[C@H][C@H]>!!?{4,5}<4;ccccco>?{0}c=O!?{1,2}<3;CCCcc>?{2}C=O!!!"
+        )   
+        == "CO<0;cccccc>?{2,3}<1;Occ[C@H][C@H]><4;C=CO[C@H][C@H]>!<4;ccccco>?{0}c=O!?{1,2}<3;CCCcc>?{2}C=O!!"
     )
     assert (
         translate_to_graph_representation("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O")
@@ -51,8 +51,8 @@ def test_wikipedia_examples():
     assert (
         translate_to_graph_representation(
             "COc1c(O)cc2C(=O)O[C@H]3[C@@H](O[C@H](CO)[C@@H](O)[C@@H]3O)c2c1O"
-        )
-        == "CO<0;cccccc>?{1}cO!?{3,4}<1;Ccc[C@H][C@@H]O>?{3,4}<5;O[C@H][C@@H][C@H][C@@H][C@H]>?{1}[C@H]CO!?{2}[C@@H]O!?{3}[C@H]O!!?{0}C=O!!?{5}cO!"
+        )   
+        == "CO<0;cccccc>?{1}cO!?{3,4}<1;Ccc[C@H][C@@H]O>?{0}C=O!?{3,4}<5;O[C@H][C@@H][C@H][C@@H][C@H]>?{1}[C@H]CO!?{2}[C@@H]O!?{3}[C@H]O!!!cO"
     )
     assert (
         translate_to_graph_representation("CC(=C)[C@@H](C/C=C(/C)\CCOC(C)=O)CCC=C")
@@ -60,11 +60,11 @@ def test_wikipedia_examples():
     )
     assert (
         translate_to_graph_representation("CC(C)[C@@]12C[C@@H]1[C@@H](C)C(=O)C2")
-        == "CC(C)C<4;CC[C@H][C@@H][C@]>?{1}C=O!?{2}[C@H]C!?{3,4}<2;C[C@][C@@H]>!"
+        == "CC(C)C<4;CC[C@H][C@@H][C@]>?{1}C=O!?{2}[C@H]C!<2;C[C@][C@@H]>"
     )
     assert (
         translate_to_graph_representation("Cc1[n]c(N)c(C[n+]2c[s]c(CCO)c2C)c[n]1")
-        == "C<4;cccncn>?{1}cC<0;[n+]cscc>?{3}cCCO!?{4}cC!!?{2}cN!"
+        == "C<4;cccncn>?{1}cC<0;[n+]cscc>?{3}cCCO!cC!?{2}cN!"
     )
 
 
@@ -772,26 +772,26 @@ def test_hard_smiles():
     assert (
         translate_to_graph_representation(
             "Nc1cc(ccc1)Oc1ccc2[n]c(NC(=O)C3CC3)[s]c2c1C#N"
-        )
-        == "N#C<0;cccccc>?{1}cO<0;cccccc>?{4}cN!!?{4,5}<1;ccncs>?{3}cNC(=O)C<0;CCC>!!"
+        )   
+        == "N#C<0;cccccc>?{1}cO<0;cccccc>?{4}cN!!<1;ccncs>?{3}cNC(=O)C<0;CCC>!"
     )
     assert (
         translate_to_graph_representation(
             "C/C=C/CC(C)C(O)C1C(=O)NC(CC)C(=O)N(C)CC(=O)N(C)C(CC(C)C)C(=O)NC(C(C)C)C(=O)N(C)C(CC(C)C)C(=O)NC(C)C(=O)NC(C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(C(C)C)C(=O)N1C"
-        )
-        == "CC=CCC(C)CC(O)C<0;CCNCCNCCNCCNCCNCCNCCNCCNCCNCCNCCN>?{1}C=O!?{3}CCC!?{4}C=O!?{5}NC!?{7}C=O!?{8}NC!?{9}CCC(C)CC!?{10}C=O!?{12}CC(C)CC!?{13}C=O!?{14}NC!?{15}CCC(C)CC!?{16}C=O!?{18}CC!?{19}C=O!?{21}CC!?{22}C=O!?{23}NC!?{24}CCC(C)CC!?{25}C=O!?{26}NC!?{27}CCC(C)CC!?{28}C=O!?{29}NC!?{30}CC(C)CC!?{31}C=O!?{32}NC!"
+        )   
+        == "CC=CCC(C)CC(O)C<0;CCNCCNCCNCCNCCNCCNCCNCCNCCNCCNCCN>?{1}C=O!?{3}CCC!?{4}C=O!?{5}NC!?{7}C=O!?{8}NC!?{9}CCC(C)CC!?{10}C=O!?{12}CC(C)CC!?{13}C=O!?{14}NC!?{15}CCC(C)CC!?{16}C=O!?{18}CC!?{19}C=O!?{21}CC!?{22}C=O!?{23}NC!?{24}CCC(C)CC!?{25}C=O!?{26}NC!?{27}CCC(C)CC!?{28}C=O!?{29}NC!?{30}CC(C)CC!?{31}C=O!NC"
     )
     assert (
         translate_to_graph_representation(
             "CO[C@]1(C)C[C@H](O[C@@H]2[C@@H](C)C(=O)O[C@H](CC)[C@@](C)(O)[C@H](O)[C@@H](C)C(=O)[C@H](C)C[C@@](C)(O)[C@H](O[C@@H]3O[C@H](C)C[C@@H]([C@H]3O)N(C)C)[C@H]2C)O[C@@H](C)[C@@H]1O",
-        )
-        == "CC<6;C[C@@H]C[C@H][C@@H][C@][C@@H]OC[C@H][C@@H][C@H][C@@H][C@]>?{8}C=O!?{9}[C@H]C!?{10}[C@@H]O<5;C[C@@][C@@H][C@H]O[C@@H]>?{1}[C@@](C)[C@@]OC!?{2}[C@@H]O!?{3}[C@H]C!!?{11}[C@H]C!?{12}[C@@H]O<3;C[C@H]O[C@H][C@@H][C@H]>?{4}[C@@H]O!?{5}[C@H]N(C)NC!?{1}[C@H]C!!?{13}[C@](C)[C@]O!?{1}[C@@H]C!?{2}C=O!?{3}[C@H]C!?{4}[C@@H]O!?{5}[C@](C)[C@]O!"
+        )   
+        == "CC<6;C[C@@H]C[C@H][C@@H][C@][C@@H]OC[C@H][C@@H][C@H][C@@H][C@]>?{1}[C@@H]C!?{2}C=O!?{3}[C@H]C!?{4}[C@@H]O!?{5}[C@](C)[C@]O!?{8}C=O!?{9}[C@H]C!?{10}[C@@H]O<5;C[C@@][C@@H][C@H]O[C@@H]>?{1}[C@@](C)[C@@]OC!?{2}[C@@H]O!?{3}[C@H]C!!?{11}[C@H]C!?{12}[C@@H]O<3;C[C@H]O[C@H][C@@H][C@H]>?{1}[C@H]C!?{4}[C@@H]O![C@H]N(C)NC![C@](C)[C@]O"
     )
     assert (
         translate_to_graph_representation(
             "C[C@]12CC[C@H]3[C@@H](CCc4cc(O)ccc43)[C@@H]1CC[C@@]2(O)C#C"
-        )
-        == "C#C<4;CC[C@@H][C@][C@]>?{2,3}<3;CC[C@][C@@H][C@H][C@@H]>?{4,5}<5;CCcc[C@@H][C@H]>?{2,3}<0;cccccc>?{2}cO!!!!?{3}[C@]C!"
+        )   
+        == "C#C<4;CC[C@@H][C@][C@]>?{2,3}<3;CC[C@][C@@H][C@H][C@@H]><5;CCcc[C@@H][C@H]>?{2,3}<0;cccccc>?{2}cO!!!?{3}[C@]C!"
     )
 
 
@@ -1487,11 +1487,11 @@ def test_other_tokenisation_no_drop():
 
 def test_edgecases():
     assert (
-        translate_to_graph_representation("CCC1CC(C)C1C") == "CC<0;CCCC>?{2}CC!?{3}CC!"
+        translate_to_graph_representation("CCC1CC(C)C1C") == "CC<0;CCCC>?{2}CC!CC"
     )
     assert (
         translate_to_graph_representation("CCC1C(C)C(C)C1F")
-        == "CC<0;CCCC>?{1}CC!?{2}CC!?{3}CF!"
+        == "CC<0;CCCC>?{1}CC!?{2}CC!CF"
     )
     assert (
         translate_to_graph_representation(
