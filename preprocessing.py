@@ -11,8 +11,7 @@ from typing import List, Tuple
 import pandas as pd
 import selfies
 from constants import CALCULATOR, DESCRIPTORS, PROCESSED_PATH, PROJECT_PATH
-from indigo import Indigo
-from our_representation import translate_to_own
+from graph_representation import translate_to_graph_representation
 from rdkit import Chem
 from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.EnumerateStereoisomers import (
@@ -20,23 +19,6 @@ from rdkit.Chem.EnumerateStereoisomers import (
     StereoEnumerationOptions,
 )
 from tqdm import tqdm
-
-
-def canon_and_our_representation(smiles):
-    canon = canon_indigo(smiles)
-    print(f"input {smiles}")
-    print(f"canon {canon}")
-    translated = translate_to_own(canon, False)
-    print(f"translated {translated}")
-    return translate_to_own(canon, False)
-
-
-def canon_indigo(smiles):
-    indigo = Indigo()
-    mol = indigo.loadMolecule(smiles)
-    mol.aromatize()
-    return mol.canonicalSmiles()
-
 
 def calc_descriptors(mol_string: str) -> dict:
     """Calculate the descriptors (features) of the given molecule
@@ -187,15 +169,20 @@ def process_mol(mol: str) -> Tuple[dict, str]:
         logging.warning(f"The following sequence was deemed invalid by RdKit: {mol}")
         return None, "invalid_smile"
     canon = canonize_smile(mol)
-    descriptors = calc_descriptors(canon)
-    selfie, selfie_length = translate_selfie(canon)
-    if selfie_length == -1:
-        return None, "invalid_selfie"
-    descriptors["SELFIE"] = selfie
-    descriptors["SELFIE_LENGTH"] = selfie_length
+    #descriptors = calc_descriptors(canon)
+    descriptors = {}
+    #selfie, selfie_length = translate_selfie(canon)
+    # if selfie_length == -1:
+    #     return None, "invalid_selfie"
+    # descriptors["SELFIE"] = selfie
+    # descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
-    print(f"@@@@@ {canon}")
-    descriptors["own"] = translate_to_own(canon, True)
+    try:
+        own = translate_to_graph_representation(canon)
+    except ValueError:
+        logging.warning(f"The following sequence was deemed invalid by own parsing: {mol}, with canon {canon}")
+        return None, "invalid_own"
+    descriptors["own"] = own
     return descriptors.values(), "valid"
 
 
@@ -312,7 +299,7 @@ def merge_dataframes(
     return merged_dataframe
 
 
-def check_dups(df: pd.DataFrame) -> pd.DataFrame:
+def check_dups(df: pd.DataFrame, duplicated_rows_column="210") -> pd.DataFrame:
     """Check the duplicates of DataFrame
 
     Args:
@@ -322,8 +309,8 @@ def check_dups(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: de-duplicated DataFrame
     """
     logging.info("Checking for SMILES duplicates.. ")
-    duplicated_rows = df.duplicated(subset=["210"])
-    dup_numbers = df.duplicated(subset=["210"]).sum()
+    duplicated_rows = df.duplicated(subset=[duplicated_rows_column])
+    dup_numbers = df.duplicated(subset=[duplicated_rows_column]).sum()
     logging.info(
         "{} SMILES duplicates found.. ".format(dup_numbers)
     )  # duplicates are correctly detected, has been tested
@@ -332,21 +319,24 @@ def check_dups(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__ == "__main__":
     (PROCESSED_PATH / "own").mkdir(parents=True, exist_ok=True)
-    paths, statistics = process_mol_files(PROJECT_PATH / "download_full_pubchem", 1)
+    paths, statistics = process_mol_files(PROJECT_PATH / "download_pubchem", 1)
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
+    invalid_own = statistics.get("invalid_own", 0)
     valid = statistics.get("valid", 0)
     all_mols = invalid_smile + invalid_selfie + valid
     curr_mols = all_mols
     invalid_smile_iso = statistics.get("invalid_smile_isomer", 0)
     invalid_selfie_iso = statistics.get("invalid_selfie_isomer", 0)
+    invalid_own_iso = statistics.get("invalid_own_isomer", 0)
     valid_iso = statistics.get("valid_isomer", 0)
     all_mols_iso = invalid_smile_iso + invalid_selfie_iso + valid_iso
     curr_mols_iso = all_mols_iso
     invalid_smile_comb = invalid_smile + invalid_smile_iso
     invalid_selfie_comb = invalid_selfie + invalid_selfie_iso
-    valid_comb = valid + valid
-    all_mols_comb = invalid_smile_comb + invalid_selfie_comb + valid_comb
+    invalid_own_comb = invalid_own +invalid_own_iso
+    valid_comb = valid+valid_iso
+    all_mols_comb = invalid_smile_comb + invalid_selfie_comb +invalid_own_comb + valid_comb
     curr_mols_comb = all_mols_comb
     logging.info(
         f"There were {invalid_smile} invalid SMILES found and {curr_mols-invalid_smile} passed this stage."
@@ -376,13 +366,24 @@ if __name__ == "__main__":
     logging.info(
         f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
     )
-
+    logging.info(
+        f"There were {invalid_own} invalid OWN found and {curr_mols-invalid_own} passed this stage."
+    )
+    logging.info(
+        f"This amounts to a percentage of {100*invalid_own/(curr_mols):.2f}."
+    )
     curr_mols_iso = curr_mols_iso - invalid_smile_iso
     logging.info(
         f"There were {invalid_selfie_iso} invalid isomer SELFIES found and {curr_mols_iso-invalid_selfie_iso} passed this stage."
     )
     logging.info(
         f"This amounts to a percentage of {100*invalid_selfie_iso/(curr_mols_iso):.2f}."
+    )
+    logging.info(
+        f"There were {invalid_own_iso} invalid isomer OWN found and {curr_mols_iso-invalid_own_iso} passed this stage."
+    )
+    logging.info(
+        f"This amounts to a percentage of {100*invalid_own_iso/(curr_mols_iso):.2f}."
     )
 
     curr_mols_comb = curr_mols_comb - invalid_smile_comb
@@ -392,20 +393,40 @@ if __name__ == "__main__":
     logging.info(
         f"This amounts to a percentage of {100*invalid_selfie_comb/(curr_mols_comb):.2f}."
     )
-
+    logging.info(
+        f"There were {invalid_own_comb} invalid combined OWN found and {curr_mols_comb-invalid_own_comb} passed this stage."
+    )
+    logging.info(
+        f"This amounts to a percentage of {100*invalid_own_comb/(curr_mols_comb):.2f}."
+    )
     curr_mols = curr_mols - invalid_selfie
-    logging.info(f"We filtered out {all_mols-curr_mols} many samples.")
+    curr_mols_own = curr_mols -invalid_own
+    logging.info(f"We filtered out {all_mols-curr_mols} many samples for SELFIES.")
     logging.info(f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}.")
+    logging.info(f"We filtered out {all_mols-curr_mols_own} many samples for OWN.")
+    logging.info(f"This amounts to a percentage of {100*(1-curr_mols_own/all_mols):.2f}.")
 
     curr_mols_iso = curr_mols_iso - invalid_selfie_iso
-    logging.info(f"We filtered out {all_mols_iso-curr_mols_iso} many isomer samples.")
+    curr_mols_iso_own = curr_mols_iso - invalid_own_iso
+    logging.info(f"We filtered out {all_mols_iso-curr_mols_iso} many isomer samples for SELFIES.")
     logging.info(
         f"This amounts to a percentage of {100*(1-curr_mols_iso/all_mols_iso):.2f}."
+    )
+    logging.info(f"We filtered out {all_mols_iso-curr_mols_iso_own} many isomer samples for OWN.")
+    logging.info(
+        f"This amounts to a percentage of {100*(1-curr_mols_iso_own/all_mols_iso):.2f}."
     )
 
     curr_mols_comb = curr_mols_comb - invalid_selfie_comb
     logging.info(
-        f"We filtered out {all_mols_comb-curr_mols_comb} many samples combined."
+        f"We filtered out {all_mols_comb-curr_mols_comb} many samples combined with SELFIES."
+    )
+    logging.info(
+        f"This amounts to a percentage of {100*(1-curr_mols_comb/all_mols_comb):.2f}."
+    )
+    curr_mols_comb = curr_mols_comb - invalid_own_comb
+    logging.info(
+        f"We filtered out {all_mols_comb-curr_mols_comb} many samples combined with OWN."
     )
     logging.info(
         f"This amounts to a percentage of {100*(1-curr_mols_comb/all_mols_comb):.2f}."

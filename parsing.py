@@ -3,17 +3,15 @@ SMILES or SELFIES, 2022
 """
 
 import pandas as pd
-from sklearn.utils import shuffle
-from tqdm import tqdm
-
 from constants import PROCESSED_PATH, SEED, TOKENIZER_PATH, VAL_SIZE
+from sklearn.utils import shuffle
 from tokenisation import get_tokenizer
+from tqdm import tqdm
 
 if __name__ == "__main__":
     smiles = pd.read_csv(
-        PROCESSED_PATH / "10m_deduplicated_isomers.csv",
-        PROCESSED_PATH / "10m_deduplicated_isomers.csv",
-        usecols=[str(210)],
+        PROCESSED_PATH/"own" / "10m_deduplicated_isomers.csv",
+        usecols=[str(1)],
     ).values.tolist()
     smiles = shuffle(smiles, random_state=SEED - 385)
     smiles_trained_tokenizer = get_tokenizer(TOKENIZER_PATH / "smiles_sentencepiece")

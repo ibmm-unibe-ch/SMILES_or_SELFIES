@@ -9,6 +9,16 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from constants import (
+    MOLNET_DIRECTORY,
+    PROJECT_PATH,
+    REACTION_PREDICTION_DIRECTORY,
+    TASK_MODEL_PATH,
+    TASK_PATH,
+)
+from fairseq_utils import get_predictions, load_dataset, load_model
+from lexicographic_scores import compute_distances
+from preprocessing import canonize_smile, translate_smile
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -20,17 +30,6 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from tqdm import tqdm
-
-from constants import (
-    MOLNET_DIRECTORY,
-    PROJECT_PATH,
-    REACTION_PREDICTION_DIRECTORY,
-    TASK_MODEL_PATH,
-    TASK_PATH,
-)
-from fairseq_utils import get_predictions, load_dataset, load_model
-from lexicographic_scores import compute_distances
-from preprocessing import canonize_smile, translate_smile
 from utils import parse_arguments
 
 

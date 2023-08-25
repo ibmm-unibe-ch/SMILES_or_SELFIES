@@ -6,13 +6,6 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 import selfies
-from fairseq.data import Dictionary
-from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem
-from scipy.spatial.distance import cdist, cosine
-from scipy.stats import pearsonr, spearmanr
-from tqdm import tqdm
-
 from constants import (
     FAIRSEQ_PREPROCESS_PATH,
     PROCESSED_PATH,
@@ -24,9 +17,16 @@ from constants import (
 from fairseq_utils import get_embeddings, preprocess_series
 from plotting import plot_correlation
 from preprocessing import canonize_smile
+from rdkit import Chem, DataStructs
+from rdkit.Chem import AllChem
+from scipy.spatial.distance import cdist, cosine
+from scipy.stats import pearsonr, spearmanr
 from scoring import load_model
 from tokenisation import get_tokenizer
+from tqdm import tqdm
 from utils import parse_arguments
+
+from fairseq.data import Dictionary
 
 
 def sample_synonym(
@@ -107,8 +107,6 @@ def get_distances(
     fixed_euclideans = []
     fixed_manhattans = []
     fixed_cosines = []
-    print(start_embeddings)
-    print(start_embeddings[0])
     for it, start_embedding in enumerate(start_embeddings):
         euclidean, manhattan, cos = compute_distances(
             end_embeddings[it], start_embedding

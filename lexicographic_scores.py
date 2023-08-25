@@ -6,9 +6,8 @@ from collections import defaultdict
 from typing import Dict, List
 
 import nltk
-from rouge_score import rouge_scorer
-
 from constants import PARSING_REGEX
+from rouge_score import rouge_scorer
 
 
 def compute_damerau_levenshtein(sequence1: List[str], sequence2: List[str]) -> float:

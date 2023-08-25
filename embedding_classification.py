@@ -9,13 +9,6 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from fairseq.data import Dictionary
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC, LinearSVC
-
 from constants import (
     DESCRIPTORS,
     FAIRSEQ_PREPROCESS_PATH,
@@ -33,8 +26,15 @@ from fairseq_utils import (
 from plotting import plot_representations
 from preprocessing import get_weight
 from scoring import load_dataset, load_model
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC, LinearSVC
 from tokenisation import get_tokenizer, tokenize_dataset
 from utils import parse_arguments, pickle_object
+
+from fairseq.data import Dictionary
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 

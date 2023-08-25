@@ -1,6 +1,7 @@
 name: SoS3
 channels:
   - huggingface
+  - numba
   - nvidia
   - pytorch
   - conda-forge
@@ -101,7 +102,7 @@ dependencies:
   - joblib=1.1.1=py310h06a4308_0
   - jpeg=9e=h7f8727e_0
   - kiwisolver=1.4.4=py310h6a678d5_0
-  - krb5=1.19.2=hac12032_0
+  - krb5=1.19.4=h568e23c_0
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.38=h1181459_1
   - lerc=3.0=h295c915_0
@@ -116,7 +117,7 @@ dependencies:
   - libcufile-dev=1.5.0.59=0
   - libcurand=10.3.1.50=0
   - libcurand-dev=10.3.1.50=0
-  - libcurl=7.86.0=h91b91d3_0
+  - libcurl=7.87.0=h91b91d3_0
   - libcusolver=11.4.0.1=0
   - libcusolver-dev=11.4.0.1=0
   - libcusparse=11.7.4.91=0
@@ -127,7 +128,10 @@ dependencies:
   - libevent=2.1.12=h8f2d780_0
   - libffi=3.4.2=h6a678d5_6
   - libgcc-ng=12.2.0=h65d4601_19
+  - libgfortran-ng=12.2.0=h69a702a_19
+  - libgfortran5=12.2.0=h337968e_19
   - libiconv=1.16=h7f8727e_2
+  - libllvm11=11.1.0=he0ac6c6_5
   - libnghttp2=1.46.0=hce63b2e_0
   - libnpp=11.7.4.75=0
   - libnpp-dev=11.7.4.75=0
@@ -136,7 +140,7 @@ dependencies:
   - libpng=1.6.37=hbc83047_0
   - libprotobuf=3.20.1=h4ff587b_0
   - libssh2=1.10.0=h8f2d780_0
-  - libstdcxx-ng=11.2.0=h1234567_1
+  - libstdcxx-ng=12.2.0=h46fd767_19
   - libthrift=0.15.0=hcc01f38_0
   - libtiff=4.5.0=hecacb30_0
   - libuuid=1.41.5=h5eee18b_0
@@ -158,9 +162,10 @@ dependencies:
   - mypy_extensions=0.4.3=py310h06a4308_0
   - ncurses=6.3=h5eee18b_3
   - nsight-compute=2022.4.0.15=0
+  - numba=0.56.4=np1.21py3.10ha54aa7d_g288a38bbd_0
+  - numpy
   - numexpr=2.8.4=py310h8879344_0
-  - numpy-base=1.23.5=py310h8e6c178_0
-  - openssl=1.1.1s=h7f8727e_0
+  - openssl=1.1.1t=h7f8727e_0
   - orc=1.7.4=h07ed6aa_0
   - packaging=22.0=py310h06a4308_0
   - pandas=1.4.4=py310h6a678d5_0
@@ -171,12 +176,14 @@ dependencies:
   - pip=22.3.1=py310h06a4308_0
   - pixman=0.40.0=h7f8727e_1
   - platformdirs=2.5.2=py310h06a4308_0
+  - pooch=1.7.0=pyhd8ed1ab_0
   - promise=2.3=py310h06a4308_0
   - protobuf=3.20.1=py310h295c915_0
   - psutil=5.9.0=py310h5eee18b_0
   - pyarrow=8.0.0=py310h468efa6_0
   - pycairo=1.21.0=py310h287db57_0
   - pycparser=2.21=pyhd3eb1b0_0
+  - pynndescent=0.5.8=pyh1a96a4e_0
   - pyopenssl=22.0.0=pyhd3eb1b0_0
   - pyparsing=3.0.9=py310h06a4308_0
   - pysocks=1.7.1=py310h06a4308_0
@@ -206,6 +213,8 @@ dependencies:
   - snappy=1.1.9=h295c915_0
   - sqlalchemy=1.4.39=py310h5eee18b_0
   - sqlite=3.40.1=h5082296_0
+  - tbb=2021.7.0=hdb19cb5_0
+  - threadpoolctl=3.1.0=pyh8a188c0_0
   - tk=8.6.12=h1ccaba5_0
   - tokenizers=0.11.4=py310h3dcd8bd_1
   - tomli=2.0.1=py310h06a4308_0
@@ -215,6 +224,7 @@ dependencies:
   - typing-extensions=4.4.0=py310h06a4308_0
   - typing_extensions=4.4.0=py310h06a4308_0
   - tzdata=2022g=h04d1e81_0
+  - umap-learn=0.5.3=py310hff52083_0
   - urllib3=1.26.14=py310h06a4308_0
   - utf8proc=2.6.1=h27cfd23_0
   - wandb=0.13.7=pyhd8ed1ab_0
@@ -227,6 +237,7 @@ dependencies:
   - zlib=1.2.13=h166bdaf_4
   - zstd=1.5.2=ha4553b6_0
   - pip:
+      - absl-py==1.4.0
       - antlr4-python3-runtime==4.8
       - anyio==3.6.2
       - argon2-cffi==21.3.0
@@ -280,10 +291,10 @@ dependencies:
       - nbconvert==7.2.7
       - nbformat==5.7.1
       - nest-asyncio==1.5.6
+      - nltk==3.8.1
       - notebook==6.5.2
       - notebook-shim==0.2.2
-      - numba==0.56.4
-      - numpy==1.23.5
+      #      - numpy==1.24.2
       - omegaconf==2.0.6
       - pandocfilters==1.5.0
       - parso==0.8.3
@@ -302,6 +313,7 @@ dependencies:
       - rdkit==2022.9.3
       - rfc3339-validator==0.1.4
       - rfc3986-validator==0.1.1
+      - rouge-score==0.1.2
       - sacrebleu==2.3.1
       - scikit-learn==1.2.0
       - scipy==1.8.1
@@ -317,7 +329,6 @@ dependencies:
       - tabulate==0.9.0
       - tensorboardx==2.5.1
       - terminado==0.17.1
-      - threadpoolctl==3.1.0
       - tinycss2==1.2.1
       - torchaudio==0.13.1
       - traitlets==5.8.0

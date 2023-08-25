@@ -13,8 +13,14 @@ build-conda-from-req: ## Build the conda environment
 
 build-conda-from-env:
 	conda env create -n $(CONDA_ENV_NAME) -f environment.yml
+#	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
+#	git clone https://github.com/facebookresearch/fairseq.git
+#	git checkout 0338cdc
+#	cd fairseq
+#	pip install --editable ./
+#	cd ..
 
-download_10m:
+download-10m:
 	mkdir download_10m
 	cd download_10m
 	wget -O pubchem_10m.txt.zip https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/pubchem_10m.txt.zip
@@ -23,6 +29,21 @@ download_10m:
 	split -l 1000000 pubchem-10m.txt pubchem_10m-split-
 	rm pubchem-10m.txt
 
+download-full-pubchem:
+	mkdir download_full_pubchem
+	cd download_full_pubchem
+	wget -O pubchem_full.zip https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/pubchem.zip
+	unzip -o pubchem_full.zip
+	rm pubchem_full.txt.zip
+
+install-fairseq:
+	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
+	git clone https://github.com/facebookresearch/fairseq.git
+	git checkout 0338cdc
+	cd fairseq
+	pip install --editable ./
+	cd ..
+	
 new-env:
 	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
 	conda env export > environment.yml
