@@ -1,60 +1,70 @@
 # Starting point of ring also before ring?
-from our_representation import tokenise_our_representation, translate_to_own
+from graph_representation import (
+    tokenise_our_representation,
+    translate_to_graph_representation,
+)
 
 
 # Wikipedia examples
 def test_wikipedia_examples():
-    assert translate_to_own("C1CCCC2CCCCC21", False) == "<0;CCCCCC>?{4,5}<0;CCCCCC>!"
-    assert translate_to_own("CN=C=O", False) == "CN=C=O"
-    assert translate_to_own("COc1cc(C=O)ccc1O", False) == "CO<0;cccccc>?{2}cC=O!cO"
     assert (
-        translate_to_own("CC(=O)NCCc1c[nH]c2ccc(cc12)OC", False)
-        == "CC(C=O)CNCC(<3;cccc[nH]>?{0,1}<0;cccccc>!)cOC"
+        translate_to_graph_representation("C1CCCC2CCCCC21")
+        == "<0;CCCCCC>?{3,4}<0;CCCCCC>!"
+    )
+    assert translate_to_graph_representation("CN=C=O") == "CN=C=O"
+    assert (
+        translate_to_graph_representation("COc1cc(C=O)ccc1O")
+        == "CO<0;cccccc>?{2}cC=O!cO"
     )
     assert (
-        translate_to_own("CCc1c[n+]2ccc3c([nH]c4ccccc34)c2cc1", False)
-        == "CC<3;ccccc[n+]>?{5,0}<1;ccccc[n+]>?{2,3}<3;cccc[nH]>?{0,1}<0;cccccc>!!!"
+        translate_to_graph_representation("CC(=O)NCCc1c[nH]c2ccc(cc12)OC")
+        == "CO<0;cccccc>?{3,4}<4;[nH]cccc>?{2}cCCNC(C)C=O!!"
     )
     assert (
-        translate_to_own("CN1CCC[C@H]1c1c[n]ccc1", False)
-        == "C<4;[C@H]NCCC>[C@H]<3;ccccc[n]>"
+        translate_to_graph_representation("CCc1c[n+]2ccc3c([nH]c4ccccc34)c2cc1")
+        == "CC<2;[n+]ccccc>?{0,5}<1;[n+]ccccc>?{2,3}<4;[nH]cccc>?{1,2}<0;cccccc>!!!"
     )
     assert (
-        translate_to_own("CCC[C@@H](O)CC/C=C/C=C/C#CC#C/C=C/CO", False)
-        == "CCC[C@@H]([C@@H]O)[C@@H]CC/C=C/C=C/C#CC#C/C=C/CO"
+        translate_to_graph_representation("CN1CCC[C@H]1c1c[n]ccc1")
+        == "C<4;CCC[C@@H]N>?{3}[C@@H]<1;cccccn>!"
     )
     assert (
-        translate_to_own(
-            "COC(=O)/C(/C)=C/[C@@H]1[C@@H](C(=O)O[C@H]2CC(=O)C(C/C=C\C=C)=C2C)C1(C)C",
-            False,
-        )
-        == "COC(C=O)C/C(C/C)C=C<1;[C@@H]C/[C@@H]>?{0}[C@@H]C(C=O)CO<0;[C@H]CCC=C>?{2}C=O!?{3}CC/C=C\C=C!CC!C(CC)CC"
+        translate_to_graph_representation("CCC[C@@H](O)CC/C=C/C=C/C#CC#C/C=C/CO")
+        == "CCC[C@@H](O)[C@@H]CCC=CC=CC#CC#CC=CCO"
     )
     assert (
-        translate_to_own("COc1cc2O[C@H]3OC=C[C@H]3c2c2oc(=O)c3c(CCC3=O)c12", False)
-        == "CO<0;cccccc>?{2,3}<4;ccO[C@H][C@H]>?{3,4}<4;[C@H][C@H]OC=C>!!?{4,5}<1;occCcc>?{1}c=O!?{2,3}<0;ccCCC>!?{3}C=O!!"
+        translate_to_graph_representation(
+            "COC(=O)/C(/C)=C/[C@@H]1[C@@H](C(=O)O[C@H]2CC(=O)C(C/C=C\C=C)=C2C)C1(C)C"
+        )   
+        == "C=CC=CC<2;CCC=C[C@@H]>?{1}C=O!?{3}CC![C@@H]OC(=O)C<2;C[C@@H][C@H]>?{0}C(C)CC!?{1}[C@@H]C=C(C)CC(=O)COC!"
     )
     assert (
-        translate_to_own("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O", False)
-        == "OC<3;[C@H][C@@H][C@@H][C@H]O[C@@H]>?{0}[C@H]O!?{1}[C@@H]O!?{5}[C@@H]O![C@@H]O"
+        translate_to_graph_representation(
+            "COc1cc2O[C@H]3OC=C[C@H]3c2c2oc(=O)c3c(CCC3=O)c12"
+        )   
+        == "CO<0;cccccc>?{2,3}<1;Occ[C@H][C@H]><4;C=CO[C@H][C@H]>!<4;ccccco>?{0}c=O!?{1,2}<3;CCCcc>?{2}C=O!!"
     )
     assert (
-        translate_to_own(
-            "COc1c(O)cc2C(=O)O[C@H]3[C@@H](O[C@H](CO)[C@@H](O)[C@@H]3O)c2c1O", False
-        )
-        == "CO<0;cccccc>?{1}cO!?{3,4}<5;ccCO[C@H][C@@H]>?{2}C=O!?{4,5}<3;[C@H][C@@H][C@@H][C@H][C@@H]O>?{0}[C@H]CO!?{1}[C@@H]O!!?{5}[C@@H]O!!cO"
+        translate_to_graph_representation("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O")
+        == "OC<5;O[C@@H][C@H][C@@H][C@H][C@@H]>?{1}[C@@H]O!?{2}[C@H]O!?{3}[C@@H]O!?{4}[C@H]O!"
     )
     assert (
-        translate_to_own("CC(=C)[C@@H](C/C=C(/C)\CCOC(C)=O)CCC=C", False)
-        == "CC(C=C)C[C@@H]([C@@H]C/C=C(C/C)C\CCOC(CC)C=O)[C@@H]CCC=C"
+        translate_to_graph_representation(
+            "COc1c(O)cc2C(=O)O[C@H]3[C@@H](O[C@H](CO)[C@@H](O)[C@@H]3O)c2c1O"
+        )   
+        == "CO<0;cccccc>?{1}cO!?{3,4}<1;Ccc[C@H][C@@H]O>?{0}C=O!?{3,4}<5;O[C@H][C@@H][C@H][C@@H][C@H]>?{1}[C@H]CO!?{2}[C@@H]O!?{3}[C@H]O!!!cO"
     )
     assert (
-        translate_to_own("CC(C)[C@@]12C[C@@H]1[C@@H](C)C(=O)C2", False)
-        == "CC(CC)C<0;[C@@][C@@H][C@@H]CC>?{0,1}<0;[C@@]C[C@@H]>!?{2}[C@@H]C!?{3}C=O!"
+        translate_to_graph_representation("CC(=C)[C@@H](C/C=C(/C)\CCOC(C)=O)CCC=C")
+        == "C=CCC[C@H](CC=C(C)CCCOC(C)C=O)[C@H]C(=C)CC"
     )
     assert (
-        translate_to_own("Cc1[n]c(N)c(C[n+]2c[s]c(CCO)c2C)c[n]1", False)
-        == "C<2;ccc[n]c[n]>?{0}cN!?{1}cC<3;cc[n+]c[s]>?{0}cCCO!cC!"
+        translate_to_graph_representation("CC(C)[C@@]12C[C@@H]1[C@@H](C)C(=O)C2")
+        == "CC(C)C<4;CC[C@H][C@@H][C@]>?{1}C=O!?{2}[C@H]C!<2;C[C@][C@@H]>"
+    )
+    assert (
+        translate_to_graph_representation("Cc1[n]c(N)c(C[n+]2c[s]c(CCO)c2C)c[n]1")
+        == "C<4;cccncn>?{1}cC<0;[n+]cscc>?{3}cCCO!cC!?{2}cN!"
     )
 
 
@@ -84,7 +94,7 @@ def test_wikipedia_tokenisation():
         "!",
     ]
     assert tokenise_our_representation("CN=C=O") == ["C", "N", "=", "C", "=", "O"]
-    assert tokenise_our_representation("CO<0;cccccc>?{2}cC=O!cO") == [
+    assert tokenise_our_representation("CO<0;cccccc>?{2}cC=O!?{5}cO!") == [
         "C",
         "O",
         "<0;",
@@ -103,289 +113,75 @@ def test_wikipedia_tokenisation():
         "=",
         "O",
         "!",
-        "c",
-        "O",
-    ]
-    assert tokenise_our_representation(
-        "CO<0;cccccc>?{3,4}<2;cccc[nH]>?{1}cCCNC(CC)C=O!!"
-    ) == [
-        "C",
-        "O",
-        "<0;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        ">",
         "?{",
-        "3",
-        ",",
-        "4",
-        "}",
-        "<2;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "[nH]",
-        ">",
-        "?{",
-        "1",
-        "}",
-        "c",
-        "C",
-        "C",
-        "N",
-        "C",
-        "(",
-        "C",
-        "C",
-        ")",
-        "C",
-        "=",
-        "O",
-        "!",
-        "!",
-    ]
-    assert tokenise_our_representation(
-        "CC<5;ccccc[n+]>?{4,5}<0;ccccc[n+]>?{1,2}<2;cccc[nH]>?{0,1}<0;cccccc>!!!"
-    ) == [
-        "C",
-        "C",
-        "<5;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        "[n+]",
-        ">",
-        "?{",
-        "4",
-        ",",
         "5",
         "}",
-        "<0;",
         "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        "[n+]",
-        ">",
-        "?{",
-        "1",
-        ",",
-        "2",
-        "}",
-        "<2;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "[nH]",
-        ">",
-        "?{",
-        "0",
-        ",",
-        "1",
-        "}",
-        "<0;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        ">",
-        "!",
-        "!",
+        "O",
         "!",
     ]
-    assert tokenise_our_representation("C<4;[C@H]NCCC>[C@H]<4;nccccc>") == [
+    assert tokenise_our_representation(
+        "CO<0;cccccc>?{3,4}<4;[nH]cccc>?{2}cCCNC(C)C=O!!"
+    ) == [
         "C",
+        "O",
+        "<0;",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        ">",
+        "?{",
+        "3",
+        ",",
+        "4",
+        "}",
         "<4;",
-        "[C@H]",
+        "[nH]",
+        "c",
+        "c",
+        "c",
+        "c",
+        ">",
+        "?{",
+        "2",
+        "}",
+        "c",
+        "C",
+        "C",
         "N",
         "C",
-        "C",
-        "C",
-        ">",
-        "[C@H]",
-        "<4;",
-        "n",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        ">",
-    ]
-    assert tokenise_our_representation(
-        "CCC[C@@H]([C@@H]O)[C@@H]CC/C=C/C=C/C#CC#C/C=C/CO"
-    ) == [
-        "C",
-        "C",
-        "C",
-        "[C@@H]",
         "(",
-        "[C@@H]",
-        "O",
+        "C",
         ")",
-        "[C@@H]",
-        "C",
-        "C",
-        "/",
         "C",
         "=",
-        "C",
-        "/",
-        "C",
-        "=",
-        "C",
-        "/",
-        "C",
-        "#",
-        "C",
-        "C",
-        "#",
-        "C",
-        "/",
-        "C",
-        "=",
-        "C",
-        "/",
-        "C",
         "O",
+        "!",
+        "!",
     ]
     assert tokenise_our_representation(
-        "C=C/C=C\C<2;[C@@H]CCC=C>?{0}[C@@H]OC(C=O)C<0;[C@@H][C@@H]C>?{1}[C@@H]/C=C(CC)C/C(C=O)COC!C(CC)CC!?{4}CC!C=O"
+        "CC<2;[n+]ccccc>?{0,5}<1;[n+]ccccc>?{2,3}<4;[nH]cccc>?{1,2}<0;cccccc>!!!"
     ) == [
         "C",
-        "=",
-        "C",
-        "/",
-        "C",
-        "=",
-        "C",
-        "\\",
         "C",
         "<2;",
-        "[C@@H]",
-        "C",
-        "C",
-        "C",
-        "=",
-        "C",
+        "[n+]",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
         ">",
         "?{",
         "0",
-        "}",
-        "[C@@H]",
-        "O",
-        "C",
-        "(",
-        "C",
-        "=",
-        "O",
-        ")",
-        "C",
-        "<0;",
-        "[C@@H]",
-        "[C@@H]",
-        "C",
-        ">",
-        "?{",
-        "1",
-        "}",
-        "[C@@H]",
-        "/",
-        "C",
-        "=",
-        "C",
-        "(",
-        "C",
-        "C",
-        ")",
-        "C",
-        "/",
-        "C",
-        "(",
-        "C",
-        "=",
-        "O",
-        ")",
-        "C",
-        "O",
-        "C",
-        "!",
-        "C",
-        "(",
-        "C",
-        "C",
-        ")",
-        "C",
-        "C",
-        "!",
-        "?{",
-        "4",
-        "}",
-        "C",
-        "C",
-        "!",
-        "C",
-        "=",
-        "O",
-    ]
-    assert tokenise_our_representation(
-        "CO<0;cccccc>?{2,3}<4;ccO[C@H][C@H]>?{3,4}<4;[C@H][C@H]OC=C>!!?{4,5}<1;occccc>?{1}c=O!?{2,3}<4;ccCCC>?{2}C=O!!!"
-    ) == [
-        "C",
-        "O",
-        "<0;",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        "c",
-        ">",
-        "?{",
-        "2",
-        ",",
-        "3",
-        "}",
-        "<4;",
-        "c",
-        "c",
-        "O",
-        "[C@H]",
-        "[C@H]",
-        ">",
-        "?{",
-        "3",
-        ",",
-        "4",
-        "}",
-        "<4;",
-        "[C@H]",
-        "[C@H]",
-        "O",
-        "C",
-        "=",
-        "C",
-        ">",
-        "!",
-        "!",
-        "?{",
-        "4",
         ",",
         "5",
         "}",
         "<1;",
-        "o",
+        "[n+]",
         "c",
         "c",
         "c",
@@ -393,23 +189,236 @@ def test_wikipedia_tokenisation():
         "c",
         ">",
         "?{",
+        "2",
+        ",",
+        "3",
+        "}",
+        "<4;",
+        "[nH]",
+        "c",
+        "c",
+        "c",
+        "c",
+        ">",
+        "?{",
         "1",
+        ",",
+        "2",
+        "}",
+        "<0;",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        ">",
+        "!",
+        "!",
+        "!",
+    ]
+    assert tokenise_our_representation("C<4;CCC[C@@H]N>?{3}[C@@H]<1;cccccn>!") == [
+        "C",
+        "<4;",
+        "C",
+        "C",
+        "C",
+        "[C@@H]",
+        "N",
+        ">",
+        "?{",
+        "3",
+        "}",
+        "[C@@H]",
+        "<1;",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        "n",
+        ">",
+        "!",
+    ]
+    assert tokenise_our_representation("CCC[C@@H](O)[C@@H]CCC=CC=CC#CC#CC=CCO") == [
+        "C",
+        "C",
+        "C",
+        "[C@@H]",
+        "(",
+        "O",
+        ")",
+        "[C@@H]",
+        "C",
+        "C",
+        "C",
+        "=",
+        "C",
+        "C",
+        "=",
+        "C",
+        "C",
+        "#",
+        "C",
+        "C",
+        "#",
+        "C",
+        "C",
+        "=",
+        "C",
+        "C",
+        "O",
+    ]
+    assert tokenise_our_representation(
+        "C=CC=CC<2;CCC=C[C@@H]>?{3}CC!?{4}[C@@H]OC(=O)C<2;C[C@@H][C@H]>?{1}[C@@H]C=C(C)CC(=O)COC!?{0}C(C)CC!!?{1}C=O!"
+    ) == [
+        "C",
+        "=",
+        "C",
+        "C",
+        "=",
+        "C",
+        "C",
+        "<2;",
+        "C",
+        "C",
+        "C",
+        "=",
+        "C",
+        "[C@@H]",
+        ">",
+        "?{",
+        "3",
+        "}",
+        "C",
+        "C",
+        "!",
+        "?{",
+        "4",
+        "}",
+        "[C@@H]",
+        "O",
+        "C",
+        "(",
+        "=",
+        "O",
+        ")",
+        "C",
+        "<2;",
+        "C",
+        "[C@@H]",
+        "[C@H]",
+        ">",
+        "?{",
+        "1",
+        "}",
+        "[C@@H]",
+        "C",
+        "=",
+        "C",
+        "(",
+        "C",
+        ")",
+        "C",
+        "C",
+        "(",
+        "=",
+        "O",
+        ")",
+        "C",
+        "O",
+        "C",
+        "!",
+        "?{",
+        "0",
+        "}",
+        "C",
+        "(",
+        "C",
+        ")",
+        "C",
+        "C",
+        "!",
+        "!",
+        "?{",
+        "1",
+        "}",
+        "C",
+        "=",
+        "O",
+        "!",
+    ]
+    assert tokenise_our_representation(
+        "CO<0;cccccc>?{2,3}<1;Occ[C@H][C@H]>?{3,4}<4;C=CO[C@H][C@H]>!!?{4,5}<4;ccccco>?{0}c=O!?{1,2}<3;CCCcc>?{2}C=O!!!"
+    ) == [
+        "C",
+        "O",
+        "<0;",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        ">",
+        "?{",
+        "2",
+        ",",
+        "3",
+        "}",
+        "<1;",
+        "O",
+        "c",
+        "c",
+        "[C@H]",
+        "[C@H]",
+        ">",
+        "?{",
+        "3",
+        ",",
+        "4",
+        "}",
+        "<4;",
+        "C",
+        "=",
+        "C",
+        "O",
+        "[C@H]",
+        "[C@H]",
+        ">",
+        "!",
+        "!",
+        "?{",
+        "4",
+        ",",
+        "5",
+        "}",
+        "<4;",
+        "c",
+        "c",
+        "c",
+        "c",
+        "c",
+        "o",
+        ">",
+        "?{",
+        "0",
         "}",
         "c",
         "=",
         "O",
         "!",
         "?{",
-        "2",
+        "1",
         ",",
-        "3",
+        "2",
         "}",
-        "<4;",
+        "<3;",
+        "C",
+        "C",
+        "C",
         "c",
         "c",
-        "C",
-        "C",
-        "C",
         ">",
         "?{",
         "2",
@@ -422,24 +431,18 @@ def test_wikipedia_tokenisation():
         "!",
     ]
     assert tokenise_our_representation(
-        "OC<3;[C@H][C@@H][C@@H][C@H]O[C@@H]>?{0}[C@H]O!?{1}[C@@H]O!?{5}[C@@H]O![C@@H]O"
+        "OC<5;O[C@@H][C@H][C@@H][C@H][C@@H]>?{1}[C@@H]O!?{2}[C@H]O!?{3}[C@@H]O!?{4}[C@H]O!"
     ) == [
         "O",
         "C",
-        "<3;",
-        "[C@H]",
-        "[C@@H]",
-        "[C@@H]",
-        "[C@H]",
+        "<5;",
         "O",
+        "[C@@H]",
+        "[C@H]",
+        "[C@@H]",
+        "[C@H]",
         "[C@@H]",
         ">",
-        "?{",
-        "0",
-        "}",
-        "[C@H]",
-        "O",
-        "!",
         "?{",
         "1",
         "}",
@@ -447,13 +450,23 @@ def test_wikipedia_tokenisation():
         "O",
         "!",
         "?{",
-        "5",
+        "2",
+        "}",
+        "[C@H]",
+        "O",
+        "!",
+        "?{",
+        "3",
         "}",
         "[C@@H]",
         "O",
         "!",
-        "[C@@H]",
+        "?{",
+        "4",
+        "}",
+        "[C@H]",
         "O",
+        "!",
     ]
     assert tokenise_our_representation(
         "CO<0;cccccc>?{1}cO!?{3,4}<5;ccCO[C@@H][C@H]>?{2}C=O!?{4,5}<5;[C@H][C@@H][C@@H][C@H][C@@H]O>?{2}[C@@H]O!?{3}[C@H]O!?{4}[C@@H]CO!!!cO"
@@ -532,7 +545,7 @@ def test_wikipedia_tokenisation():
         "O",
     ]
     assert tokenise_our_representation(
-        "C=CCC[C@H]([C@H]C/C=C(CC)C\CCOC(CC)C=O)[C@H]C(C=C)CC"
+        "C=CCC[C@H](CC=C(C)CCCOC(C)C=O)[C@H]C(=C)CC"
     ) == [
         "C",
         "=",
@@ -541,24 +554,19 @@ def test_wikipedia_tokenisation():
         "C",
         "[C@H]",
         "(",
-        "[C@H]",
         "C",
-        "/",
         "C",
         "=",
         "C",
         "(",
         "C",
-        "C",
         ")",
         "C",
-        "\\",
         "C",
         "C",
         "O",
         "C",
         "(",
-        "C",
         "C",
         ")",
         "C",
@@ -568,7 +576,6 @@ def test_wikipedia_tokenisation():
         "[C@H]",
         "C",
         "(",
-        "C",
         "=",
         "C",
         ")",
@@ -576,84 +583,87 @@ def test_wikipedia_tokenisation():
         "C",
     ]
     assert tokenise_our_representation(
-        "CC(CC)C<0;[C@][C@H]C>?{0,1}<0;[C@]CC[C@H][C@H]>?{2}C=O!?{3}[C@H]C!!"
+        "CC(C)C<4;CC[C@H][C@@H][C@]>?{1}C=O!?{2}[C@H]C!?{3,4}<2;C[C@][C@@H]>!"
     ) == [
         "C",
         "C",
         "(",
         "C",
-        "C",
         ")",
         "C",
-        "<0;",
-        "[C@]",
-        "[C@H]",
+        "<4;",
         "C",
+        "C",
+        "[C@H]",
+        "[C@@H]",
+        "[C@]",
         ">",
         "?{",
-        "0",
-        ",",
         "1",
         "}",
-        "<0;",
-        "[C@]",
         "C",
-        "C",
-        "[C@H]",
-        "[C@H]",
-        ">",
+        "=",
+        "O",
+        "!",
         "?{",
         "2",
         "}",
-        "C",
-        "=",
-        "O",
-        "!",
-        "?{",
-        "3",
-        "}",
         "[C@H]",
         "C",
         "!",
+        "?{",
+        "3",
+        ",",
+        "4",
+        "}",
+        "<2;",
+        "C",
+        "[C@]",
+        "[C@@H]",
+        ">",
         "!",
     ]
     assert tokenise_our_representation(
-        "C<5;ncnccc>?{4}cC<2;scc[n+]c>?{1}cCCO!cC!?{5}cN!"
+        "C<4;cccncn>?{1}cC<0;[n+]cscc>?{3}cCCO!?{4}cC!!?{2}cN!"
     ) == [
         "C",
-        "<5;",
-        "n",
+        "<4;",
+        "c",
+        "c",
         "c",
         "n",
         "c",
+        "n",
+        ">",
+        "?{",
+        "1",
+        "}",
+        "c",
+        "C",
+        "<0;",
+        "[n+]",
+        "c",
+        "s",
         "c",
         "c",
         ">",
+        "?{",
+        "3",
+        "}",
+        "c",
+        "C",
+        "C",
+        "O",
+        "!",
         "?{",
         "4",
         "}",
         "c",
         "C",
-        "<2;",
-        "s",
-        "c",
-        "c",
-        "[n+]",
-        "c",
-        ">",
-        "?{",
-        "1",
-        "}",
-        "c",
-        "C",
-        "C",
-        "O",
         "!",
-        "c",
-        "C",
         "!",
         "?{",
-        "5",
+        "2",
         "}",
         "c",
         "N",
@@ -757,80 +767,31 @@ def test_wikipedia_tokenisation_no_drop():
     )
 
 
-# Ring ordering
-def test_ring_ordering():
-    assert (
-        translate_to_own("F12CC1F1CC21", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F12CC1F1CC12", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F21CC1F1CC21", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F21CC1F1CC12", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-
-
-# Ring ordering and % test
-def test_ring_ordering_and_perc():
-    assert (
-        translate_to_own("F%10%22CC%10F%10CC%22%10", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F%10%22CC%10F%10CC%10%22", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F%22%10CC%10F%10CC%22%10", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-    assert (
-        translate_to_own("F%22%10CC%10F%10CC%10%22", False)
-        == "<0;FCFC>?{0,1}<0;FCC>!?{2,3}<0;FCC>!"
-    )
-
-
-# bond in branch test
-def test_ring_in_branch():
-    assert translate_to_own("FC1F[Cl](O1CC)F", False) == "F(<2;[Cl]OCF>CC)[Cl]F"
-
-
 # hard SMILES
 def test_hard_smiles():
     assert (
-        translate_to_own("Nc1cc(ccc1)Oc1ccc2[n]c(NC(=O)C3CC3)[s]c2c1C#N", False)
-        == "N(<0;cccccc>)cO<0;cccccc>?{3,4}<4;cc[n]c[s]>?{3}cNC(C=O)C<0;CCC>!!cC#N"
+        translate_to_graph_representation(
+            "Nc1cc(ccc1)Oc1ccc2[n]c(NC(=O)C3CC3)[s]c2c1C#N"
+        )   
+        == "N#C<0;cccccc>?{1}cO<0;cccccc>?{4}cN!!<1;ccncs>?{3}cNC(=O)C<0;CCC>!"
     )
     assert (
-        translate_to_own(
-            "C/C=C/CC(C)C(O)C1C(=O)NC(CC)C(=O)N(C)CC(=O)N(C)C(CC(C)C)C(=O)NC(C(C)C)C(=O)N(C)C(CC(C)C)C(=O)NC(C)C(=O)NC(C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(C(C)C)C(=O)N1C",
-            False,
-        )
-        == "C/C=C/CC(CC)CC(CO)C<2;NCCNCCNCCNCCNCCNCCNCCNCCNCCNCCNCC>?{1}CCC!?{2}C=O!?{3}NC!?{5}C=O!?{6}NC!?{7}CCC(CC)CC!?{8}C=O!?{%10}CC(CC)CC!?{%11}C=O!?{%12}NC!?{%13}CCC(CC)CC!?{%14}C=O!?{%16}CC!?{%17}C=O!?{%19}CC!?{%20}C=O!?{%21}NC!?{%22}CCC(CC)CC!?{%23}C=O!?{%24}NC!?{%25}CCC(CC)CC!?{%26}C=O!?{%27}NC!?{%28}CC(CC)CC!?{%29}C=O!?{%32}C=O!NC"
+        translate_to_graph_representation(
+            "C/C=C/CC(C)C(O)C1C(=O)NC(CC)C(=O)N(C)CC(=O)N(C)C(CC(C)C)C(=O)NC(C(C)C)C(=O)N(C)C(CC(C)C)C(=O)NC(C)C(=O)NC(C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(CC(C)C)C(=O)N(C)C(C(C)C)C(=O)N1C"
+        )   
+        == "CC=CCC(C)CC(O)C<0;CCNCCNCCNCCNCCNCCNCCNCCNCCNCCNCCN>?{1}C=O!?{3}CCC!?{4}C=O!?{5}NC!?{7}C=O!?{8}NC!?{9}CCC(C)CC!?{10}C=O!?{12}CC(C)CC!?{13}C=O!?{14}NC!?{15}CCC(C)CC!?{16}C=O!?{18}CC!?{19}C=O!?{21}CC!?{22}C=O!?{23}NC!?{24}CCC(C)CC!?{25}C=O!?{26}NC!?{27}CCC(C)CC!?{28}C=O!?{29}NC!?{30}CC(C)CC!?{31}C=O!NC"
     )
     assert (
-        translate_to_own(
+        translate_to_graph_representation(
             "CO[C@]1(C)C[C@H](O[C@@H]2[C@@H](C)C(=O)O[C@H](CC)[C@@](C)(O)[C@H](O)[C@@H](C)C(=O)[C@H](C)C[C@@](C)(O)[C@H](O[C@@H]3O[C@H](C)C[C@@H]([C@H]3O)N(C)C)[C@H]2C)O[C@@H](C)[C@@H]1O",
-            False,
-        )
-        == "CO<0;[C@]C[C@H]O[C@@H][C@@H]>?{0}[C@]C!?{2}[C@H]O<12;[C@H][C@H][C@@H][C@@H]CO[C@H][C@@][C@H][C@@H]C[C@H]C[C@@]>?{0}[C@H]O(<5;[C@H][C@@H]O[C@H]C[C@@H]>?{3}[C@H]C!O)[C@@H]N(NC)NC!?{3}[C@@H]C!?{4}C=O!?{6}[C@H]CC!?{7}[C@@]C!?{7}[C@@]O!?{8}[C@H]O!?{9}[C@@H]C!?{%10}C=O!?{%11}[C@H]C!?{%13}[C@@]C!?{%13}[C@@]O![C@H]C!?{4}[C@@H]C![C@@H]O"
+        )   
+        == "CC<6;C[C@@H]C[C@H][C@@H][C@][C@@H]OC[C@H][C@@H][C@H][C@@H][C@]>?{1}[C@@H]C!?{2}C=O!?{3}[C@H]C!?{4}[C@@H]O!?{5}[C@](C)[C@]O!?{8}C=O!?{9}[C@H]C!?{10}[C@@H]O<5;C[C@@][C@@H][C@H]O[C@@H]>?{1}[C@@](C)[C@@]OC!?{2}[C@@H]O!?{3}[C@H]C!!?{11}[C@H]C!?{12}[C@@H]O<3;C[C@H]O[C@H][C@@H][C@H]>?{1}[C@H]C!?{4}[C@@H]O![C@H]N(C)NC![C@](C)[C@]O"
     )
     assert (
-        translate_to_own(
-            "C[C@]12CC[C@H]3[C@@H](CCc4cc(O)ccc43)[C@@H]1CC[C@@]2(O)C#C", False
-        )
-        == "C<0;[C@][C@@H]CC[C@@]>?{0,1}<4;c[C@@H][C@]CC[C@H]>?{5,0}<4;cc[C@H][C@@H]CC>?{0,1}<0;cccccc>?{2}cO!!!![C@@]([C@@]O)[C@@]C#C"
-    )
-    assert (
-        translate_to_own("C1CCC2CCCCCNCCCCCCCCC21", False)
-        == "<0;CCCCC>?{3,4}<6;NCCCCCCCCCCCCCCC>!"
+        translate_to_graph_representation(
+            "C[C@]12CC[C@H]3[C@@H](CCc4cc(O)ccc43)[C@@H]1CC[C@@]2(O)C#C"
+        )   
+        == "C#C<4;CC[C@@H][C@][C@]>?{2,3}<3;CC[C@][C@@H][C@H][C@@H]><5;CCcc[C@@H][C@H]>?{2,3}<0;cccccc>?{2}cO!!!?{3}[C@]C!"
     )
 
 
@@ -1525,16 +1486,21 @@ def test_other_tokenisation_no_drop():
 
 
 def test_edgecases():
-    assert translate_to_own("CCC1CC(C)C1C") == "CC<0;CCCC>?{2}CC!CC"
-    assert translate_to_own("CCC1C(C)C(C)C1F") == "CC<0;CCCC>?{1}CC!?{2}CC!CF"
     assert (
-        translate_to_own(
+        translate_to_graph_representation("CCC1CC(C)C1C") == "CC<0;CCCC>?{2}CC!CC"
+    )
+    assert (
+        translate_to_graph_representation("CCC1C(C)C(C)C1F")
+        == "CC<0;CCCC>?{1}CC!?{2}CC!CF"
+    )
+    assert (
+        translate_to_graph_representation(
             "C%17CCCC1CC1C2CC2C3CC3C4CC4C5CC5C6CC6C7CC7C8CC8C9CC9C%10CC%10C%11CC%11C%12CC%12C%13CC%13C%14CC%14C%15CC%15C%16CC%16CC%17"
         )
-        == "<0;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC>?{4,5}<0;CCC>!?{6,7}<0;CCC>!?{8,9}<0;CCC>!?{%10,%11}<0;CCC>!?{%12,%13}<0;CCC>!?{%14,%15}<0;CCC>!?{%16,%17}<0;CCC>!?{%18,%19}<0;CCC>!?{%20,%21}<0;CCC>!?{%22,%23}<0;CCC>!?{%24,%25}<0;CCC>!?{%26,%27}<0;CCC>!?{%28,%29}<0;CCC>!?{%30,%31}<0;CCC>!?{%32,%33}<0;CCC>!?{%34,%35}<0;CCC>!"
+        == "<0;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC>?{4,5}<0;CCC>!?{6,7}<1;CCC>!?{8,9}<0;CCC>!?{10,11}<0;CCC>!?{12,13}<0;CCC>!?{14,15}<0;CCC>!?{16,17}<2;CCC>!?{18,19}<0;CCC>!?{20,21}<0;CCC>!?{22,23}<1;CCC>!?{24,25}<0;CCC>!?{26,27}<0;CCC>!?{28,29}<0;CCC>!?{30,31}<0;CCC>!?{32,33}<2;CCC>!?{34,35}<0;CCC>!"
     )
     assert tokenise_our_representation(
-        translate_to_own(
+        translate_to_graph_representation(
             "C%17CCCC1CC1C2CC2C3CC3C4CC4C5CC5C6CC6C7CC7C8CC8C9CC9C%10CC%10C%11CC%11C%12CC%12C%13CC%13C%14CC%14C%15CC%15C%16CC%16CC%17"
         )
     ) == [
@@ -1594,7 +1560,7 @@ def test_edgecases():
         ",",
         "7",
         "}",
-        "<0;",
+        "<1;",
         "C",
         "C",
         "C",
@@ -1612,9 +1578,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%10",
+        "1",
+        "0",
         ",",
-        "%11",
+        "1",
+        "1",
         "}",
         "<0;",
         "C",
@@ -1623,9 +1591,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%12",
+        "1",
+        "2",
         ",",
-        "%13",
+        "1",
+        "3",
         "}",
         "<0;",
         "C",
@@ -1634,9 +1604,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%14",
+        "1",
+        "4",
         ",",
-        "%15",
+        "1",
+        "5",
         "}",
         "<0;",
         "C",
@@ -1645,9 +1617,24 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%16",
+        "1",
+        "6",
         ",",
-        "%17",
+        "1",
+        "7",
+        "}",
+        "<2;",
+        "C",
+        "C",
+        "C",
+        ">",
+        "!",
+        "?{",
+        "1",
+        "8",
+        ",",
+        "1",
+        "9",
         "}",
         "<0;",
         "C",
@@ -1656,9 +1643,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%18",
+        "2",
+        "0",
         ",",
-        "%19",
+        "2",
+        "1",
         "}",
         "<0;",
         "C",
@@ -1667,9 +1656,24 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%20",
+        "2",
+        "2",
         ",",
-        "%21",
+        "2",
+        "3",
+        "}",
+        "<1;",
+        "C",
+        "C",
+        "C",
+        ">",
+        "!",
+        "?{",
+        "2",
+        "4",
+        ",",
+        "2",
+        "5",
         "}",
         "<0;",
         "C",
@@ -1678,9 +1682,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%22",
+        "2",
+        "6",
         ",",
-        "%23",
+        "2",
+        "7",
         "}",
         "<0;",
         "C",
@@ -1689,9 +1695,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%24",
+        "2",
+        "8",
         ",",
-        "%25",
+        "2",
+        "9",
         "}",
         "<0;",
         "C",
@@ -1700,9 +1708,11 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%26",
+        "3",
+        "0",
         ",",
-        "%27",
+        "3",
+        "1",
         "}",
         "<0;",
         "C",
@@ -1711,42 +1721,24 @@ def test_edgecases():
         ">",
         "!",
         "?{",
-        "%28",
+        "3",
+        "2",
         ",",
-        "%29",
+        "3",
+        "3",
         "}",
-        "<0;",
+        "<2;",
         "C",
         "C",
         "C",
         ">",
         "!",
         "?{",
-        "%30",
+        "3",
+        "4",
         ",",
-        "%31",
-        "}",
-        "<0;",
-        "C",
-        "C",
-        "C",
-        ">",
-        "!",
-        "?{",
-        "%32",
-        ",",
-        "%33",
-        "}",
-        "<0;",
-        "C",
-        "C",
-        "C",
-        ">",
-        "!",
-        "?{",
-        "%34",
-        ",",
-        "%35",
+        "3",
+        "5",
         "}",
         "<0;",
         "C",
@@ -1759,9 +1751,10 @@ def test_edgecases():
 
 def test_polarity():
     assert (
-        translate_to_own("C2CC(C1[CH2+2]C[F+]1)C2") == "<0;CCCC>?{2}C<3;[F+]C[CH2+2]C>!"
+        translate_to_graph_representation("C2CC(C1[CH2+2]C[F+]1)C2")
+        == "<0;CCCC>?{2}C<0;C[CH2++]C[F+]>!"
     )
-    assert tokenise_our_representation("<0;CCCC>?{2}C<3;[F+]C[CH2+2]C>!") == [
+    assert tokenise_our_representation("<0;CCCC>?{2}C<0;C[CH2++]C[F+]>!") == [
         "<0;",
         "C",
         "C",
@@ -1772,25 +1765,21 @@ def test_polarity():
         "2",
         "}",
         "C",
-        "<3;",
+        "<0;",
+        "C",
+        "[CH2++]",
+        "C",
         "[F+]",
-        "C",
-        "[CH2+2]",
-        "C",
         ">",
         "!",
     ]
     assert (
-        "".join(tokenise_our_representation("<0;CCCC>?{2}C<3;[F+]C[CH2+2]C>!"))
-        == "<0;CCCC>?{2}C<3;[F+]C[CH2+2]C>!"
+        "".join(tokenise_our_representation("<0;CCCC>?{2}C<0;C[CH2++]C[F+]>!"))
+        == "<0;CCCC>?{2}C<0;C[CH2++]C[F+]>!"
     )
 
 
 def test_atom_ids():
-    assert (
-        translate_to_own("C2[C:%12]C(C1[CH2+2:2]C[F+:1]1)C2")
-        == "<1;[C:%12]CCC>?{1}C<3;[F+:1]C[CH2+2:2]C>!"
-    )
     assert tokenise_our_representation("<1;[C:%12]CCC>?{1}C<3;[F+:1]C[CH2+2:2]C>!") == [
         "<1;",
         "[C:%12]",
@@ -1819,12 +1808,12 @@ def test_atom_ids():
 
 
 if __name__ == "__main__":
-    test_ring_ordering()
     test_wikipedia_examples()
-    test_ring_in_branch()
-    test_hard_smiles()
-    test_ring_ordering_and_perc()
     test_wikipedia_tokenisation()
     test_wikipedia_tokenisation_no_drop()
+    test_hard_smiles()
     test_other_tokenisation()
     test_other_tokenisation_no_drop()
+    test_edgecases()
+    test_polarity()
+    test_atom_ids()
