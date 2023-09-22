@@ -161,17 +161,23 @@ class Molecule_Graph:
                         for overlap_id in overlap_ids
                     ]
                     sorted_overlap_indices = sorted(overlap_indices, key=int)
-                    additional_chains.append((sorted_overlap_indices, self.process_ring(cycle,node)))
-                    
+                    additional_chains.append(
+                        (sorted_overlap_indices, self.process_ring(cycle, node))
+                    )
+
             node_output = self.process_node(node)
             if node_output != self.get_atom_symbol(node):
-                additional_chains.append(([str(canonised_ring_ids.index(node))],node_output))
+                additional_chains.append(
+                    ([str(canonised_ring_ids.index(node))], node_output)
+                )
         sorted_additional_chains = sorted(additional_chains, key=lambda x: int(x[0][0]))
         for sorted_additional_chain in sorted_additional_chains[:-1]:
             output += f"?{{{','.join(sorted_additional_chain[0])}}}{sorted_additional_chain[1]}!"
         if sorted_additional_chains:
             len_last_overlap = len(sorted_additional_chains[-1][0])
-            if sorted_additional_chains[-1][0] == [str(elem) for elem in list(range(len(node_ids))[-len_last_overlap:])]: 
+            if sorted_additional_chains[-1][0] == [
+                str(elem) for elem in list(range(len(node_ids))[-len_last_overlap:])
+            ]:
                 output += f"{sorted_additional_chains[-1][1]}"
             else:
                 output += f"?{{{','.join(sorted_additional_chains[-1][0])}}}{sorted_additional_chains[-1][1]}!"

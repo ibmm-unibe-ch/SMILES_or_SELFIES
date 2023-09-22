@@ -15,11 +15,21 @@ from deepchem.molnet import (
     load_lipo,
     load_tox21,
 )
-from rdkit.Chem import Descriptors
-from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 
-DESCRIPTORS = [name for name, _ in Descriptors.descList]
-CALCULATOR = MolecularDescriptorCalculator(DESCRIPTORS)
+DESCRIPTORS = [
+    "NumHDonors",
+    "NumAromaticRings",
+    "NumAliphaticHeterocycles",
+    "NumAromaticHeterocycles",
+    "NumSaturatedHeterocycles",
+    "NumHAcceptors",
+    "MaxPartialCharge",
+    "MinPartialCharge",
+    "MaxAbsPartialCharge",
+    "MinAbsPartialCharge",
+    "MolWt",
+]
+HEADER = DESCRIPTORS + ["SELFIES", "SELFIES_LEN", "SMILES", "OWN"]
 
 # from https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/molnet_dataloader.py
 MOLNET_DIRECTORY = {

@@ -2,7 +2,7 @@
 
 SHELL := /bin/bash
 
-CONDA_ENV_NAME=SoS3
+CONDA_ENV_NAME=SMILES_OR_SELFIES
 # Note that the extra activate is needed to ensure that the activate floats env to the front of PATH
 CONDA_ACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda activate ; conda activate
 
@@ -13,12 +13,6 @@ build-conda-from-req: ## Build the conda environment
 
 build-conda-from-env:
 	conda env create -n $(CONDA_ENV_NAME) -f environment.yml
-#	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
-#	git clone https://github.com/facebookresearch/fairseq.git
-#	git checkout 0338cdc
-#	cd fairseq
-#	pip install --editable ./
-#	cd ..
 
 download-10m:
 	mkdir download_10m
@@ -36,14 +30,6 @@ download-full-pubchem:
 	unzip -o pubchem_full.zip
 	rm pubchem_full.txt.zip
 
-install-fairseq:
-	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
-	git clone https://github.com/facebookresearch/fairseq.git
-	git checkout 0338cdc
-	cd fairseq
-	pip install --editable ./
-	cd ..
-	
 new-env:
 	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
 	conda env export > environment.yml

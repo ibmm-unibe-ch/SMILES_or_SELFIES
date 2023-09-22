@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from constants import PROCESSED_PATH, TOKENIZER_PATH
+from our_representation import OUR_REGEX
 from preprocessing import canonize_smile, translate_selfie
 from rdkit import RDLogger
 from tokenizers import (
@@ -20,7 +21,6 @@ from tokenizers import (
 )
 from tqdm import tqdm
 from transformers import BartTokenizerFast
-from our_representation import OUR_REGEX
 
 RDLogger.DisableLog("rdApp.warning")
 
@@ -52,6 +52,7 @@ def train_sentencepiece(
     # BERTpost-processor needed?
     tokenizer.save_pretrained(save_path)
     return tokenizer
+
 
 def train_our_tokenizer(training_data, save_path, vocab_size=1000):
     tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
@@ -158,28 +159,61 @@ def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
 
 if __name__ == "__main__":
     SMILES = pd.read_csv(
-        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
+        PROCESSED_PATH / "isomers" / "full_deduplicated_isomers.csv", usecols=["SMILES"]
     ).values
-    our_SMILES_tokenizer = train_our_tokenizer(
-        SMILES, TOKENIZER_PATH / "smiles_our_isomers", vocab_size=1000
+    trained_SMILES_tokenizer = train_sentencepiece(
+        SMILES, TOKENIZER_PATH / "smiles_trained_isomers", vocab_size=1000
     )
-#    atom_SMILES_tokenizer = train_atomwise_tokenizer(
-#        SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
-#    )
-#    SELFIES = pd.read_csv(
-#        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["208"]
-#    ).values
-#    atom_SELFIES_tokenizer = train_atomwise_tokenizer(
-#        SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
-#    )
-#    SMILES = pd.read_csv(
-#        PROCESSED_PATH / "10m_only_isomers.csv", usecols=["210"]
-#    ).values
-#    SMILES_tokenizer = train_sentencepiece(
-#        SMILES, TOKENIZER_PATH / "smiles_sentencepiece_isomers_small", vocab_size=1000
-#    )
-#
-#    SELFIES = pd.read_csv("processed/10m_only_isomers.csv", usecols=["208"]).values
-#    SELFIES_tokenizer = train_sentencepiece(
-#        SELFIES, TOKENIZER_PATH / "selfies_sentencepiece_isomers", vocab_size=1000
-#    )
+    atom_SMILES_tokenizer = train_atomwise_tokenizer(
+        SMILES, TOKENIZER_PATH / "smiles_atom_isomers", vocab_size=1000
+    )
+    # with more rows, then RUST code of transformers panics
+    SELFIES = pd.read_csv(
+        PROCESSED_PATH / "isomers" / "full_deduplicated_isomers.csv",
+        usecols=["SELFIES"],
+        nrows=10000000,
+    ).to_numpy(na_value="[None]")
+    trained_SELFIES_tokenizer = train_sentencepiece(
+        SELFIES, TOKENIZER_PATH / "selfies_trained_isomers", vocab_size=1000
+    )
+    atom_SELFIES_tokenizer = train_atomwise_tokenizer(
+        SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
+    )
+    OWN = pd.read_csv(
+        PROCESSED_PATH / "isomers" / "full_deduplicated_isomers.csv", usecols=["OWN"]
+    ).values
+    atom_SELFIES_tokenizer = train_our_tokenizer(
+        OWN, TOKENIZER_PATH / "own_atom_isomers", vocab_size=1000
+    )
+    trained_SELFIES_tokenizer = train_sentencepiece(
+        OWN, TOKENIZER_PATH / "own_trained_isomers", vocab_size=1000
+    )
+    SMILES = pd.read_csv(
+        PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv",
+        usecols=["SMILES"],
+    ).values
+    trained_SMILES_tokenizer = train_sentencepiece(
+        SMILES, TOKENIZER_PATH / "smiles_trained_standard", vocab_size=1000
+    )
+    atom_SMILES_tokenizer = train_atomwise_tokenizer(
+        SMILES, TOKENIZER_PATH / "smiles_atom_standard", vocab_size=1000
+    )
+    SELFIES = pd.read_csv(
+        PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv",
+        usecols=["SELFIES"],
+    ).values
+    atom_SELFIES_tokenizer = train_atomwise_tokenizer(
+        SELFIES, TOKENIZER_PATH / "selfies_atom_standard", vocab_size=1000
+    )
+    trained_SELFIES_tokenizer = train_sentencepiece(
+        SELFIES, TOKENIZER_PATH / "selfies_trained_standard", vocab_size=1000
+    )
+    OWN = pd.read_csv(
+        PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv", usecols=["OWN"]
+    ).values
+    atom_SELFIES_tokenizer = train_our_tokenizer(
+        OWN, TOKENIZER_PATH / "own_atom_standard", vocab_size=1000
+    )
+    trained_SELFIES_tokenizer = train_sentencepiece(
+        OWN, TOKENIZER_PATH / "own_trained_standard", vocab_size=1000
+    )

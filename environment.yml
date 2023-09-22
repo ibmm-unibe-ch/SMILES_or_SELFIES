@@ -1,4 +1,4 @@
-name: SoS3
+name: SMILES_OR_SELFIES
 channels:
   - huggingface
   - numba
@@ -29,10 +29,10 @@ dependencies:
   - brotlipy=0.7.0=py310h7f8727e_1002
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.18.1=h7f8727e_0
-  - ca-certificates=2023.01.10=h06a4308_0
+  - ca-certificates=2023.05.30=h06a4308_0
   - cairo=1.16.0=hb05425b_3
   - captum=0.6.0=0
-  - certifi=2022.12.7=py310h06a4308_0
+  - certifi=2023.7.22=py310h06a4308_0
   - cffi=1.15.1=py310h5eee18b_3
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - click=8.0.4=py310h06a4308_0
@@ -106,9 +106,11 @@ dependencies:
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.38=h1181459_1
   - lerc=3.0=h295c915_0
+  - libblas=3.9.0=12_linux64_mkl
   - libbrotlicommon=1.0.9=h5eee18b_7
   - libbrotlidec=1.0.9=h5eee18b_7
   - libbrotlienc=1.0.9=h5eee18b_7
+  - libcblas=3.9.0=12_linux64_mkl
   - libcublas=11.10.3.66=0
   - libcublas-dev=11.10.3.66=0
   - libcufft=10.7.2.124=h4fbf590_0
@@ -131,6 +133,7 @@ dependencies:
   - libgfortran-ng=12.2.0=h69a702a_19
   - libgfortran5=12.2.0=h337968e_19
   - libiconv=1.16=h7f8727e_2
+  - liblapack=3.9.0=12_linux64_mkl
   - libllvm11=11.1.0=he0ac6c6_5
   - libnghttp2=1.46.0=hce63b2e_0
   - libnpp=11.7.4.75=0
@@ -150,6 +153,7 @@ dependencies:
   - libxml2=2.9.14=h22db469_4
   - libzlib=1.2.13=h166bdaf_4
   - llvm-openmp=14.0.6=h9e868ea_0
+  - llvmlite=0.39.1=py310he1b5a44_0
   - lz4-c=1.9.4=h6a678d5_0
   - matplotlib-base=3.6.2=py310h945d387_0
   - mkl=2021.4.0=h06a4308_640
@@ -161,11 +165,12 @@ dependencies:
   - munkres=1.1.4=py_0
   - mypy_extensions=0.4.3=py310h06a4308_0
   - ncurses=6.3=h5eee18b_3
+  - networkx=3.1=py310h06a4308_0
   - nsight-compute=2022.4.0.15=0
   - numba=0.56.4=np1.21py3.10ha54aa7d_g288a38bbd_0
-  - numpy
   - numexpr=2.8.4=py310h8879344_0
-  - openssl=1.1.1t=h7f8727e_0
+  - numpy=1.23.5=py310h53a5b5f_0
+  - openssl=1.1.1v=h7f8727e_0
   - orc=1.7.4=h07ed6aa_0
   - packaging=22.0=py310h06a4308_0
   - pandas=1.4.4=py310h6a678d5_0
@@ -280,7 +285,6 @@ dependencies:
       - jupyter-server==2.0.6
       - jupyter-server-terminals==0.4.3
       - jupyterlab-pygments==0.2.2
-      - llvmlite==0.39.1
       - lxml==4.9.2
       - markupsafe==2.1.1
       - matplotlib-inline==0.1.6
@@ -294,7 +298,6 @@ dependencies:
       - nltk==3.8.1
       - notebook==6.5.2
       - notebook-shim==0.2.2
-      #      - numpy==1.24.2
       - omegaconf==2.0.6
       - pandocfilters==1.5.0
       - parso==0.8.3
@@ -337,4 +340,4 @@ dependencies:
       - webcolors==1.12
       - webencodings==0.5.1
       - websocket-client==1.4.2
-prefix: /home/jgut/miniconda3/envs/SoS3
+prefix: /home/jgut/miniconda3/envs/SMILES_OR_SELFIES
