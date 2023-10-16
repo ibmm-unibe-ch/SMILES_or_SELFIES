@@ -103,11 +103,13 @@ TOKENIZER_SUFFIXES = [
 ]
 
 PROJECT_PATH = Path(__file__).parent
+#PROJECT_PATH =  Path("/home/jgut/GitHub/SMILES_or_SELFIES")
 PROCESSED_PATH = PROJECT_PATH / "processed"
-TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
+TOKENIZER_PATH = Path("/data/ifender/smiles_atom")
 MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
-TASK_PATH = PROJECT_PATH / "task"
+#TASK_PATH = PROJECT_PATH / "task"
+TASK_PATH = Path("/data/ifender")
 USPTO_PATH = PROJECT_PATH / "download_uspto"
 TASK_MODEL_PATH = Path("/data/jgut/SoS_models/")
 PLOT_PATH = PROJECT_PATH / "plots"

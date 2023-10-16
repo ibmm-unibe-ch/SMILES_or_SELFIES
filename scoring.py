@@ -28,7 +28,7 @@ from constants import (
     TASK_MODEL_PATH,
     TASK_PATH,
 )
-from fairseq_utils import get_predictions, load_dataset, load_model
+from fairseq_utils import get_predictions, load_dataset, load_BART_model
 from lexicographic_scores import compute_distances
 from preprocessing import canonize_smile, translate_smile
 from utils import parse_arguments
@@ -277,7 +277,7 @@ if __name__ == "__main__":
                         )
                     if not best_checkpoint_path.is_file():
                         continue
-                    model = load_model(
+                    model = load_BART_model(
                         best_checkpoint_path, TASK_PATH / task / tokenizer, cuda
                     )
                     mols = load_dataset(

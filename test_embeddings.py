@@ -24,7 +24,7 @@ from constants import (
     TOKENIZER_PATH,
     TOKENIZER_SUFFIXES,
 )
-from scoring import load_dataset, load_model
+from scoring import load_dataset, load_BART_model
 from tokenisation import get_tokenizer, tokenize_dataset
 from utils import parse_arguments, pickle_object, unpickle
 
@@ -148,7 +148,7 @@ def main():
             / "checkpoint_last.pt",
         )
         """
-        model = load_model(
+        model = load_BART_model(
             PROJECT_PATH
             / "translation_models"
             / tokenizer_suffix

@@ -32,7 +32,7 @@ from fairseq_utils import (
 )
 from plotting import plot_representations
 from preprocessing import get_weight
-from scoring import load_dataset, load_model
+from scoring import load_dataset, load_BART_model
 from tokenisation import get_tokenizer, tokenize_dataset
 from utils import parse_arguments, pickle_object
 
@@ -232,7 +232,7 @@ if __name__ == "__main__":
             #                / tokenizer_suffix
             #                / "checkpoint_last.pt",
             #            )
-            model = load_model(
+            model = load_BART_model(
                 PROJECT_PATH
                 / "translation_models"
                 / tokenizer_suffix

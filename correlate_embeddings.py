@@ -24,7 +24,7 @@ from constants import (
 from fairseq_utils import get_embeddings, preprocess_series
 from plotting import plot_correlation
 from preprocessing import canonize_smile
-from scoring import load_model
+from scoring import load_BART_model
 from tokenisation import get_tokenizer
 from utils import parse_arguments
 
@@ -87,7 +87,7 @@ def compute_stats(distances: pd.Series, prefix: str) -> Dict[str, float]:
 def get_distances(
     tokenizer_suffix: str, start_mols_path: Path, end_mols_path: Path, cuda: str = "3"
 ):
-    model = load_model(
+    model = load_BART_model(
         PROJECT_PATH / "translation_models" / tokenizer_suffix / "checkpoint_last.pt",
         PROJECT_PATH / "embeddings" / tokenizer_suffix,
         str(cuda),

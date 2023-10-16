@@ -20,7 +20,7 @@ from constants import (
 )
 from fairseq_utils import compute_model_output
 from preprocessing import canonize_smile, create_identities, translate_selfie
-from scoring import load_dataset, load_model
+from scoring import load_dataset, load_BART_model
 from tokenisation import get_tokenizer
 from utils import log_and_add, parse_arguments
 
@@ -274,7 +274,7 @@ def generate_attention_dict(
             / "checkpoint_best.pt"
         )
         data_path = TASK_PATH / task / encoding
-        model = load_model(specific_model_path, data_path, cuda)
+        model = load_BART_model(specific_model_path, data_path, cuda)
         model.zero_grad()
         data_path = data_path / "input0" / "test"
         dataset = load_dataset(data_path)
