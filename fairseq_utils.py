@@ -11,12 +11,12 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
+from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
+from tqdm import tqdm
+
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
-from tqdm import tqdm
-
-from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 

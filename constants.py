@@ -91,25 +91,19 @@ MOLNET_DIRECTORY = {
     },
 }
 
-REACTION_PREDICTION_DIRECTORY = {
-    "lef": {
-        "dataset_type": "generation",
-        "trainingset_size": 296578,
-    },
-    "jin": {
-        "dataset_type": "generation",
-        "trainingset_size": 391412,
-    },
-    "schwaller": {
-        "dataset_type": "generation",
-        "trainingset_size": 902271,
-    },
-}
 TOKENIZER_SUFFIXES = [
-    "smiles_atom",
-    "selfies_atom",
-    "selfies_sentencepiece",
-    "smiles_sentencepiece",
+    "smiles_atom_isomers",
+    "smiles_atom_standard",
+    "smiles_trained_isomers",
+    "smiles_trained_standard",
+    "selfies_atom_isomers",
+    "selfies_atom_standard",
+    "selfies_trained_isomers",
+    "selfies_trained_standard",
+    "own_atom_isomers",
+    "own_atom_standard",
+    "own_trained_isomers",
+    "own_trained_standard",
 ]
 
 PROJECT_PATH = Path(__file__).parent

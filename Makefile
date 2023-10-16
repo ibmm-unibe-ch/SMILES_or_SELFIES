@@ -42,7 +42,7 @@ format:
 	$(CONDA_ACTIVATE) $(CONDA_ENV_NAME)
 	@echo -n "==> Checking that imports are properly sorted with isort..."
 	@echo -n ""
-	@isort --sg /home/jgut/GitHub/SMILES_or_SELFIES/fairseq/** .
+	@isort .
 	@echo -n "==> Checking that code is autoformatted with black..."
 	@echo -n ""
 	@black --exclude fairseq/ .

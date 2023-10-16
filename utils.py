@@ -8,6 +8,8 @@ import os
 import pickle
 from pathlib import Path
 
+from constants import TOKENIZER_SUFFIXES
+
 
 def pickle_object(objekt, path: Path):
     """Pickle an object at *path*
@@ -71,16 +73,7 @@ def parse_arguments(cuda=False, tokenizer=False, task=False) -> dict:
     if tokenizer:
         parser.add_argument(
             "--tokenizer",
-            choices=[
-                "smiles_atom",
-                "smiles_sentencepiece",
-                "selfies_atom",
-                "selfies_sentencepiece",
-                "smiles_isomers_atom",
-                "smiles_isomers_sentencepiece",
-                "selfies_isomers_atom",
-                "selfies_isomers_sentencepiece",
-            ],
+            choices=TOKENIZER_SUFFIXES,
         )
     args = parser.parse_args()
     return vars(args)

@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from constants import PROCESSED_PATH, TOKENIZER_PATH
-from our_representation import OUR_REGEX
+from graph_representation import OUR_REGEX, translate_to_graph_representation
 from preprocessing import canonize_smile, translate_selfie
 from rdkit import RDLogger
 from tokenizers import (
@@ -119,40 +119,51 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     return tok
 
 
-def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
+def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False, own=False) -> str:
     """Tokenize sample with tokenizer
 
     Args:
         tokenizer (Huggingface Tokenizer): Tokenizer to use for tokenisation
         sample_smiles (str): string to tokenize
         selfies (bool, optional): Tranlsate to SELFIES (True) or keep SMILES(False). Defaults to False.
+        own (bool, optional): Tranlsate to own (True) or keep SMILES(False). Defaults to False.
 
     Returns:
         str: Tokenized sample
     """
-    if translate_selfie(str(sample_smiles))[0] is None:
+    if (
+        translate_selfie(str(sample_smiles))[0] is None
+        or translate_to_graph_representation(str(sample_smiles))[0] is None
+    ):
         return None
-
     canon_smiles = canonize_smile(sample_smiles)
     if selfies:
         canon_smiles = translate_selfie(str(canon_smiles))[0]
+    elif own:
+        canon_smiles = translate_to_graph_representation(str(canon_smiles))[0]
     tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(canon_smiles)).input_ids)
     return " ".join(tokens)
 
 
-def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
+def tokenize_dataset(
+    tokenizer, dataset: pd.Series, selfies=False, own=False
+) -> pd.Series:
     """Tokenize whole dataset with tokenizer
 
     Args:
         tokenizer (_type_): Tokenizer to use for tokenisation
         dataset (pd.Series): dataset to tokenize
         selfies (bool, optional): Tranlsate to SELFIES (True) or keep SMILES(False). Defaults to False.
+        own (bool, optional): Tranlsate to own (True) or keep SMILES(False). Defaults to False.
 
     Returns:
         pd.Series: Tokenized dataset
     """
     output = np.array(
-        [tokenize_with_space(tokenizer, sample, selfies) for sample in tqdm(dataset)]
+        [
+            tokenize_with_space(tokenizer, sample, selfies, own)
+            for sample in tqdm(dataset)
+        ]
     )
     return output
 

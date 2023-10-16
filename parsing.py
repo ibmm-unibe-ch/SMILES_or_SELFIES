@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 if __name__ == "__main__":
     for subset in ["isomers", "standard"]:
-        for encoding in ["SELFIES","SMILES", "OWN"]:
+        for encoding in ["SELFIES", "SMILES", "OWN"]:
             column = pd.read_csv(
                 PROCESSED_PATH / subset / f"full_deduplicated_{subset}.csv",
                 usecols=[encoding],

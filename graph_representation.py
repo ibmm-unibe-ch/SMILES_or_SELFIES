@@ -25,7 +25,7 @@ def generate_edges_to_remove(node_ids):
 
 
 def generate_min_cycles(graph):
-    output = dict()
+    output = {}
     for cycle_nodes in nx.minimum_cycle_basis(graph):
         subgraph = graph.subgraph(cycle_nodes)
         len_cycle_nodes = len(cycle_nodes)

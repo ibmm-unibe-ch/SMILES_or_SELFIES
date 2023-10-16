@@ -8,9 +8,6 @@ from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
-from deepchem.feat import RawFeaturizer
-from fairseq.data import Dictionary
-
 from constants import (
     MOLNET_DIRECTORY,
     PARSING_REGEX,
@@ -18,11 +15,14 @@ from constants import (
     TASK_PATH,
     TOKENIZER_PATH,
 )
+from deepchem.feat import RawFeaturizer
 from fairseq_utils import compute_model_output
 from preprocessing import canonize_smile, create_identities, translate_selfie
 from scoring import load_dataset, load_model
 from tokenisation import get_tokenizer
 from utils import log_and_add, parse_arguments
+
+from fairseq.data import Dictionary
 
 
 def find_attention_outliers(

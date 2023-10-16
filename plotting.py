@@ -7,10 +7,9 @@ from typing import List, Tuple
 import matplotlib
 import matplotlib.pyplot as plt
 import umap
+from constants import SEED
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
-
-from constants import SEED
 
 matplotlib.use("Agg")
 plt.style.use("seaborn-colorblind")
