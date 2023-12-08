@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
-from fairseq.models.bart import BARTModel
+from fairseq.models.roberta import RobertaModel
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
@@ -31,7 +31,7 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
     Returns:
         fairseq_model: load BART model
     """
-    model = BARTModel.from_pretrained(
+    model = RobertaModel.from_pretrained(
         str(model_path.parent),
         data_name_or_path=str(data_path),
         checkpoint_file=str(model_path.name),
@@ -154,7 +154,7 @@ def transform_to_translation_models():
         "selfies_sentencepiece",
     ]:
         os.system(
-            f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {PROJECT_PATH/"fairseq_models"/tokenizer_suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --fp16 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PROJECT_PATH/"translation_models"/tokenizer_suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
+            f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {PROJECT_PATH/"fairseq_models"/tokenizer_suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch roberta_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --fp16 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PROJECT_PATH/"translation_models"/tokenizer_suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
         )
         transplant_model(
             PROJECT_PATH

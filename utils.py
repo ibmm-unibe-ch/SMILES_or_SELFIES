@@ -54,7 +54,7 @@ def log_and_add(text: str, string: str) -> str:
     return text
 
 
-def parse_arguments(cuda=False, tokenizer=False, task=False) -> dict:
+def parse_arguments(cuda=False, tokenizer=False, task=False, seeds=False, dict_params=False) -> dict:
     """Parse command line arguments
 
     Args:
@@ -71,9 +71,10 @@ def parse_arguments(cuda=False, tokenizer=False, task=False) -> dict:
     if task:
         parser.add_argument("--task", help="Which specific task as string.")
     if tokenizer:
-        parser.add_argument(
-            "--tokenizer",
-            choices=TOKENIZER_SUFFIXES,
-        )
+        parser.add_argument("--tokenizer", help="Which tokenizer to use.")
+    if seeds:
+        parser.add_argument("--seeds", help="How many different random seeds should be used.")
+    if dict_params:
+        parser.add_argument("--dict", help="Optional dict of hyperparameters stored in hyperparams.py.")
     args = parser.parse_args()
     return vars(args)

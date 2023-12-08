@@ -121,6 +121,7 @@ PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
 SEED = 6217
 VAL_SIZE = 10000
+NUM_SEEDS = 5
 # ---------------- LOGGING CONSTANTS ----------------
 DEFAULT_FORMATTER = "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]"
 DEFAULT_LOG_FILE = PROJECT_PATH / "logs" / "default_log.log"

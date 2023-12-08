@@ -12,7 +12,6 @@ import pandas as pd
 from constants import (
     MOLNET_DIRECTORY,
     PROJECT_PATH,
-    REACTION_PREDICTION_DIRECTORY,
     TASK_MODEL_PATH,
     TASK_PATH,
 )
@@ -85,7 +84,7 @@ def iterate_paths(path: Path) -> List[Tuple[Path, str]]:
     return zip(subpaths, names)
 
 
-def parse_hyperparams(param_string: str) -> Dict[str, str]:
+def parse_hyperparams(param_string: str, use_seed:bool) -> Dict[str, str]:
     """Parse hyperparameter string
 
     Args:
@@ -96,12 +95,30 @@ def parse_hyperparams(param_string: str) -> Dict[str, str]:
     """
     param_parts = param_string.split("_")
     output = {
-        "learning_rate": param_parts[0],
-        "dropout": param_parts[1],
-        "model_size": param_parts[2],
-        "data_type": param_parts[3],
+        "learning_rate": float(param_parts[0]),
+        "dropout": float(param_parts[1])
+    }
+    if use_seed and len(param_parts)>=4:
+        output["seed"] = param_parts[3]
+    return output
+
+def parse_tokenizer(tokenizer_string:str) -> Dict[str, str]:
+    """Parse tokenizer string
+
+    Args:
+        tokenizer_string (str): tokenizer string to parse
+
+    Returns:
+        Dict[str, str]: dictionary with tokenizer settings
+    """
+    tokenizer_parts = tokenizer_string.split("_")
+    output = {
+        "embedding": tokenizer_parts[0],
+        "tokenizer": tokenizer_parts[1],
+        "dataset": tokenizer_parts[2],
     }
     return output
+
 
 
 def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool]:
@@ -256,7 +273,9 @@ def score_distances(samples: List[dict]) -> dict:
 
 
 if __name__ == "__main__":
-    cuda = parse_arguments(True, False, False)["cuda"]
+    arguments = parse_arguments(True, False, False, True, False)
+    cuda = arguments["cuda"]
+    use_seed = int(arguments["seeds"]) > 1
     for task_path, task in iterate_paths(TASK_MODEL_PATH):
         for tokenizer_path, tokenizer in iterate_paths(task_path):
             if task in MOLNET_DIRECTORY:
@@ -274,8 +293,9 @@ if __name__ == "__main__":
                         best_checkpoint_path = (
                             hyperparameter_path / "checkpoint_best.pt"
                         )
-                    if not best_checkpoint_path.is_file():
+                    if not best_checkpoint_path.is_file() or (use_seed and not("seed" in str(hyperparameter_path))):
                         continue
+                    print(best_checkpoint_path)
                     model = load_model(
                         best_checkpoint_path, TASK_PATH / task / tokenizer, cuda
                     )
@@ -301,14 +321,13 @@ if __name__ == "__main__":
                     )
                     output_dict = {
                         "task": task,
-                        "tokenizer": tokenizer,
                         "task_type": "classification"
                         if classification
                         else "regression",
                     }
                     score_dict, report = get_score(preds, seen_targets, classification)
                     output_dict = (
-                        output_dict | parse_hyperparams(hyperparameter) | score_dict
+                        output_dict | parse_tokenizer(tokenizer) | parse_hyperparams(hyperparameter, use_seed=use_seed) | score_dict
                     )
                     if classification:
                         with open(
@@ -323,25 +342,3 @@ if __name__ == "__main__":
                     pd.DataFrame([output_dict]).to_csv(
                         hyperparameter_path / "scores.csv"
                     )
-            if task in REACTION_PREDICTION_DIRECTORY:
-                # os.system(
-                #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"pre-processed"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam"/task/tokenizer}'
-                # )
-                samples = parse_file(
-                    PROJECT_PATH
-                    / "reaction_prediction_beam"
-                    / task
-                    / tokenizer
-                    / "generate-test.txt"
-                )
-                selfies = "selfies" in tokenizer
-                output = {"model": tokenizer, "task": task}
-                output = output | score_samples(samples, selfies)
-                output = output | score_distances(samples)
-                pd.DataFrame.from_dict([output]).to_csv(
-                    PROJECT_PATH
-                    / "reaction_prediction_beam"
-                    / task
-                    / tokenizer
-                    / "output.csv"
-                )
