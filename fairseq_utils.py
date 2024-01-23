@@ -243,7 +243,11 @@ def compute_attention_output(
             device
         )
         # same as in predict
-        _, extra = model.model(sample.unsqueeze(0).to(device), None, prev_output_tokens)
+        print(sample.unsqueeze(0).to(device))
+        print(prev_output_tokens)
+        print(model)
+        extra = model.model(sample.unsqueeze(0).to(device), return_all_hiddens=True, features_only=False)#None, prev_output_tokens)
+        print(extra)
         token_attention = extra["attn"][0][0][-1].cpu().detach().tolist()
         dataset_attentions.append(list(zip(token_attention, parsed_tokens)))
     return dataset_attentions
