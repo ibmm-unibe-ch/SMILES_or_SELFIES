@@ -1,4 +1,4 @@
-""" Util functions to deal with fairseq
+"""Util functions to deal with fairseq
 SMILES or SELFIES, 2023
 """
 
@@ -11,12 +11,14 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
-from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
+from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH, MODEL_PATH, PREDICTION_MODEL_PATH, FAIRSEQ_PREPROCESS_PATH
 from tqdm import tqdm
 
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.roberta import RobertaModel
+from fairseq.models.bart import BARTModel
+
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
@@ -31,14 +33,21 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
     Returns:
         fairseq_model: load BART model
     """
-    model = RobertaModel.from_pretrained(
-        str(model_path.parent),
-        data_name_or_path=str(data_path),
-        checkpoint_file=str(model_path.name),
-    )
+    if "roberta" in str(model_path):
+        model = RobertaModel.from_pretrained(
+            str(model_path.parent),
+            data_name_or_path=str(data_path),
+            checkpoint_file=str(model_path.name),
+        )
+    else:
+        model = BARTModel.from_pretrained(
+            str(model_path.parent),
+            data_name_or_path=str(data_path),
+            checkpoint_file=str(model_path.name),
+        )
     model.eval()
     if cuda_device:
-        model.cuda(device=str(f"cuda:{cuda_device}"))
+        model.cuda(device=str(f"cuda:{str(cuda_device)}"))
     return model
 
 
@@ -145,24 +154,17 @@ def transplant_model(
     )
 
 
-def transform_to_translation_models():
-    """Transform a diffusion model to a translation model, which then can be used by fairseq."""
-    for tokenizer_suffix in [
-        "smiles_atom",
-        "selfies_atom",
-        "smiles_sentencepiece",
-        "selfies_sentencepiece",
-    ]:
-        os.system(
-            f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {PROJECT_PATH/"fairseq_models"/tokenizer_suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch roberta_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --max-source-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --fp16 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PROJECT_PATH/"translation_models"/tokenizer_suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
-        )
-        transplant_model(
-            PROJECT_PATH
-            / "translation_models"
-            / tokenizer_suffix
-            / "checkpoint_last.pt",
-            PROJECT_PATH / "fairseq_models" / tokenizer_suffix / "checkpoint_last.pt",
-        )
+def transform_to_prediction_model(suffix):
+    """Transform a diffusion model to a prediction model, which then can be used by fairseq."""
+    tokenizer_suffix = "_".join(re.split("_", suffix)[:-1])
+    architecture = "bart_base" if "bart" in suffix else "roberta_base"
+    os.system(
+        f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {MODEL_PATH/suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch {architecture} --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PREDICTION_MODEL_PATH/suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
+    )
+    transplant_model(
+        PREDICTION_MODEL_PATH/suffix/"checkpoint_last.pt",
+        MODEL_PATH/suffix/"checkpoint_last.pt",
+    )
 
 
 def get_embeddings(model, dataset, source_dictionary, cuda=3):
@@ -209,16 +211,16 @@ def generate_prev_output_tokens(sample: np.ndarray, source_dictionary) -> np.nda
     return prev_output_tokens
 
 
-def compute_attention_output(
-    dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
+def compute_attention_output(#dataset: List[np.ndarray], 
+    model, texts: List[str], source_dictionary, tokenizer=None
 ) -> List[List[Tuple[float, str]]]:
     """Compute attention of whole dataset with model copied from fairseq
     https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
 
     Args:
-        dataset (List[np.ndarray]): pre-processed dataset to get attention from
+        #dataset (List[np.ndarray]): pre-processed dataset to get attention from
         model (fairseq model): fairseq model
-        text (List[str]): human readable string of samples
+        texts (List[str]): human readable string of samples
         source_dictionary: source dictionary for fairseq
         tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
 
@@ -228,28 +230,26 @@ def compute_attention_output(
     # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
     device = next(model.parameters()).device
     dataset_attentions = []
-    for counter, sample in enumerate(dataset):
+    for counter, text in enumerate(texts):
         if tokenizer is None:
             parsed_tokens = [
                 parsed_token
-                for parsed_token in re.split(PARSING_REGEX, text[counter])
+                for parsed_token in re.split(PARSING_REGEX, text)
                 if parsed_token
             ]
         else:
             parsed_tokens = tokenizer.convert_ids_to_tokens(
-                tokenizer(str(text[counter])).input_ids
+                tokenizer(text).input_ids
             )
+        sample = torch.tensor(tokenizer(text).input_ids)
         prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
             device
         )
         # same as in predict
-        print(sample.unsqueeze(0).to(device))
-        print(prev_output_tokens)
-        print(model)
-        extra = model.model(sample.unsqueeze(0).to(device), return_all_hiddens=True, features_only=False)#None, prev_output_tokens)
-        print(extra)
+        _, extra = model.model(sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=False, return_all_hiddens=False)
         token_attention = extra["attn"][0][0][-1].cpu().detach().tolist()
         dataset_attentions.append(list(zip(token_attention, parsed_tokens)))
+        # Attention does not add up to 1, because [CLS] token at the end takes a lot of attention
     return dataset_attentions
 
 
@@ -346,7 +346,7 @@ def compute_model_output(
         )
         # same as in predict
         token_embeddings, extra = model.model(
-            sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+            sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=False
         )
         if attentions or eos_attentions:
             attention = extra["attn"][0][0].cpu().detach().tolist()
@@ -377,3 +377,12 @@ def preprocess_series(series: np.ndarray, output_path: Path, dictionary_path: Pa
             f"fairseq-preprocess --only-source --trainpref {file_path}  --destdir {output_path} --srcdict {dictionary_path} --workers 60"
         )
     )
+
+def create_random_prediction_model(output_path:Path):
+    if not output_path.exists():
+        os.system(f'CUDA_VISIBLE_DEVICES=6 micromamba run -n fairseq_git fairseq-train {FAIRSEQ_PREPROCESS_PATH}/smiles_atom_isomers --save-dir {MODEL_PATH/"random_bart"} --max-source-positions 1024 --batch-size 32 --mask 0.0 --tokens-per-sample 512 --max-update 1 --warmup-updates 1 --task denoising --save-interval 1 --arch bart_base --optimizer adam --lr 0.0 --dropout 0.0 --criterion cross_entropy --max-tokens 3200 --weight-decay 0.0 --attention-dropout 0.0 --relu-dropout 0.0 --share-decoder-input-output-embed --share-all-embeddings --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --mask-length span-poisson --encoder-learned-pos --decoder-learned-pos --rotate 0.0 --mask-random 0.0 --insert 0.0 --poisson-lambda 3.5 --dataset-impl mmap --num-workers 4')
+        print("hey")
+        os.system(f'CUDA_VISIBLE_DEVICES=6 fairseq-train {TASK_PATH/"lipo"/"smiles_atom_isomers"} --restore-file {MODEL_PATH/"random_bart"/"checkpoint_last.pt"} --save-dir {output_path} --max-source-positions 1024 --update-freq 1 --batch-size 1 --task sentence_prediction --num-workers 1 --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --required-batch-size-multiple 1 --add-prev-output-tokens --reset-optimizer --reset-dataloader --reset-meters --reset-lr-scheduler --arch bart_base --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0.1 --clip-norm 0.1 --lr 0.0 --max-update 2 --warmup-updates 1 --keep-best-checkpoints 1 --num-classes 1 --best-checkpoint-metric loss --regression-target --init-token 0')
+
+def get_dictionary(target_dict_path):
+    return Dictionary.load(str(target_dict_path))

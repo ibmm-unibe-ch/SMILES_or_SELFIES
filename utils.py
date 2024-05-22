@@ -8,9 +8,6 @@ import os
 import pickle
 from pathlib import Path
 
-from constants import TOKENIZER_SUFFIXES
-
-
 def pickle_object(objekt, path: Path):
     """Pickle an object at *path*
 
@@ -54,7 +51,7 @@ def log_and_add(text: str, string: str) -> str:
     return text
 
 
-def parse_arguments(cuda=False, tokenizer=False, task=False, seeds=False, dict_params=False) -> dict:
+def parse_arguments(cuda=False, tokenizer=False, task=False, seeds=False, dict_params=False, model_type=False) -> dict:
     """Parse command line arguments
 
     Args:
@@ -76,5 +73,7 @@ def parse_arguments(cuda=False, tokenizer=False, task=False, seeds=False, dict_p
         parser.add_argument("--seeds", help="How many different random seeds should be used.")
     if dict_params:
         parser.add_argument("--dict", help="Optional dict of hyperparameters stored in hyperparams.py.")
+    if model_type:
+        parser.add_argument("--modeltype", help="Optional dict of hyperparameters stored in hyperparams.py.") 
     args = parser.parse_args()
     return vars(args)

@@ -17,17 +17,20 @@ from constants import (
     SEED,
     TOKENIZER_PATH,
     TOKENIZER_SUFFIXES,
+    PREDICTION_MODEL_PATH,
+    HEADER,
+    TASK_PATH,
 )
 from fairseq_utils import (
     get_embeddings,
-    transform_to_translation_models,
+    transform_to_prediction_model,
     transplant_model,
 )
 from plotting import plot_representations
 from preprocessing import get_weight
 from scoring import load_dataset, load_model
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC, LinearSVC
@@ -85,6 +88,7 @@ def eval_weak_estimators(
                 [
                     str(name),
                     str(classification_report(test_y, predictions)),
+                    str(roc_auc_score(test_y, predictions)),
                     pprint.pformat(grid_search.best_params_),
                 ]
             )
@@ -103,12 +107,11 @@ def parse_column_name(
     """
     if isinstance(column_name, tuple):
         title = column_name[0]
-        column_ids = column_name[1]
+        column_ids = column_name[1] + ["SMILES"]
     else:
         title = column_name
-        column_ids = [column_name]
-    indexes = [*[str(DESCRIPTORS.index(column_id)) for column_id in column_ids], "210"]
-    return title, indexes
+        column_ids = [column_name, "SMILES"]
+    return title, column_ids
 
 
 def create_selected_dataframe(
@@ -124,10 +127,9 @@ def create_selected_dataframe(
     Returns:
         pd.DataFrame: selected dataframe
     """
-    df = pd.read_csv(data_path, skiprows=0, usecols=indexes)
-    df = df.dropna()
+    df = pd.read_csv(data_path, skiprows=0, usecols=indexes).dropna()
     property_col = df[indexes[0]]
-    for index in indexes[1:-1]:
+    for index in indexes[1:-1]: # exclude SMILES at -1, only relevant if more indexes
         property_col += df[index]
     if amount is None:
         amount = min(len(df) - sum(property_col.gt(0)), sum(property_col.gt(0)))
@@ -154,9 +156,11 @@ def create_dataset(
         amount (Optional[int], optional): Amount of size for each class. Defaults to biggest balanced dataset.
     """
     title, indexes = parse_column_name(column_name)
+    if (output_path/title/"smiles_atom_isomers"/"input0"/"dict.txt").exists():
+        return
     df = create_selected_dataframe(indexes, data_path, amount)
     train_SMILES, test_SMILES, train_y, test_y = train_test_split(
-        df["210"],
+        df["SMILES"],
         df["label"],
         test_size=0.2,
         random_state=SEED + 1233289,
@@ -174,31 +178,20 @@ def create_dataset(
         test_mol.tofile(output_dir / "test.input", sep="\n", format="%s")
         train_y.to_numpy().tofile(output_dir / "train.label", sep="\n", format="%s")
         test_y.to_numpy().tofile(output_dir / "test.label", sep="\n", format="%s")
-        # model_dict = FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt"
-        # os.system(
-        #    (
-        #        f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --testpref {output_dir/"test.input"} --destdir {output_dir/"input0"} --srcdict {model_dict} --workers 60'
-        #    )
-        # )
+        model_dict = FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt"
+        dest_dir = output_dir/"input0"
+        os.system(
+           (
+               f'fairseq-preprocess --only-source --trainpref {output_dir/"train.input"} --testpref {output_dir/"test.input"} --destdir {dest_dir} --srcdict {model_dict} --workers 60'
+           )
+        )
 
 
 if __name__ == "__main__":
     cuda = parse_arguments(True, False, False)["cuda"]
-    print(np.__version__)
-    # transform_to_translation_models()
-    #    for tokenizer_suffix in TOKENIZER_SUFFIXES:
-    #        transplant_model(
-    #            taker_model_path=PROJECT_PATH
-    #            / "translation_models"
-    #            / tokenizer_suffix
-    #            / "checkpoint_last.pt",
-    #            giver_model_path=PROJECT_PATH
-    #            / "fairseq_models"
-    #            / tokenizer_suffix
-    #            / "checkpoint_last.pt",
-    #        )
-    #
     for descriptor in [
+        "NumHDonors",
+        "NumAromaticRings",
         (
             "Heterocycles",
             [
@@ -207,68 +200,45 @@ if __name__ == "__main__":
                 "NumSaturatedHeterocycles",
             ],
         ),
-        "NumHDonors",
-        "NumAromaticRings",
     ]:
         create_dataset(
             descriptor,
-            PROCESSED_PATH / "10m_deduplicated.csv",
+            PROCESSED_PATH / "standard"/ "full_deduplicated_standard.csv",
             PROJECT_PATH / "embeddings",
             100000,
         )
-        if isinstance(descriptor, tuple):
-            descriptor_name = descriptor[0]
-        else:
-            descriptor_name = descriptor
-        weights = None
+        descriptor_name = descriptor[0] if isinstance(descriptor, tuple) else descriptor
+        #WEIGHTS weights = None
         for tokenizer_suffix in TOKENIZER_SUFFIXES:
-            #            transplant_model(
-            #                taker_model_path=PROJECT_PATH
-            #                / "translation_models"
-            #                / tokenizer_suffix
-            #                / "checkpoint_last.pt",
-            #                giver_model_path=PROJECT_PATH
-            #                / "fairseq_models"
-            #                / tokenizer_suffix
-            #                / "checkpoint_last.pt",
-            #            )
-            model = load_model(
-                PROJECT_PATH
-                / "translation_models"
-                / tokenizer_suffix
-                / "checkpoint_last.pt",
-                PROJECT_PATH / "embeddings" / tokenizer_suffix,
-                str(cuda),
-            )
+            model_suffix = tokenizer_suffix+"_bart"
+            fairseq_dict_path = TASK_PATH / "bbbp" /tokenizer_suffix
+            model_path = PREDICTION_MODEL_PATH/model_suffix/"checkpoint_last.pt"
+            if not model_path.exists():
+                transform_to_prediction_model(model_suffix)
+            model = load_model(model_path,fairseq_dict_path,str(cuda))
+            descriptor_path = (PROJECT_PATH / "embeddings" / descriptor_name / tokenizer_suffix)
+            #WEIGHTSif weights is None: # only goes for first iteration, which is preferred
+            #WEIGHTS    smiles = pd.read_csv(descriptor_path / "test.input", header=None).values
+            #WEIGHTS    weights = [
+            #WEIGHTS        min(600, get_weight("".join(smile[0].split(" "))))
+            #WEIGHTS        for smile in smiles
+            #WEIGHTS    ]
             dataset_dict = {}
-            descriptor_path = (
-                PROJECT_PATH / "embeddings" / descriptor_name / tokenizer_suffix
-            )
-            embeddings_path = descriptor_path / "pickle"
-            if weights is None:
-                smiles = pd.read_csv(descriptor_path / "test.input", header=None).values
-                weights = [
-                    min(600, get_weight("".join(smile[0].split(" "))))
-                    for smile in smiles
-                ]
-
             for set_variation in ["train", "test"]:
                 dataset = load_dataset(descriptor_path / "input0" / set_variation)
-                source_dictionary = Dictionary.load(
-                    str(descriptor_path / "input0" / "dict.txt")
-                )
+                source_dictionary = Dictionary.load(str(descriptor_path / "input0" / "dict.txt"))
                 embeddings = get_embeddings(model, dataset, source_dictionary, cuda)
-                if set_variation == "test":
-                    plot_representations(
-                        embeddings,
-                        weights,
-                        Path(f"plots/embeddings/{'weights_'+tokenizer_suffix}"),
-                    )
-                #                os.makedirs(embeddings_path, exist_ok=True)
-                #                pickle_object(
-                #                    embeddings,
-                #                    descriptor_path / f"{tokenizer_suffix}_{set_variation}.pkl",
-                #                )
+                #WEIGHTS if set_variation == "test":
+                #WEIGHTS     plot_representations(
+                #WEIGHTS         embeddings,
+                #WEIGHTS         weights,
+                #WEIGHTS         Path(f"plots/embeddings/{'weights_'+tokenizer_suffix}"),
+                #WEIGHTS     )
+                #WEIGHTS                os.makedirs(embeddings_path, exist_ok=True)
+                #WEIGHTS                pickle_object(
+                #WEIGHTS                    embeddings,
+                #WEIGHTS                    descriptor_path / f"{tokenizer_suffix}_{set_variation}.pkl",
+                #WEIGHTS                )
                 dataset_dict[f"{set_variation}_X"] = embeddings
                 dataset_dict[f"{set_variation}_y"] = np.fromfile(
                     descriptor_path / f"{set_variation}.label", sep="\n"

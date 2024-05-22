@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from constants import PROCESSED_PATH, TOKENIZER_PATH
-from graph_representation import OUR_REGEX, translate_to_graph_representation
 from preprocessing import canonize_smile, translate_selfie
 from rdkit import RDLogger
 from tokenizers import (
@@ -52,26 +51,6 @@ def train_sentencepiece(
     # BERTpost-processor needed?
     tokenizer.save_pretrained(save_path)
     return tokenizer
-
-
-def train_our_tokenizer(training_data, save_path, vocab_size=1000):
-    tk_tokenizer = Tokenizer(models.WordLevel(unk_token="<unk>"))
-    # copied from https://colab.research.google.com/drive/1tsiTpC4i26QNdRzBHFfXIOFVToE54-9b?usp=sharing#scrollTo=UHzrWuFpCtzs
-    # same in DeepChem
-    splitting_regex = Regex(OUR_REGEX)
-    tk_tokenizer.pre_tokenizer = pre_tokenizers.Split(
-        pattern=splitting_regex, behavior="isolated"
-    )
-    special_tokens = ["<s>", "<pad>", "</s>", "<unk>", "<cls>", "<sep>", "<mask>"]
-    trainer = trainers.WordLevelTrainer(
-        vocab_size=vocab_size, show_progress=True, special_tokens=special_tokens
-    )
-    tk_tokenizer.train_from_iterator(training_data, trainer=trainer)
-    tokenizer = BartTokenizerFast(tokenizer_object=tk_tokenizer)
-    logging.info(f"Saving tokenizer to {save_path}")
-    tokenizer.save_pretrained(save_path)
-    return tokenizer
-
 
 def train_atomwise_tokenizer(
     training_data: pd.Series, save_path: Path, vocab_size: int = 1000
@@ -119,54 +98,55 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     return tok
 
 
-def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False, own=False) -> str:
+def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
     """Tokenize sample with tokenizer
 
     Args:
         tokenizer (Huggingface Tokenizer): Tokenizer to use for tokenisation
         sample_smiles (str): string to tokenize
         selfies (bool, optional): Tranlsate to SELFIES (True) or keep SMILES(False). Defaults to False.
-        own (bool, optional): Tranlsate to own (True) or keep SMILES(False). Defaults to False.
-
+       
     Returns:
         str: Tokenized sample
     """
     if (
         translate_selfie(str(sample_smiles))[0] is None
-        or translate_to_graph_representation(str(sample_smiles))[0] is None
     ):
         return None
     canon_smiles = canonize_smile(sample_smiles)
     if selfies:
         canon_smiles = translate_selfie(str(canon_smiles))[0]
-    elif own:
-        canon_smiles = translate_to_graph_representation(str(canon_smiles))[0]
     tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(canon_smiles)).input_ids)
     return " ".join(tokens)
 
 
-def tokenize_dataset(
-    tokenizer, dataset: pd.Series, selfies=False, own=False
-) -> pd.Series:
+def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
     """Tokenize whole dataset with tokenizer
 
     Args:
         tokenizer (_type_): Tokenizer to use for tokenisation
         dataset (pd.Series): dataset to tokenize
         selfies (bool, optional): Tranlsate to SELFIES (True) or keep SMILES(False). Defaults to False.
-        own (bool, optional): Tranlsate to own (True) or keep SMILES(False). Defaults to False.
-
+        
     Returns:
         pd.Series: Tokenized dataset
     """
     output = np.array(
         [
-            tokenize_with_space(tokenizer, sample, selfies, own)
+            tokenize_with_space(tokenizer, sample, selfies)
             for sample in tqdm(dataset)
         ]
     )
     return output
 
+def tokenize_sample_to_ids(tokenizer, sample):
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(sample)).input_ids)
+    return " ".join(tokens)
+
+def tokenize_to_ids(tokenizer, samples):
+    return np.array(
+        [tokenize_sample_to_ids(tokenizer, sample) for sample in tqdm(samples)]
+    )
 
 if __name__ == "__main__":
     SMILES = pd.read_csv(
@@ -190,15 +170,6 @@ if __name__ == "__main__":
     atom_SELFIES_tokenizer = train_atomwise_tokenizer(
         SELFIES, TOKENIZER_PATH / "selfies_atom_isomers", vocab_size=1000
     )
-    OWN = pd.read_csv(
-        PROCESSED_PATH / "isomers" / "full_deduplicated_isomers.csv", usecols=["OWN"]
-    ).values
-    atom_SELFIES_tokenizer = train_our_tokenizer(
-        OWN, TOKENIZER_PATH / "own_atom_isomers", vocab_size=1000
-    )
-    trained_SELFIES_tokenizer = train_sentencepiece(
-        OWN, TOKENIZER_PATH / "own_trained_isomers", vocab_size=1000
-    )
     SMILES = pd.read_csv(
         PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv",
         usecols=["SMILES"],
@@ -218,13 +189,4 @@ if __name__ == "__main__":
     )
     trained_SELFIES_tokenizer = train_sentencepiece(
         SELFIES, TOKENIZER_PATH / "selfies_trained_standard", vocab_size=1000
-    )
-    OWN = pd.read_csv(
-        PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv", usecols=["OWN"]
-    ).values
-    atom_SELFIES_tokenizer = train_our_tokenizer(
-        OWN, TOKENIZER_PATH / "own_atom_standard", vocab_size=1000
-    )
-    trained_SELFIES_tokenizer = train_sentencepiece(
-        OWN, TOKENIZER_PATH / "own_trained_standard", vocab_size=1000
     )

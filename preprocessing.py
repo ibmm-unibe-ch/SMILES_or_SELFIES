@@ -12,12 +12,13 @@ from typing import List, Tuple
 import pandas as pd
 import selfies
 from constants import DESCRIPTORS, HEADER, PROCESSED_PATH, PROJECT_PATH
-from graph_representation import translate_to_graph_representation
+#from graph_representation import translate_to_graph_representation
 from rdkit import Chem
 from rdkit.Chem.EnumerateStereoisomers import (
     EnumerateStereoisomers,
     StereoEnumerationOptions,
 )
+from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 from tqdm import tqdm
 
@@ -52,6 +53,8 @@ def check_valid(input_str: str) -> bool:
     # check if syntactically correct and rdkit valid
     return m is not None
 
+def get_weight(smiles):
+    return ExactMolWt(Chem.MolFromSmiles(smiles))
 
 def canonize_smile(input_str: str, remove_identities: bool = True) -> str:
     """Canonize SMILES string
@@ -174,14 +177,6 @@ def process_mol(mol: str, CALCULATOR) -> Tuple[dict, str]:
     descriptors["SELFIE"] = selfie
     descriptors["SELFIE_LENGTH"] = selfie_length
     descriptors["SMILE"] = canon
-    try:
-        own = translate_to_graph_representation(canon)
-    except ValueError:
-        logging.warning(
-            f"The following sequence was deemed invalid by own parsing: {mol}, with canon {canon}"
-        )
-        return None, "invalid_own"
-    descriptors["own"] = own
     return list(descriptors.values()), "valid"
 
 
@@ -335,22 +330,19 @@ def main(PROCESSED_PATH_SUB_DIR: Path, isomers: int = 0):
         pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
     invalid_smile = statistics.get("invalid_smile", 0)
     invalid_selfie = statistics.get("invalid_selfie", 0)
-    invalid_own = statistics.get("invalid_own", 0)
     valid = statistics.get("valid", 0)
     all_mols = invalid_smile + invalid_selfie + valid
     curr_mols = all_mols
     invalid_smile_iso = statistics.get("invalid_smile_isomer", 0)
     invalid_selfie_iso = statistics.get("invalid_selfie_isomer", 0)
-    invalid_own_iso = statistics.get("invalid_own_isomer", 0)
     valid_iso = statistics.get("valid_isomer", 0)
     all_mols_iso = invalid_smile_iso + invalid_selfie_iso + valid_iso
     curr_mols_iso = all_mols_iso
     invalid_smile_comb = invalid_smile + invalid_smile_iso
     invalid_selfie_comb = invalid_selfie + invalid_selfie_iso
-    invalid_own_comb = invalid_own + invalid_own_iso
     valid_comb = valid + valid_iso
     all_mols_comb = (
-        invalid_smile_comb + invalid_selfie_comb + invalid_own_comb + valid_comb
+        invalid_smile_comb + invalid_selfie_comb + valid_comb
     )
     curr_mols_comb = all_mols_comb
     logging.info(
@@ -385,13 +377,6 @@ def main(PROCESSED_PATH_SUB_DIR: Path, isomers: int = 0):
         logging.info(
             f"This amounts to a percentage of {100*invalid_selfie/(curr_mols):.2f}."
         )
-    logging.info(
-        f"There were {invalid_own} invalid OWN found and {curr_mols-invalid_own} passed this stage."
-    )
-    if curr_mols > 0:
-        logging.info(
-            f"This amounts to a percentage of {100*invalid_own/(curr_mols):.2f}."
-        )
     curr_mols_iso = curr_mols_iso - invalid_smile_iso
     logging.info(
         f"There were {invalid_selfie_iso} invalid isomer SELFIES found and {curr_mols_iso-invalid_selfie_iso} passed this stage."
@@ -399,13 +384,6 @@ def main(PROCESSED_PATH_SUB_DIR: Path, isomers: int = 0):
     if curr_mols_iso > 0:
         logging.info(
             f"This amounts to a percentage of {100*invalid_selfie_iso/(curr_mols_iso):.2f}."
-        )
-    logging.info(
-        f"There were {invalid_own_iso} invalid isomer OWN found and {curr_mols_iso-invalid_own_iso} passed this stage."
-    )
-    if curr_mols_iso > 0:
-        logging.info(
-            f"This amounts to a percentage of {100*invalid_own_iso/(curr_mols_iso):.2f}."
         )
 
     curr_mols_comb = curr_mols_comb - invalid_smile_comb
@@ -416,41 +394,19 @@ def main(PROCESSED_PATH_SUB_DIR: Path, isomers: int = 0):
         logging.info(
             f"This amounts to a percentage of {100*invalid_selfie_comb/(curr_mols_comb):.2f}."
         )
-    logging.info(
-        f"There were {invalid_own_comb} invalid combined OWN found and {curr_mols_comb-invalid_own_comb} passed this stage."
-    )
-    if curr_mols_comb > 0:
-        logging.info(
-            f"This amounts to a percentage of {100*invalid_own_comb/(curr_mols_comb):.2f}."
-        )
     curr_mols = curr_mols - invalid_selfie
-    curr_mols_own = curr_mols - invalid_own
     logging.info(f"We filtered out {all_mols-curr_mols} many samples for SELFIES.")
     if all_mols > 0:
         logging.info(
             f"This amounts to a percentage of {100*(1-curr_mols/all_mols):.2f}."
         )
-    logging.info(f"We filtered out {all_mols-curr_mols_own} many samples for OWN.")
-    if all_mols > 0:
-        logging.info(
-            f"This amounts to a percentage of {100*(1-curr_mols_own/all_mols):.2f}."
-        )
-
     curr_mols_iso = curr_mols_iso - invalid_selfie_iso
-    curr_mols_iso_own = curr_mols_iso - invalid_own_iso
     logging.info(
         f"We filtered out {all_mols_iso-curr_mols_iso} many isomer samples for SELFIES."
     )
     if all_mols_iso > 0:
         logging.info(
             f"This amounts to a percentage of {100*(1-curr_mols_iso/all_mols_iso):.2f}."
-        )
-    logging.info(
-        f"We filtered out {all_mols_iso-curr_mols_iso_own} many isomer samples for OWN."
-    )
-    if all_mols_iso > 0:
-        logging.info(
-            f"This amounts to a percentage of {100*(1-curr_mols_iso_own/all_mols_iso):.2f}."
         )
 
     curr_mols_comb = curr_mols_comb - invalid_selfie_comb
@@ -461,10 +417,6 @@ def main(PROCESSED_PATH_SUB_DIR: Path, isomers: int = 0):
         logging.info(
             f"This amounts to a percentage of {100*(1-curr_mols_comb/all_mols_comb):.2f}."
         )
-    curr_mols_comb = curr_mols_comb - invalid_own_comb
-    logging.info(
-        f"We filtered out {all_mols_comb-curr_mols_comb} many samples combined with OWN."
-    )
     if all_mols_iso > 0:
         logging.info(
             f"This amounts to a percentage of {100*(1-curr_mols_comb/all_mols_comb):.2f}."

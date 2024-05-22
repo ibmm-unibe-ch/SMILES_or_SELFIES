@@ -23,7 +23,6 @@ def prepare_molnet(
     task: str,
     tokenizer,
     selfies: bool,
-    own: bool,
     output_dir: Path,
     model_dict: Path,
 ):
@@ -33,7 +32,6 @@ def prepare_molnet(
         task (str): which MolNet task to prepare
         tokenizer (tokenizer): which tokenizer to use for this dataset
         selfies (bool): Use selfies or not; should agree with selected tokenizer
-        own (bool): Use own representation or not; should agree with selected tokenizer
         output_dir (Path): where to save preprocessed files
         model_dict (Path): which vocabulary to use for pre-processing
     """
@@ -41,10 +39,10 @@ def prepare_molnet(
     _, splits, _ = molnet_infos["load_fn"](
         featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"]
     )
-    embedding_name = "SELFIES" if selfies else "OWN" if own else "SMILES"
+    embedding_name = "SELFIES" if selfies else "SMILES"
     tasks = ["train", "valid", "test"]
     for id_number, split in enumerate(splits):
-        mol = tokenize_dataset(tokenizer, split.X, selfies, own)
+        mol = tokenize_dataset(tokenizer, split.X, selfies)
         # no normalisation of labels
         if "tasks_wanted" in molnet_infos:
             correct_column = split.tasks.tolist().index(molnet_infos["tasks_wanted"][0])
@@ -81,11 +79,10 @@ if __name__ == "__main__":
     molnets = MOLNET_DIRECTORY
     for tokenizer_suffix in TOKENIZER_SUFFIXES:
         selfies = tokenizer_suffix.startswith("selfies")
-        own = tokenizer_suffix.startswith("own")
         tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
         preprocess_path = FAIRSEQ_PREPROCESS_PATH / tokenizer_suffix / "dict.txt"
         for key in molnets:
             output_dir = TASK_PATH / key / tokenizer_suffix
             output_dir.mkdir(parents=True, exist_ok=True)
-            prepare_molnet(key, tokenizer, selfies, own, output_dir, preprocess_path)
+            prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path)
             logging.info(f"Finished creating {output_dir}")
