@@ -188,7 +188,13 @@ def create_dataset(
 
 
 if __name__ == "__main__":
-    cuda = parse_arguments(True, False, False)["cuda"]
+    args = parse_arguments(cuda=True, tokenizer=True, model_type=True)
+    cuda = args["cuda"]
+    if "tokenizer" in args:
+        tokenizers = [args["tokenizer"]]
+    else:
+        tokenizers = TOKENIZER_SUFFIXES
+    model_type = args["model_type"]
     for descriptor in [
         "NumHDonors",
         "NumAromaticRings",
@@ -209,8 +215,8 @@ if __name__ == "__main__":
         )
         descriptor_name = descriptor[0] if isinstance(descriptor, tuple) else descriptor
         #WEIGHTS weights = None
-        for tokenizer_suffix in TOKENIZER_SUFFIXES:
-            model_suffix = tokenizer_suffix+"_bart"
+        for tokenizer_suffix in tokenizers:
+            model_suffix = tokenizer_suffix+"_"+model_type
             fairseq_dict_path = TASK_PATH / "bbbp" /tokenizer_suffix
             model_path = PREDICTION_MODEL_PATH/model_suffix/"checkpoint_last.pt"
             if not model_path.exists():

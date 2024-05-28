@@ -17,7 +17,7 @@ from tqdm import tqdm
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.roberta import RobertaModel
-from fairseq.models.bart import BARTModel
+from fairseq.models.bart import BARTModel, BARTHubInterface
 
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
@@ -158,9 +158,14 @@ def transform_to_prediction_model(suffix):
     """Transform a diffusion model to a prediction model, which then can be used by fairseq."""
     tokenizer_suffix = "_".join(re.split("_", suffix)[:-1])
     architecture = "bart_base" if "bart" in suffix else "roberta_base"
-    os.system(
-        f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {MODEL_PATH/suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --share-all-embeddings --share-decoder-input-output-embed --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch {architecture} --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --max-target-positions 1024 --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PREDICTION_MODEL_PATH/suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
-    )
+    if architecture == "roberta_base":
+        os.system(
+            f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {MODEL_PATH/suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --reset-optimizer --reset-dataloader --reset-meters --required-batch-size-multiple 1 --arch {architecture} --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PREDICTION_MODEL_PATH/suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
+        )
+    else:
+        os.system(
+            f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/tokenizer_suffix} --update-freq 1 --restore-file {MODEL_PATH/suffix/"checkpoint_last.pt"} --batch-size 1 --task sentence_prediction --num-workers 1 --add-prev-output-tokens --layernorm-embedding --reset-optimizer --reset-dataloader --reset-meters --share-all-embeddings --share-decoder-input-output-embed --max-target-positions 1024 --required-batch-size-multiple 1 --arch {architecture} --skip-invalid-size-inputs-valid-test --criterion sentence_prediction --optimizer adam --adam-betas "(0.9, 0.999)" --adam-eps 0 --weight-decay 0.01 --clip-norm 0.1 --lr 0.0 --max-update 1 --warmup-updates 1 --keep-best-checkpoints 1 --num-classes 1 --save-dir {PREDICTION_MODEL_PATH/suffix} --best-checkpoint-metric loss --regression-target --init-token 0'
+        )
     transplant_model(
         PREDICTION_MODEL_PATH/suffix/"checkpoint_last.pt",
         MODEL_PATH/suffix/"checkpoint_last.pt",
@@ -173,21 +178,24 @@ def get_embeddings(model, dataset, source_dictionary, cuda=3):
     embeddings = []
     for sample in tqdm(dataset):
         sample = sample[:1020]
-        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
-            device=f"cuda:{cuda}"
-        )
-        # same as in predict
-        embedding = (
-            model.model(
-                sample.unsqueeze(0).to(device=f"cuda:{cuda}"),
-                None,
-                prev_output_tokens,
-                features_only=True,
-            )[0][0][-1, :]
-            .cpu()
-            .detach()
-            .numpy()
-        )
+        if isinstance(model, BARTHubInterface):
+            prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+                device=f"cuda:{cuda}"
+            )
+            # same as in predict
+            embedding = (
+                model.model(
+                    sample.unsqueeze(0).to(device=f"cuda:{cuda}"),
+                    None,
+                    prev_output_tokens,
+                    features_only=True,
+                )[0][0][-1, :]
+                .cpu()
+                .detach()
+                .numpy()
+            )
+        else:
+            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), None)[0][0][-1, :].cpu().detach().numpy()
         embeddings.append(embedding)
     return embeddings
 
