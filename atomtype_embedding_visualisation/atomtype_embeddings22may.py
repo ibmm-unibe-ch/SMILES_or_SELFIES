@@ -754,12 +754,17 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
-        assert len(embeddings) == (len(assignments)
-                                   ), "Assignments and embeddings do not have same length."
-        print(f"len embeddings {len(embeddings)}")
-        plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-        plot_umap(embeddings, assignments, atomtype2color, set_list,
-                  pathway_umap, min_dist, n_neighbors, alpha)
+
+        try:
+            assert len(embeddings) == (len(assignments)), "Assignments and embeddings do not have same length."
+            assert len(embeddings)>10, "Not enough embeddings for plotting"
+            print(f"len embeddings of key {key}: {len(embeddings)}")
+            plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
+            plot_umap(embeddings, assignments, atomtype2color, set_list,
+                    pathway_umap, min_dist, n_neighbors, alpha)
+        except AssertionError as e:
+            print(f"Assertion error occurred for element {key}: {e}")
+            continue
 
 
 
