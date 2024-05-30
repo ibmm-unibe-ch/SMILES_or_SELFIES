@@ -14,6 +14,7 @@ import torch
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
+#from fairseq.models.
 from tqdm import tqdm
 
 from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
@@ -41,6 +42,25 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
         model.cuda(device=str(f"cuda:{cuda_device}"))
     return model
 
+def load_BERT_model(model_path: Path, data_path: Path, cuda_device: str = None):
+    """Load fairseq BERT model
+
+    Args:
+        model_path (Path): path to .pt file
+        cuda_device (str, optional): if model should be converted to a device. Defaults to None.
+
+    Returns:
+        fairseq_model: load BERT model
+    """
+    model = BERTModel.from_pretrained(
+        str(model_path.parent),
+        data_name_or_path=str(data_path),
+        checkpoint_file=str(model_path.name),
+    )
+    model.eval()
+    if cuda_device:
+        model.cuda(device=str(f"cuda:{cuda_device}"))
+    return model
 
 def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
     """Load dataset with fairseq

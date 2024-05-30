@@ -1,0 +1,23 @@
+Remark line goes here
+MASS
+
+BOND
+
+ANGLE
+
+DIHE
+c -cc-oh-ho   1    1.120       180.000           2.000      same as ho-oh-c2-c2, penalty score=319.0
+cd-cc-oh-ho   1    1.120       180.000           2.000      same as ho-oh-c2-c2, penalty score=319.0
+
+IMPROPER
+ca-cc-c -o         10.5          180.0         2.0          Using general improper torsional angle  X- X- c- o, penalty score=  6.0)
+c -cd-cc-oh         1.1          180.0         2.0          Using the default value
+c -c3-cd-cc         1.1          180.0         2.0          Using the default value
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-cd-c -o         10.5          180.0         2.0          Using general improper torsional angle  X- X- c- o, penalty score=  6.0)
+c -ca-ca-ca         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+

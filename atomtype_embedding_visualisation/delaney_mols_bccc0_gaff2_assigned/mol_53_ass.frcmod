@@ -1,0 +1,37 @@
+Remark line goes here
+MASS
+
+BOND
+ca-nv  347.10   1.386       same as ca-nh, penalty score=  0.0
+hn-nv  529.50   1.012       same as hn-nh, penalty score=  0.0
+
+ANGLE
+nb-ca-nv  112.100     116.940   same as nb-ca-nh, penalty score=  0.0
+ca-nv-hn   48.800     116.070   same as ca-nh-hn, penalty score=  0.0
+ca-ca-nv   86.200     120.950   same as ca-ca-nh, penalty score=  0.0
+cp-ca-nv   85.700     121.560   same as cp-ca-nh, penalty score=  0.0
+hn-nv-hn   39.500     115.120   same as hn-nh-hn, penalty score=  0.0
+
+DIHE
+nb-ca-nv-hn   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+ca-ca-nv-hn   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+cp-cp-nb-ca   1    0.495         0.000           3.000      same as c2-ne-ca-ca, penalty score=709.0
+ca-cp-nb-ca   1    0.495         0.000           3.000      same as c2-ne-ca-ca, penalty score=622.0
+cp-ca-nv-hn   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+
+IMPROPER
+ca-hn-nv-hn         1.1          180.0         2.0          Using the default value
+nb-nb-ca-nv        10.5          180.0         2.0          Same as X -n2-ca-n2, penalty score= 48.6 (use general term))
+ca-nb-ca-nv         1.1          180.0         2.0          Using the default value
+ca-ca-ca-nb         1.1          180.0         2.0          Using the default value
+ca-cp-cp-nb         1.1          180.0         2.0          Using the default value
+ca-ca-cp-cp         1.1          180.0         2.0          Using the default value
+ca-cp-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+cp-nb-ca-nv         1.1          180.0         2.0          Using the default value
+ca-nb-ca-nb         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+

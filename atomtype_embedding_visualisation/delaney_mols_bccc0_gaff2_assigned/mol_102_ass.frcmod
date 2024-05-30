@@ -1,0 +1,25 @@
+Remark line goes here
+MASS
+
+BOND
+ca-nu  347.10   1.386       same as ca-nh, penalty score=  0.0
+hn-nu  529.50   1.012       same as hn-nh, penalty score=  0.0
+
+ANGLE
+ca-ca-nu   86.200     120.950   same as ca-ca-nh, penalty score=  0.0
+ca-nu-ca   65.200     127.460   same as ca-nh-ca, penalty score=  0.0
+ca-nu-hn   48.800     116.070   same as ca-nh-hn, penalty score=  0.0
+
+DIHE
+ca-ca-nu-ca   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+ca-ca-nu-hn   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+
+IMPROPER
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-ca-ca-nu         1.1          180.0         2.0          Using the default value
+ca-ca-nu-hn         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+

@@ -1,0 +1,20 @@
+Remark line goes here
+MASS
+
+BOND
+
+ANGLE
+
+DIHE
+ca-ca-ce-ca   1    0.505       180.000           2.000      same as c2-ce-ca-ca, penalty score= 87.0
+
+IMPROPER
+ce-cl-c2-cl         1.1          180.0         2.0          Using the default value
+c2-ca-ce-ca         1.1          180.0         2.0          Using the default value
+ca-ca-ca-ce         1.1          180.0         2.0          Using the default value
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+
+NONBON
+
+
+

@@ -1,0 +1,24 @@
+Remark line goes here
+MASS
+
+BOND
+
+ANGLE
+
+DIHE
+ca-ca-cx-cx   1    0.245       180.000           2.000      same as c3-c3-ca-ca, penalty score=179.0
+ca-ca-cx-op   6    0.000         0.000           2.000      same as X -c3-ca-X , penalty score= 92.0
+ca-ca-cx-h1   1    0.000       180.000           2.000      same as hc-c3-ca-ca, penalty score=179.0
+ca-cx-op-cx   3    1.150         0.000           3.000      same as X -c3-os-X , penalty score= 92.0
+cx-cx-op-cx   1    0.240         0.000          -3.000      same as c3-os-c3-c3
+cx-cx-op-cx   1    0.160         0.000           2.000      same as c3-os-c3-c3, penalty score=266.0
+h1-cx-op-cx   1    0.337         0.000           3.000      same as c3-os-c3-h1, penalty score=179.0
+
+IMPROPER
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-ca-ca-cx         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+

@@ -1,0 +1,36 @@
+Remark line goes here
+MASS
+
+BOND
+
+ANGLE
+
+DIHE
+c3-c3-ce-cf   1    0.082         0.000           3.000      same as c3-c3-cc-ca, penalty score=223.0
+c3-c3-ce-ca   1    0.082         0.000           3.000      same as c3-c3-cc-ca, penalty score=136.0
+c3-c3-cf-ce   1    0.082         0.000           3.000      same as c3-c3-cc-ca, penalty score=229.0
+hc-c3-cf-ce   1    0.360       180.000          -3.000      same as hc-c3-c2-c2
+hc-c3-cf-ce   1    1.470         0.000           1.000      same as hc-c3-c2-c2, penalty score=324.0
+ca-ca-cf-ce   1    0.505       180.000           2.000      same as c2-ce-ca-ca, penalty score=385.0
+hc-c3-ce-cf   1    0.360       180.000          -3.000      same as hc-c3-c2-c2
+hc-c3-ce-cf   1    1.470         0.000           1.000      same as hc-c3-c2-c2, penalty score=324.0
+ca-ca-ce-cf   1    0.505       180.000           2.000      same as c2-ce-ca-ca, penalty score= 87.0
+ca-ca-cf-c3   1    0.540       180.000           2.000      same as ca-ca-ce-c3, penalty score=298.0
+c3-c3-cf-ca   1    0.082         0.000           3.000      same as c3-c3-cc-ca, penalty score=142.0
+hc-c3-cf-ca   1    0.360       180.000          -3.000      same as hc-c3-c2-c2
+hc-c3-cf-ca   1    1.470         0.000           1.000      same as hc-c3-c2-c2, penalty score=324.0
+hc-c3-ce-ca   1    0.360       180.000          -3.000      same as hc-c3-c2-c2
+hc-c3-ce-ca   1    1.470         0.000           1.000      same as hc-c3-c2-c2, penalty score=324.0
+
+IMPROPER
+c3-ca-ce-cf         1.1          180.0         2.0          Using the default value
+c3-ca-cf-ce         1.1          180.0         2.0          Using the default value
+ca-ca-ca-cf         1.1          180.0         2.0          Using the default value
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-ca-ca-oh         1.1          180.0         2.0          Using the default value
+ca-ca-ca-ce         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+

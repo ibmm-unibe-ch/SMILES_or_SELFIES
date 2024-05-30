@@ -1,0 +1,48 @@
+Remark line goes here
+MASS
+
+BOND
+n8-sy  303.10   1.696       same as n3-sy, penalty score=  0.0
+hn-n8  511.30   1.019       same as hn-n3, penalty score=  0.0
+ca-nu  347.10   1.386       same as ca-nh, penalty score=  0.0
+c3-nu  261.80   1.464       same as c3-nh, penalty score=  0.0
+hn-nu  529.50   1.012       same as hn-nh, penalty score=  0.0
+
+ANGLE
+n -c3-nu  108.300     108.660   same as n -c3-nh, penalty score=  0.0
+ca-ca-nu   86.200     120.950   same as ca-ca-nh, penalty score=  0.0
+ca-sy-n8   92.200     102.440   same as ca-sy-n3, penalty score=  0.0
+hn-n8-sy   44.500     109.500   same as hn-n3-sy, penalty score=  0.0
+n8-sy-o   123.400     107.130   same as n3-sy-o , penalty score=  0.0
+c3-nu-ca   65.200     119.980   same as c3-nh-ca, penalty score=  0.0
+ca-nu-hn   48.800     116.070   same as ca-nh-hn, penalty score=  0.0
+c3-c3-nu   83.500     110.460   same as c3-c3-nh, penalty score=  0.0
+h2-c3-nu   61.200     110.010   same as h2-c3-nh, penalty score=  0.0
+c3-nu-hn   46.400     115.990   same as c3-nh-hn, penalty score=  0.0
+hn-n8-hn   40.800     106.400   same as hn-n3-hn, penalty score=  0.0
+
+DIHE
+n -c3-nu-ca   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+n -c3-nu-hn   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+ca-ca-nu-hn   4    4.200       180.000           2.000      same as X -ca-nh-X , penalty score=  0.0
+hn-n8-sy-ca   6   18.800         0.000           2.000      same as X -n3-sy-X , penalty score=  0.0
+hn-n8-sy-o    6   18.800         0.000           2.000      same as X -n3-sy-X , penalty score=  0.0
+c3-c3-nu-ca   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+h2-c3-nu-ca   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+c3-c3-nu-hn   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+h2-c3-nu-hn   6    0.000         0.000           2.000      same as X -c3-nh-X , penalty score=  0.0
+
+IMPROPER
+ca-ca-ca-ha         1.1          180.0         2.0          Using general improper torsional angle  X- X-ca-ha, penalty score=  6.0)
+ca-ca-ca-n          1.1          180.0         2.0          Using the default value
+c -c3-n -ca         1.1          180.0         2.0          Same as c2-c2-na-c3, penalty score=300.2)
+ca-n -c -o         10.5          180.0         2.0          Using general improper torsional angle  X- X- c- o, penalty score=  6.0)
+c -ca-ca-ca         1.1          180.0         2.0          Using the default value
+ca-ca-ca-sy         1.1          180.0         2.0          Using the default value
+ca-ca-ca-nu         1.1          180.0         2.0          Using the default value
+c3-ca-nu-hn         1.1          180.0         2.0          Using the default value
+
+NONBON
+
+
+
