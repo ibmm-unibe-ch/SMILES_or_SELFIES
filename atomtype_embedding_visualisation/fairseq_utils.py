@@ -14,7 +14,7 @@ import torch
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
-#from fairseq.models.
+#from fairseq.models.bert import BERTModel
 from tqdm import tqdm
 
 from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
@@ -22,7 +22,7 @@ from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
-def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
+def load_BART_model(model_path: Path, data_path: Path, cuda_device: str = None):
     """Load fairseq BART model
 
     Args:
@@ -42,8 +42,8 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
         model.cuda(device=str(f"cuda:{cuda_device}"))
     return model
 
-def load_BERT_model(model_path: Path, data_path: Path, cuda_device: str = None):
-    """Load fairseq BERT model
+"""def load_BERT_model(model_path: Path, data_path: Path, cuda_device: str = None):
+    Load fairseq BERT model
 
     Args:
         model_path (Path): path to .pt file
@@ -51,7 +51,7 @@ def load_BERT_model(model_path: Path, data_path: Path, cuda_device: str = None):
 
     Returns:
         fairseq_model: load BERT model
-    """
+    
     model = BERTModel.from_pretrained(
         str(model_path.parent),
         data_name_or_path=str(data_path),
@@ -60,7 +60,8 @@ def load_BERT_model(model_path: Path, data_path: Path, cuda_device: str = None):
     model.eval()
     if cuda_device:
         model.cuda(device=str(f"cuda:{cuda_device}"))
-    return model
+    return model 
+"""
 
 def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
     """Load dataset with fairseq

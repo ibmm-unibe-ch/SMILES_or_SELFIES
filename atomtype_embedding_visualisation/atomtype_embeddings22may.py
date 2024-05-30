@@ -10,8 +10,8 @@ from matplotlib.lines import Line2D
 from pathlib import Path
 import re
 import pandas as pd
-from fairseq.data import Dictionary
 from fairseq_utils import compute_model_output, load_dataset, load_BART_model
+from fairseq.data import Dictionary
 from deepchem.feat import RawFeaturizer
 from preprocessing import canonize_smile
 from tokenisation import tokenize_dataset, get_tokenizer
@@ -693,17 +693,20 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     p_f_list_embs = (dikt_forelems['p'][0]) + dikt_forelems['f'][0]
     p_f_cl_list_embs = p_f_list_embs + (dikt_forelems['cl'][0])
     p_f_cl_o_list_embs = p_f_cl_list_embs + (dikt_forelems['o'][0])
+    p_f_cl_s_list_embs = p_f_cl_list_embs + (dikt_forelems['s'][0])
     
     #get seperate assignment lists for plotting
     p_f_list_assigs = (dikt_forelems['p'][1]) + dikt_forelems['f'][1]
     p_f_cl_list_assigs = p_f_list_assigs + (dikt_forelems['cl'][1])
     p_f_cl_o_list_assigs = p_f_cl_list_assigs + (dikt_forelems['o'][1])
+    p_f_cl_s_list_assigs = p_f_cl_list_assigs + (dikt_forelems['s'][1])
     
     #sanity check
-    assert len(p_f_cl_o_list_embs) == len(p_f_cl_o_list_assigs)
     assert len(p_f_cl_list_embs) == len(p_f_cl_list_assigs)
+    assert len(p_f_cl_o_list_embs) == len(p_f_cl_o_list_assigs)
+    assert len(p_f_cl_s_list_embs) == len(p_f_cl_s_list_assigs)
     print("assiglist", p_f_cl_list_assigs)
-    ############ P F Cl -->  get distinct colors for all atomtypes for elements p, f, cl
+    ############### P F Cl -->  get distinct colors for all atomtypes for elements p, f, cl
     atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_list_assigs.copy()))
     #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
@@ -715,7 +718,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     # plot PCA
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color, pathway_pca, alpha)
-    ######## P F Cl O --> get distinct colors for all atomtypes for elements p, f, cl, o
+    ############## P F Cl O --> get distinct colors for all atomtypes for elements p, f, cl, o
         #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfclo_1.svg")
@@ -726,6 +729,18 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
               set_list, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
+             atomtype2color, pathway_pca, alpha)
+    ############## P F Cl S --> get distinct colors for all atomtypes for elements p, f, cl, o
+        #create paths on what to name the plots
+    pathway = Path(str(save_path_prefix) +
+                   f"umap_{min_dist}_{n_neighbors}_pfcls_1.svg")
+    pathway_pca = Path(str(save_path_prefix) + "pca_pfcls_1.svg")
+    atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_s_list_assigs.copy()))
+    # plot UMAP
+    plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color,
+              set_list, pathway, min_dist, n_neighbors, alpha)
+    # plot PCA
+    plot_pca(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
              atomtype2color, pathway_pca, alpha)
     
 
@@ -741,9 +756,10 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
         assert len(embeddings) == (len(assignments)
                                    ), "Assignments and embeddings do not have same length."
+        print(f"len embeddings {len(embeddings)}")
+        plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
         plot_umap(embeddings, assignments, atomtype2color, set_list,
                   pathway_umap, min_dist, n_neighbors, alpha)
-        plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
 
 
 
@@ -798,6 +814,7 @@ if __name__ == "__main__":
     # get embeddings per token
     embeds = []
     embeds = get_embeddings(task, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
+    print("got the embeddings")
     
     # check their lengths 
     assert len(smiToAtomAssign_dict.keys()) == (len(
@@ -863,7 +880,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"/home/ifender/SOS/SMILES_or_SELFIES/plots_22May/plots/embeddingvsatomtype/{task}"
+    save_path_prefix = f"./plots/{task}"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix)
                         
