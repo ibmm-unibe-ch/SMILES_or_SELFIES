@@ -113,6 +113,11 @@ ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = Path("/data/jgut/SMILES_or_SELFIES/task")
 USPTO_PATH = PROJECT_PATH / "download_uspto"
 #TASK_MODEL_PATH = Path("/data/jgut/SoS_models/")#previously used
+
+#for BART
+#TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
+# for RoBERTa
+#TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
 TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
 PLOT_PATH = PROJECT_PATH / "plots"
 

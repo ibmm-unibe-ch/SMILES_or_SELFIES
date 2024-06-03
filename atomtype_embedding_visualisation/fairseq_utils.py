@@ -14,6 +14,7 @@ import torch
 from fairseq.data import Dictionary
 from fairseq.data.data_utils import load_indexed_dataset
 from fairseq.models.bart import BARTModel
+from fairseq.models.roberta import RobertaModel
 #from fairseq.models.bert import BERTModel
 from tqdm import tqdm
 
@@ -21,6 +22,33 @@ from constants import PARSING_REGEX, PROJECT_PATH, TASK_PATH
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
+
+def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
+    """Load fairseq BART model
+
+    Args:
+        model_path (Path): path to .pt file
+        cuda_device (str, optional): if model should be converted to a device. Defaults to None.
+
+    Returns:
+        fairseq_model: load BART model
+    """
+    if "roberta" in str(model_path):
+        model = RobertaModel.from_pretrained(
+            str(model_path.parent),
+            data_name_or_path=str(data_path),
+            checkpoint_file=str(model_path.name),
+        )
+    else:
+        model = BARTModel.from_pretrained(
+            str(model_path.parent),
+            data_name_or_path=str(data_path),
+            checkpoint_file=str(model_path.name),
+        )
+    model.eval()
+    if cuda_device:
+        model.cuda(device=str(f"cuda:{str(cuda_device)}"))
+    return model
 
 def load_BART_model(model_path: Path, data_path: Path, cuda_device: str = None):
     """Load fairseq BART model
@@ -370,6 +398,81 @@ def compute_model_output(
         token_embeddings, extra = model.model(
             sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
         )
+        if attentions or eos_attentions:
+            attention = extra["attn"][0][0].cpu().detach().tolist()
+        if attentions:
+            dataset_attentions.append(list(zip(attention, parsed_tokens)))
+        if eos_attentions:
+            dataset_eos_attentions.append(list(zip(attention[-1], parsed_tokens)))
+        if embeddings or eos_embedding:
+            token_embeddings = token_embeddings[0].cpu().detach().tolist()
+        if embeddings:
+            dataset_embeddings.append(list(zip(token_embeddings, parsed_tokens)))
+        if eos_embedding:
+            dataset_eos_embeddings.append(token_embeddings[-1])
+    return (
+        dataset_attentions,
+        dataset_eos_attentions,
+        dataset_embeddings,
+        dataset_eos_embeddings,
+    )
+    
+def compute_model_output_RoBERTa(
+    dataset: List[np.ndarray],
+    model,
+    text: List[str],
+    source_dictionary,
+    attentions=True,
+    eos_attentions=True,
+    embeddings=False,
+    eos_embedding=False,
+    tokenizer=None,
+) -> Tuple[
+    List[List[Tuple[float, str]]],
+    List[List[Tuple[List[float], str]]],
+    List[Tuple[List[float], str]],
+]:
+    """Compute embedding of whole dataset with model copied from fairseq
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        dataset (List[np.ndarray]): pre-processed dataset to get embeddings from
+        model (fairseq model): fairseq model
+        text (List[str]): human readable string of samples
+        source_dictionary: source dictionary for fairseq
+        tokenizer (optional): HuggingFace tokenizer to tokenize. Defaults to None.
+
+    Returns:
+        List[List[Tuple[float, str]]]: List[List[embedding, token]]
+    """
+    # https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+    device = next(model.parameters()).device
+    dataset_attentions = [] if attentions else None
+    dataset_eos_attentions = [] if eos_attentions else None
+    dataset_embeddings = [] if embeddings else None
+    dataset_eos_embeddings = [] if eos_embedding else None
+    for counter, sample in enumerate(dataset):
+        if tokenizer is None:
+            parsed_tokens = [
+                parsed_token
+                for parsed_token in re.split(PARSING_REGEX, text[counter])
+                if parsed_token
+            ]
+        else:
+            parsed_tokens = tokenizer.convert_ids_to_tokens(
+                tokenizer(str(text[counter])).input_ids
+            )
+        prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
+            device
+        )
+        # same as in predict
+        #token_embeddings, extra = model.model(
+        #    sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+        #)
+        #RoBERTa forward differes from BART, there are no prev_output_tokens as input
+        token_embeddings, extra = model.model(
+            sample.unsqueeze(0).to(device), features_only=True
+            )
         if attentions or eos_attentions:
             attention = extra["attn"][0][0].cpu().detach().tolist()
         if attentions:

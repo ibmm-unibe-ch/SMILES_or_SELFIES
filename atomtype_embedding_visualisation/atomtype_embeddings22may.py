@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 from pathlib import Path
 import re
 import pandas as pd
-from fairseq_utils import compute_model_output, load_dataset, load_BART_model
+from fairseq_utils import compute_model_output, compute_model_output_RoBERTa, load_dataset, load_BART_model, load_model
 from fairseq.data import Dictionary
 from deepchem.feat import RawFeaturizer
 from preprocessing import canonize_smile
@@ -303,7 +303,7 @@ def get_atom_assignments(smiles_arr, smi_toks):
 
     Args:
         smiles_arr (_list_): Array of SMILES
-        smi_toks (_list_): List of lists that corresponds to smiles_arr and contains the tokens to th corresponding SMILES
+        smi_toks (_list_): List of lists that corresponds to smiles_arr and contains the tokens to the corresponding SMILES
 
     Returns:
          _dict,dict,list,int,list,list_: Many: dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
@@ -365,7 +365,7 @@ def get_atom_assignments(smiles_arr, smi_toks):
     return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
 
-def get_embeddings(task: str, cuda: int):
+def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: int):
     """Generate the embeddings dict of a task
     Args:
         task (str): Task to find attention of
@@ -374,40 +374,40 @@ def get_embeddings(task: str, cuda: int):
         Tuple[List[List[float]], np.ndarray]: attention, labels
     """
     task_SMILES, task_labels = load_molnet_test_set(task)
-    for encoding in [
-        "smiles_atom_isomers"
-    ]:
-        specific_model_path = (
-            TASK_MODEL_PATH
-            #/ "smiles_atom_isomers_bart"
-            / task
-            / "smiles_atom_isomers_bart"
-            / "1e-05_0.2_seed_0" 
-            #      / "smiles_isomers_atom"
-            #/ encoding
-            #/ "5e-05_0.2_based_norm"
-            #/ "5e-05_0.2_based_norm"
-           # / "checkpoint_best.pt"
-           / "checkpoint_best.pt"
-        )
-        data_path = TASK_PATH / task / encoding
-        #data_path = "/data/jgut/SMILES_or_SELFIES/task/delaney/smiles_atom_isomers"
-        model = load_BART_model(specific_model_path, data_path, cuda)
-        model.zero_grad()
-        data_path = data_path / "input0" / "test"
-        # True for classification, false for regression
-        dataset = load_dataset(data_path, True)
-        source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
-        assert len(task_SMILES) == len(
-            dataset
-        ), f"Real and filtered dataset {task} do not have same length."
+    #data_path = "/data/jgut/SMILES_or_SELFIES/task/delaney/smiles_atom_isomers"
+    model = load_model(specific_model_path, data_path, cuda)
+    print("model loaded")
+    model.zero_grad()
+    data_path = data_path / "input0" / "test"
+    # True for classification, false for regression
+    dataset = load_dataset(data_path, True)
+    source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
-        text = [canonize_smile(smile) for smile in task_SMILES]
-        
-        tokenizer = None
+    assert len(task_SMILES) == len(
+        dataset
+    ), f"Real and filtered dataset {task} do not have same length."
+
+    text = [canonize_smile(smile) for smile in task_SMILES]
+    
+    tokenizer = None
+    if "bart" in str(specific_model_path):
         embeds.append(
             compute_model_output(
+                dataset,
+                model,
+                text,
+                source_dictionary,
+                False,
+                False,
+                True,  # true for embeddings
+                True,  # true for eos_embeddings
+                tokenizer,
+            )[2]
+        )
+    if "roberta" in str(specific_model_path):
+        embeds.append(
+            compute_model_output_RoBERTa(
                 dataset,
                 model,
                 text,
@@ -817,8 +817,29 @@ if __name__ == "__main__":
     
     ############################## get embeddings per token ########################################
     # get embeddings per token
+    # paths for BART   
+    """   specific_model_path = (
+        TASK_MODEL_PATH
+        / task
+        / "smiles_atom_isomers_bart"
+        / "1e-05_0.2_seed_0" 
+        / "checkpoint_best.pt"
+    )
+    data_path = TASK_PATH / task / "smiles_atom_isomers" 
+    """
+    #paths for RoBERTa
+    specific_model_path = (
+        TASK_MODEL_PATH
+        / task
+        / "smiles_atom_isomers_roberta"
+        / "1e-05_0.2_seed_0" 
+        / "checkpoint_best.pt"
+    )
+    print("specific model path: ",specific_model_path)
+    data_path = TASK_PATH / task / "smiles_atom_isomers"
+    
     embeds = []
-    embeds = get_embeddings(task, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
+    embeds = get_embeddings(task, specific_model_path, data_path, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
     print("got the embeddings")
     
     # check their lengths 
@@ -885,7 +906,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./plots/{task}"
+    save_path_prefix = f"./plots_RoBERTa/{task}"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix)
                         
