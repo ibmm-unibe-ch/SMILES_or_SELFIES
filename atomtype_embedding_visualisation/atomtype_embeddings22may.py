@@ -388,7 +388,8 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
         dataset
     ), f"Real and filtered dataset {task} do not have same length."
 
-    text = [canonize_smile(smile) for smile in task_SMILES]
+    #text = [canonize_smile(smile) for smile in task_SMILES]
+    text = [smile for smile in task_SMILES]
     
     tokenizer = None
     if "bart" in str(specific_model_path):
@@ -396,7 +397,7 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
             compute_model_output(
                 dataset,
                 model,
-                text,
+                text, #this is very important to be in same order as task_SMILES which it is
                 source_dictionary,
                 False,
                 False,
@@ -428,7 +429,7 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     return embeds
 
 
-def get_clean_embeds(embeds, failedSmiPos, posToKeep_list):
+def get_clean_embeds(embeds, failedSmiPos, posToKeep_list, creation_assignment_fail):
     """Clean embeddings of embeddings that encode for digitis or hydrogens
 
     Args:
@@ -452,11 +453,13 @@ def get_clean_embeds(embeds, failedSmiPos, posToKeep_list):
     embeds_cleaner = []
     assert len(embeds_clean) == (len(posToKeep_list)
                                  ), f"Not the same amount of embeddings as assigned SMILES. {len(embeds_clean)} embeddings vs. {(len(posToKeep_list))} SMILES with positions"
+    #assuring that only embeddings of atoms are kept according to posToKeep_list
     for smiemb, pos_list in zip(embeds_clean, posToKeep_list):
         newembsforsmi = []
         newembsforsmi = [smiemb[pos] for pos in pos_list]
         embeds_cleaner.append(newembsforsmi)
 
+    # sanity check that the lengths agree
     for smiemb, pos_list in zip(embeds_cleaner, posToKeep_list):
         assert len(smiemb) == len(
             pos_list), "Final selected embeddings for assigned atoms do not have same length as list of assigned atoms."
@@ -842,15 +845,16 @@ if __name__ == "__main__":
     embeds = get_embeddings(task, specific_model_path, data_path, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
     print("got the embeddings")
     
-    # check their lengths 
+    # check their lengths, dict contains SMILES where atoms could not be assigned as well, embeddings we got for all SMILES
     assert len(smiToAtomAssign_dict.keys()) == (len(
         embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(smiToAtomAssign_dict.keys())} and Number of embeddings: {len(embeds[0])}"
+    #check that every token has an embedding
     assert check_lengths(
         smi_toks, embeds), "Length of SMILES_tokens and embeddings do not agree."
     print("embeddings passed length checks")
     
     #get rid of embeddings that encode for digits or hydrogens
-    embeds_clean = get_clean_embeds(embeds, failedSmiPos, posToKeep_list)
+    embeds_clean = get_clean_embeds(embeds, failedSmiPos, posToKeep_list,creation_assignment_fail)
 
     ############################## creating dictionary mapping SMILES to embeddings and assignments ########################################
     # map embeddings to atom assignments --> Dictionary that links SMILES to their corresponding embeddings and assignments
