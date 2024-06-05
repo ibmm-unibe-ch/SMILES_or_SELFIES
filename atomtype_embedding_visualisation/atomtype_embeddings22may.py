@@ -20,7 +20,7 @@ from sklearn.decomposition import PCA
 
 
 from constants import (
-    TASK_MODEL_PATH,
+   # TASK_MODEL_PATH,
     TASK_PATH,
     MOLNET_DIRECTORY,
     TOKENIZER_PATH
@@ -820,6 +820,7 @@ if __name__ == "__main__":
     
     ############################## get embeddings per token ########################################
     # get embeddings per token
+    # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
     # paths for BART   
     """   specific_model_path = (
         TASK_MODEL_PATH
@@ -829,7 +830,7 @@ if __name__ == "__main__":
         / "checkpoint_best.pt"
     )
     data_path = TASK_PATH / task / "smiles_atom_isomers" 
-    """
+
     #paths for RoBERTa
     specific_model_path = (
         TASK_MODEL_PATH
@@ -838,6 +839,26 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
+    """
+    # ----------------------specific model paths for pretrained models of BART and RoBERTa-------------------------
+    TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
+    # TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
+    # path for BART   
+    specific_model_path = (
+        TASK_MODEL_PATH
+        / "smiles_atom_isomers_bart"
+        / "checkpoint_last.pt"
+    ) 
+    """
+    #path for RoBERTa
+    specific_model_path = (
+       TASK_MODEL_PATH
+       / "smiles_atom_isomers_roberta"
+       / "checkpoint_last.pt"
+    )
+    """
+    # ------------------------------------------------------------------------------------------------------------
+    
     print("specific model path: ",specific_model_path)
     data_path = TASK_PATH / task / "smiles_atom_isomers"
     
@@ -910,7 +931,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./plots_RoBERTa/{task}"
+    save_path_prefix = f"./plots_BART_pretrained/{task}"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix)
                         
