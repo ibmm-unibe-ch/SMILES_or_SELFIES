@@ -31,4 +31,7 @@ conda activate fairseq_git
 ## Run analysis
 Run atomtype_embeddings.py.
 
+Understanding atom type definitions:
+https://ambermd.org/antechamber/gaff.html#atomtype 
+
 
