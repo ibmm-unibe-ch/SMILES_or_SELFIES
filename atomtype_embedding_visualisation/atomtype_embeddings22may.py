@@ -566,7 +566,7 @@ def build_legend(data):
     return legend_elements
 
 
-def plot_umap(embeddings, labels, colours_dict, set_list, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
+def plot_umap(embeddings, labels, colours_dict, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
     """Performing UMAP and plotting it
 
     Args:
@@ -653,6 +653,41 @@ def getcolorstoatomtype(big_set):
 
     return atomtype2color, set_list
 
+def get_colorsforallatomtypes(embass_dikt_o):
+    """Generating a dictionary of colors given the original dictionary containing embeddings and atom assignments before threshold filtering
+
+    Args:
+        embass_dikt_o (_dict_): Dictionary that contains embeddings and their atomtypes mapped to SMILES
+
+    Returns:
+        _dict,set_: Dictionary that maps atom types to colors, alphabetically sorted list of input set
+    """
+        #get this for getting the colors of all atom types--------------------------------------- COLOR COLOR COLOR COLOR
+    atom_assigns_fin_color = [val[1] for val in embass_dikt_o.values()]
+    embeds_fin_color = [val[0] for val in embass_dikt_o.values()]
+    embeds_fin_singlelist_color = list()
+    for smiembed in embeds_fin_color:
+        for atomembed in smiembed:
+            embeds_fin_singlelist_color.append(atomembed[0])
+
+    ############# creating a single big final list of all atom assignments
+    atom_assigns_fin_singlelist_color = list()
+    for smiassigns in atom_assigns_fin_color:
+        for singleatomassign in smiassigns:
+            atom_assigns_fin_singlelist_color.append(singleatomassign)
+    
+    atomtype_set_color = [set(type_list) for type_list in atom_assigns_fin_color]
+    colorbigset = sorted(list(set().union(*atomtype_set_color)))
+    
+    keylist_color, dikt_forelems_color = create_elementsubsets(colorbigset, embeds_fin_singlelist_color, atom_assigns_fin_singlelist_color)
+    
+    #get consistent colors for plotting, needs reworking to show same color no matter what threshold was used
+   # p_f_cl_s_list_assigs = p_f_cl_list_assigs + (dikt_forelems['s'][1])
+    all_assigns_list = (dikt_forelems_color['p'][1]) + (dikt_forelems_color['f'][1]) + (dikt_forelems_color['cl'][1]) + (dikt_forelems_color['o'][1]) + (dikt_forelems_color['s'][1])
+    atomtype2color, set_list = getcolorstoatomtype(set(all_assigns_list.copy()))
+    return atomtype2color, set_list
+    #---------------COLORCOLORCOLOR-----------------------------------------------------------------
+    
 
 def create_elementsubsets(big_set, embeds_fin_singlelist, atom_assigns_fin_singlelist):
     """Creation of element subsets according to alphabet
@@ -710,7 +745,7 @@ def create_elementsubsets(big_set, embeds_fin_singlelist, atom_assigns_fin_singl
     return keylist, dikt_forelems
 
 
-def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix):
+def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix, atomtype2color):
     """Create plot per element
 
     Args:
@@ -740,39 +775,34 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     assert len(p_f_cl_o_list_embs) == len(p_f_cl_o_list_assigs)
     assert len(p_f_cl_s_list_embs) == len(p_f_cl_s_list_assigs)
     print("assiglist", p_f_cl_list_assigs)
-    ############### P F Cl -->  get distinct colors for all atomtypes for elements p, f, cl
-    atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_list_assigs.copy()))
+    ############### P F Cl 
     #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcl_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcl_1.svg")
     # plot UMAP
-    plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color,
-              set_list, pathway, min_dist, n_neighbors, alpha)
+    plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color, pathway_pca, alpha)
-    ############## P F Cl O --> get distinct colors for all atomtypes for elements p, f, cl, o
+    ############## P F Cl O -
         #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfclo_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfclo_1.svg")
-    atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_o_list_assigs.copy()))
+    #atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_o_list_assigs.copy()))
     # plot UMAP
-    plot_umap(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, atomtype2color,
-              set_list, pathway, min_dist, n_neighbors, alpha)
+    plot_umap(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
              atomtype2color, pathway_pca, alpha)
-    ############## P F Cl S --> get distinct colors for all atomtypes for elements p, f, cl, o
+    ############## P F Cl S 
         #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcls_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcls_1.svg")
-    atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_s_list_assigs.copy()))
     # plot UMAP
-    plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color,
-              set_list, pathway, min_dist, n_neighbors, alpha)
+    plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
              atomtype2color, pathway_pca, alpha)
@@ -794,8 +824,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
             assert len(embeddings)>10, "Not enough embeddings for plotting"
             print(f"len embeddings of key {key}: {len(embeddings)}")
             plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-            plot_umap(embeddings, assignments, atomtype2color, set_list,
-                    pathway_umap, min_dist, n_neighbors, alpha)
+            plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
         except AssertionError as e:
             print(f"Assertion error occurred for element {key}: {e}")
             continue
@@ -852,7 +881,7 @@ if __name__ == "__main__":
     ############################## get embeddings per token ########################################
     # get embeddings per token
     # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
-    # path to pretrained models
+    # path to finetuned models
     TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
     # path for BART  
     specific_model_path = (
@@ -922,7 +951,7 @@ if __name__ == "__main__":
     print("all penalties of assignments before filtering: ", penalties_o)
     ################## filter SMILES with high penalties out
     print(f"embass_dikt before filtering out high penalties: {len(embass_dikt_o)}")
-    penalty_threshold = 200
+    penalty_threshold = 300
     embass_dikt = {key: value for key, value in embass_dikt_o.items() if value[2] < penalty_threshold}
     smiles_over_threshold = [key for key, value in embass_dikt_o.items() if value[2] >= penalty_threshold]
     print(f"embass_dikt after filtering out high penalties > {penalty_threshold}: {len(embass_dikt)}. Removed {len(embass_dikt_o)-len(embass_dikt)} SMILES with high penalties.")
@@ -974,10 +1003,13 @@ if __name__ == "__main__":
     
     
     ################################### Plotting the embeddings per element and saving them as .svg ############################################
+    
+    atomtype2color, set_list = get_colorsforallatomtypes(embass_dikt_o)
+    
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
     save_path_prefix = f"./plots_BART_finetuned_penaltythreshold/{task}_penaltythresh{penalty_threshold}_"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
-                        n_neighbors, alpha, save_path_prefix)
+                        n_neighbors, alpha, save_path_prefix, atomtype2color)
                         
