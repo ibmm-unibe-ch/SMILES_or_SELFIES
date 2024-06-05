@@ -111,6 +111,32 @@ def check_parmchk2(file):
                 return False
         return True
 
+def getmaxpenalty_fromparmchk2(file):
+    """Checking of parmchk2-created file for atomtype assignment, 
+    see https://docs.bioexcel.eu/2020_06_09_online_ambertools4cp2k/04-parameters/index.html for more info
+        --> if “ATTN: needs revision” is found in file, the atomtype assignment failed
+
+    Args:
+        file (_string_): Inputfile name
+
+    Returns:
+        _bool_: True if parmchk2 file is ok, False if it calls for revision of antechamber file
+    """
+    pen_list = list()
+    with open(file) as infile:
+        lines = infile.read().splitlines()
+        for line in lines:
+            if "penalty score" in line:
+                penalty_score_str = line.split("penalty score")[1].strip().split("=")[1].strip()
+                penalty_score = float(re.search(r"\d+\.?\d*", penalty_score_str).group())
+                print(line)
+                print(penalty_score)
+                pen_list.append(penalty_score)
+    if (len(pen_list))==0:
+        pen_list.append(0.0)
+    # get max of pen_list
+    max_penalty = max(pen_list)
+    return max_penalty
 
 def run_parmchk2(ac_outfile):
     """Running of parmchk2 to check assignment of files with antechamber
@@ -259,21 +285,23 @@ def load_assignments_from_folder(folder, smiles_arr, smi_toks):
                     # get atom assignments from ass file
                     atoms_assignment_list, atoms_assignment_set = get_atom_assignment(
                         f"{folder}/{assignment_file}")
+                    # get max penalty found in parmchk file
+                    max_penalty = getmaxpenalty_fromparmchk2(f"{folder}/{parmcheck_file}")
                     assignment_list.append(atoms_assignment_list)
-                    dikt[smi] = (posToKeep, smi_clean, atoms_assignment_list)
+                    dikt[smi] = (posToKeep, smi_clean, atoms_assignment_list, max_penalty)
                     dikt_clean[smi] = (posToKeep, smi_clean,
-                                       atoms_assignment_list)
+                                       atoms_assignment_list, max_penalty)
                     posToKeep_list.append(posToKeep)
                 else:
-                    dikt[smi] = (None, None, None)
+                    dikt[smi] = (None, None, None, None)
                     failedSmiPos.append(num)
                     assignment_fail += 1
             else:
-                dikt[smi] = (None, None, None)
+                dikt[smi] = (None, None, None, None)
                 failedSmiPos.append(num)
                 assignment_fail += 1
         else:
-            dikt[smi] = (None, None, None)
+            dikt[smi] = (None, None, None, None)
             failedSmiPos.append(num)
             assignment_fail += 1
 
@@ -333,24 +361,25 @@ def get_atom_assignments(smiles_arr, smi_toks):
                 # if smi_ac was generated check if with parmchk2, returns True if output is ok
                 if True == run_parmchk2(smi_ac):
                     # get antechamber assignment (without hydrogens)
+                    max_penalty = getmaxpenalty_fromparmchk2(f"{folder}/{parmcheck_file}")
                     atoms_assignment_list, atoms_assignment_set = get_atom_assignment(
                         smi_ac)
                     assignment_list.append(atoms_assignment_list)
-                    dikt[smi] = (posToKeep, smi_clean, atoms_assignment_list)
+                    dikt[smi] = (posToKeep, smi_clean, atoms_assignment_list, max_penalty)
                     dikt_clean[smi] = (posToKeep, smi_clean,
-                                       atoms_assignment_list)
+                                       atoms_assignment_list, max_penalty)
                     posToKeep_list.append(posToKeep)
                 else:
                     assignment_fail += 1
-                    dikt[smi] = (None, None, None)
+                    dikt[smi] = (None, None, None, None)
                     failedSmiPos.append(smi_num)
             else:
                 assignment_fail += 1
-                dikt[smi] = (None, None, None)
+                dikt[smi] = (None, None, None, None)
                 failedSmiPos.append(smi_num)
         else:
             filecreation_fail += 1
-            dikt[smi] = (None, None, None)
+            dikt[smi] = (None, None, None, None)
             failedSmiPos.append(smi_num)
         no += 1
         smi_num += 1
@@ -504,6 +533,7 @@ def link_embeds_to_atomassigns(embeds_clean, smiToAtomAssign_dict_clean):
     Args:
         embeds_clean (list[float]): Embeddings that do not encode hydrogens or digits, but only atoms
         smiToAtomAssign_dict_clean (dict): Dictionary that links SMILES to their atom assignments
+        # --> dikt_clean[smi] = (posToKeep, smi_clean, atoms_assignment_list, max_penalty)
 
     Returns:
         _dict_: Dictionary that links SMILES to their corresponding embeddings and assignments
@@ -515,11 +545,12 @@ def link_embeds_to_atomassigns(embeds_clean, smiToAtomAssign_dict_clean):
     for smi, value in smiToAtomAssign_dict_clean.items():
         clean_toks = value[1]
         assigns = value[2]
+        max_penalty = value[3]
         assert len(clean_toks) == (len(
             embeds_clean[it])), f"Number of tokens ({len(clean_toks)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string"
         assert len(assigns) == (len(
             embeds_clean[it])), f"Number of assignments ({len(assigns)}) does not equal number of embeddings ({len(embeds_clean[it])}) for this SMILES string.\n Assigns: {assigns} vs. Embeddings"
-        embass_dikt[smi] = (embeds_clean[it], assigns)
+        embass_dikt[smi] = (embeds_clean[it], assigns, max_penalty)
         it += 1
     return embass_dikt
 
@@ -821,17 +852,18 @@ if __name__ == "__main__":
     ############################## get embeddings per token ########################################
     # get embeddings per token
     # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
-    # paths for BART   
-    """   specific_model_path = (
+    # path to pretrained models
+    TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
+    # path for BART  
+    specific_model_path = (
         TASK_MODEL_PATH
         / task
         / "smiles_atom_isomers_bart"
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-    data_path = TASK_PATH / task / "smiles_atom_isomers" 
-
-    #paths for RoBERTa
+    """ 
+    #path for RoBERTa
     specific_model_path = (
         TASK_MODEL_PATH
         / task
@@ -839,7 +871,7 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-    """
+
     # ----------------------specific model paths for pretrained models of BART and RoBERTa-------------------------
     TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
     # TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
@@ -849,7 +881,7 @@ if __name__ == "__main__":
         / "smiles_atom_isomers_bart"
         / "checkpoint_last.pt"
     ) 
-    """
+
     #path for RoBERTa
     specific_model_path = (
        TASK_MODEL_PATH
@@ -875,20 +907,32 @@ if __name__ == "__main__":
     print("embeddings passed length checks")
     
     #get rid of embeddings that encode for digits or hydrogens
-    embeds_clean = get_clean_embeds(embeds, failedSmiPos, posToKeep_list,creation_assignment_fail)
+    embeds_clean = get_clean_embeds(embeds, failedSmiPos, posToKeep_list, creation_assignment_fail)
 
     ############################## creating dictionary mapping SMILES to embeddings and assignments ########################################
     # map embeddings to atom assignments --> Dictionary that links SMILES to their corresponding embeddings and assignments
     # --> smiles = ([[embed], smilesatomname], [atomassignments])
-    embass_dikt = link_embeds_to_atomassigns(
+    # --> embass_dikt[smi] = (embeddings, assigned atoms, max_penalty_for assignments)
+    embass_dikt_o = link_embeds_to_atomassigns(
         embeds_clean, smiToAtomAssign_dict_clean)
-    first_key, first_value = list(embass_dikt.items())[0]
-    print(f" embass_dikt: first key: {first_key}, len key: {len(first_key)},\n len first value: {len(first_value[0])},  \n len first value[0]: {len(first_value[0][0])},\n first value: {first_value[0][0]},\n len second value: {len(first_value[1])}")
+    first_key, first_value = list(embass_dikt_o.items())[0]
+    print(f" embass_dikt: first key: {first_key}, len key: {len(first_key)},\n len first value in dict (embedding, assign, penalty): {len(first_value[0])},  \n len first value[0] (embedding 0): {len(first_value[0][0])},\n first value (embedding 0): {first_value[0][0]},\n second value (assigned atoms): {first_value[1]},\n third value (max. penalty): {first_value[2]}")
+    
+    penalties_o = [val[2] for val in embass_dikt_o.values()]
+    print("all penalties of assignments before filtering: ", penalties_o)
+    ################## filter SMILES with high penalties out
+    print(f"embass_dikt before filtering out high penalties: {len(embass_dikt_o)}")
+    penalty_threshold = 300
+    embass_dikt = {key: value for key, value in embass_dikt_o.items() if value[2] < penalty_threshold}
+    print(f"embass_dikt after filtering out high penalties > {penalty_threshold}: {len(embass_dikt)}. Removed {len(embass_dikt_o)-len(embass_dikt)} SMILES with high penalties.")
     
     #getting all embeddings, all assignmnets, and numbers for all
     embeds_fin = [val[0] for val in embass_dikt.values()]
     atom_assigns_fin = [val[1] for val in embass_dikt.values()]
+    penalties = [val[2] for val in embass_dikt.values()]
     mol_labels = [num for num in range(0, len(embeds_fin))]
+    
+    print("all penalties of assignments after filtering: ", penalties)
  
     # sanity check
     for emb, assign in zip(embeds_fin, atom_assigns_fin):
@@ -931,7 +975,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./plots_BART_pretrained/{task}"
+    save_path_prefix = f"./plots_BART_finetuned_penaltythreshold/{task}_penaltythresh{penalty_threshold}_"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix)
                         
