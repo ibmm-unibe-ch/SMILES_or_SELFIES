@@ -922,9 +922,11 @@ if __name__ == "__main__":
     print("all penalties of assignments before filtering: ", penalties_o)
     ################## filter SMILES with high penalties out
     print(f"embass_dikt before filtering out high penalties: {len(embass_dikt_o)}")
-    penalty_threshold = 300
+    penalty_threshold = 200
     embass_dikt = {key: value for key, value in embass_dikt_o.items() if value[2] < penalty_threshold}
+    smiles_over_threshold = [key for key, value in embass_dikt_o.items() if value[2] >= penalty_threshold]
     print(f"embass_dikt after filtering out high penalties > {penalty_threshold}: {len(embass_dikt)}. Removed {len(embass_dikt_o)-len(embass_dikt)} SMILES with high penalties.")
+    print(f"SMILES over threshold of maximum penalty score of {penalty_threshold}: {smiles_over_threshold} ")
     
     #getting all embeddings, all assignmnets, and numbers for all
     embeds_fin = [val[0] for val in embass_dikt.values()]
