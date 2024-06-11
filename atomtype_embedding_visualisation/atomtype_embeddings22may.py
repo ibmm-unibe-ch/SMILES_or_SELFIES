@@ -653,7 +653,27 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     ax.set_ylabel("LDA 2")
     ax.set_xlabel("LDA 1")
     ax.set_title("LDA - Embeddings resp. atom types")
-    fig.savefig(save_path, format="svg")
+    fig.savefig(f"{save_path}.svg", format="svg")
+    fig.clf()
+    
+    # same but random labels
+    lda = LDA(n_components=2)
+    random_labels=labels.copy()
+    np.random.shuffle(random_labels)
+    lda_embeddings = lda.fit_transform(embeddings,random_labels)
+    #logging.info(
+    #    f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    #)
+    fig, ax = plt.subplots(1)
+    ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in random_labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("LDA 2")
+    ax.set_xlabel("LDA 1")
+    ax.set_title("LDA random - Embeddings resp. atom types")
+    fig.savefig(f"{save_path}_random.svg", format="svg")
     fig.clf()
 
 def getcolorstoatomtype(big_set):
@@ -808,7 +828,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcl_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcl_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfcl_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfcl_1")
     # plot UMAP
     plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
@@ -822,7 +842,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfclo_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfclo_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfclo_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfclo_1")
     #atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_o_list_assigs.copy()))
     # plot UMAP
     plot_umap(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
@@ -837,7 +857,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcls_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcls_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfcls_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfcls_1")
     # plot UMAP
     plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
@@ -855,7 +875,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         pathway_umap = Path(str(save_path_prefix) +
                             f"umap_{min_dist}_{n_neighbors}_{key}_1.svg")
         pathway_pca = Path(str(save_path_prefix) + f"pca_{key}_1.svg")
-        pathway_lda = Path(str(save_path_prefix) + f"lda_{key}_1.svg")
+        pathway_lda = Path(str(save_path_prefix) + f"lda_{key}_1")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
