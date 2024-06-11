@@ -17,7 +17,7 @@ from preprocessing import canonize_smile
 from tokenisation import tokenize_dataset, get_tokenizer
 from constants import SEED
 from sklearn.decomposition import PCA
-
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 from constants import (
    # TASK_MODEL_PATH,
@@ -627,6 +627,34 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
     fig.savefig(save_path, format="svg")
     fig.clf()
 
+def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
+    """Performing Linear Discriminant Analysis and plotting it
+
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        save_path (_string_): Path where to save plot
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
+    logging.info("Started plotting LDA")
+    os.makedirs(save_path.parent, exist_ok=True)
+    lda = LDA(n_components=2)
+    lda_embeddings = lda.fit_transform(embeddings,labels)
+    #logging.info(
+    #    f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    #)
+    fig, ax = plt.subplots(1)
+    ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("LDA 2")
+    ax.set_xlabel("LDA 1")
+    ax.set_title("LDA - Embeddings resp. atom types")
+    fig.savefig(save_path, format="svg")
+    fig.clf()
 
 def getcolorstoatomtype(big_set):
     """Generating a dictionary of colors given a set of atom types
@@ -780,32 +808,44 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcl_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcl_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfcl_1.svg")
     # plot UMAP
     plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color, pathway_pca, alpha)
+    # plot LDA
+    plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
+             atomtype2color, pathway_lda, alpha)
     ############## P F Cl O -
         #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfclo_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfclo_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfclo_1.svg")
     #atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_o_list_assigs.copy()))
     # plot UMAP
     plot_umap(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
              atomtype2color, pathway_pca, alpha)
+    # plot LDA
+    plot_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
+             atomtype2color, pathway_lda, alpha)
     ############## P F Cl S 
         #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_pfcls_1.svg")
     pathway_pca = Path(str(save_path_prefix) + "pca_pfcls_1.svg")
+    pathway_lda = Path(str(save_path_prefix) + "lda_pfcls_1.svg")
     # plot UMAP
     plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
     # plot PCA
     plot_pca(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
              atomtype2color, pathway_pca, alpha)
+    # plot LDA
+    plot_lda(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
+             atomtype2color, pathway_lda, alpha)
     
 
     print("Plotting................................BY ELEMENT")
@@ -815,6 +855,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         pathway_umap = Path(str(save_path_prefix) +
                             f"umap_{min_dist}_{n_neighbors}_{key}_1.svg")
         pathway_pca = Path(str(save_path_prefix) + f"pca_{key}_1.svg")
+        pathway_lda = Path(str(save_path_prefix) + f"lda_{key}_1.svg")
         embeddings = dikt_forelems[key][0]
         assignments = dikt_forelems[key][1]
         atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
@@ -824,6 +865,7 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
             assert len(embeddings)>10, "Not enough embeddings for plotting"
             print(f"len embeddings of key {key}: {len(embeddings)}")
             plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
+            plot_lda(embeddings, assignments, atomtype2color, pathway_lda, alpha)
             plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
         except AssertionError as e:
             print(f"Assertion error occurred for element {key}: {e}")
@@ -1009,7 +1051,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./plots_BART_finetuned_penaltythreshold/{task}_penaltythresh{penalty_threshold}_"
+    save_path_prefix = f"./plots_BART_finetuned_+LDA_thresh{penalty_threshold}/"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix, atomtype2color)
                         

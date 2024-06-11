@@ -29,9 +29,10 @@ conda activate fairseq_git
 ```
 
 ## Run analysis
-Run atomtype_embeddings.py.
+Run atomtype_embeddings22may.py to analyse embeddings of atomtypes for models in specified paths for specified task molecules using PCA, UMAP, and LDA.
+To solely determine atomtypes for molecules of specified task (here: Delaney), run atomtype_assignment.py.
 
-Understanding atom type definitions:
+For further info on atom type definitions see:
 https://ambermd.org/antechamber/gaff.html#atomtype 
 
 
