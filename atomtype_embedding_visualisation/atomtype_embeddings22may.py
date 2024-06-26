@@ -591,10 +591,14 @@ def plot_umap(embeddings, labels, colours_dict, save_path, min_dist=0.1, n_neigh
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel("UMAP 2")
-    ax.set_xlabel("UMAP 1")
-    ax.set_title("UMAP - Embeddings resp. to atom types")
-    fig.savefig(save_path, format="svg")
+    ax.set_ylabel("UMAP 2", fontsize=17)
+    ax.set_xlabel("UMAP 1", fontsize=17)
+    ax.set_title("UMAP - Embeddings resp. to atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
 
@@ -621,10 +625,14 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel("PCA 2")
-    ax.set_xlabel("PCA 1")
-    ax.set_title("PCA - Embeddings resp. atom types")
-    fig.savefig(save_path, format="svg")
+    ax.set_ylabel("PCA 2", fontsize=17)
+    ax.set_xlabel("PCA 1", fontsize=17)
+    ax.set_title("PCA - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
 def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
@@ -650,10 +658,14 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel("LDA 2")
-    ax.set_xlabel("LDA 1")
-    ax.set_title("LDA - Embeddings resp. atom types")
-    fig.savefig(f"{save_path}.svg", format="svg")
+    ax.set_ylabel("LDA 2", fontsize=17)
+    ax.set_xlabel("LDA 1", fontsize=17)
+    ax.set_title("LDA - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(f"{save_path}.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
     
     # same but random labels
@@ -670,11 +682,33 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel("LDA 2")
-    ax.set_xlabel("LDA 1")
-    ax.set_title("LDA random - Embeddings resp. atom types")
-    fig.savefig(f"{save_path}_random.svg", format="svg")
+    ax.set_ylabel("LDA 2", fontsize=17)
+    ax.set_xlabel("LDA 1", fontsize=17)
+    ax.set_title("LDA random - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(f"{save_path}_random.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
+
+
+def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha):
+    #create paths on what to name the plots
+    pathway = Path(str(save_path_prefix) +
+                   f"umap_{min_dist}_{n_neighbors}_{namestring}.svg")
+    pathway_pca = Path(str(save_path_prefix) + f"pca_{namestring}.svg")
+    pathway_lda = Path(str(save_path_prefix) + f"lda_{namestring}")
+    
+    # plot UMAP
+    plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
+    # plot PCA
+    plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
+             atomtype2color, pathway_pca, alpha)
+    # plot LDA
+    plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
+             atomtype2color, pathway_lda, alpha)
+    
 
 def getcolorstoatomtype(big_set):
     """Generating a dictionary of colors given a set of atom types
@@ -723,6 +757,7 @@ def get_colorsforallatomtypes(embass_dikt_o):
     for smiassigns in atom_assigns_fin_color:
         for singleatomassign in smiassigns:
             atom_assigns_fin_singlelist_color.append(singleatomassign)
+            
     
     atomtype_set_color = [set(type_list) for type_list in atom_assigns_fin_color]
     colorbigset = sorted(list(set().union(*atomtype_set_color)))
@@ -735,6 +770,23 @@ def get_colorsforallatomtypes(embass_dikt_o):
     atomtype2color, set_list = getcolorstoatomtype(set(all_assigns_list.copy()))
     return atomtype2color, set_list
     #---------------COLORCOLORCOLOR-----------------------------------------------------------------
+    
+    
+def getcolorstoatomtypesCandO(embass_dikt_o):
+    print("###################################################getcolorsatomtypesCandO")
+    listeatomtypes = list()
+    # Iterate over the embass_dikt
+    for key, value in embass_dikt_o.items():
+        listeatomtypes.extend(tuple(set(value[1])))
+        #print("atomtypes: ",value[1])
+        
+    set_list = set(listeatomtypes)
+    print("set list: ",sorted(set_list))
+        # Check if the atom type starts with 'c'
+    atomtypes_c_o = [item for item in set_list if (item.startswith('c') and not item.startswith('cl')) or item.startswith('o')]
+    print("atomtypes_c_o: ",atomtypes_c_o)
+    atomtype2color, set_list = getcolorstoatomtype(set(atomtypes_c_o))
+    return atomtype2color, set_list
     
 
 def create_elementsubsets(big_set, embeds_fin_singlelist, atom_assigns_fin_singlelist):
@@ -793,7 +845,7 @@ def create_elementsubsets(big_set, embeds_fin_singlelist, atom_assigns_fin_singl
     return keylist, dikt_forelems
 
 
-def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix, atomtype2color):
+def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, save_path_prefix, atomtype2color,atomtype2color_co):
     """Create plot per element
 
     Args:
@@ -811,12 +863,14 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     p_f_cl_list_embs = p_f_list_embs + (dikt_forelems['cl'][0])
     p_f_cl_o_list_embs = p_f_cl_list_embs + (dikt_forelems['o'][0])
     p_f_cl_s_list_embs = p_f_cl_list_embs + (dikt_forelems['s'][0])
+    c_o_list_embs = (dikt_forelems['c'][0]) + dikt_forelems['o'][0]
     
     #get seperate assignment lists for plotting
     p_f_list_assigs = (dikt_forelems['p'][1]) + dikt_forelems['f'][1]
     p_f_cl_list_assigs = p_f_list_assigs + (dikt_forelems['cl'][1])
     p_f_cl_o_list_assigs = p_f_cl_list_assigs + (dikt_forelems['o'][1])
     p_f_cl_s_list_assigs = p_f_cl_list_assigs + (dikt_forelems['s'][1])
+    c_o_list_assigs = (dikt_forelems['c'][1]) + dikt_forelems['o'][1]
     
     #sanity check
     assert len(p_f_cl_list_embs) == len(p_f_cl_list_assigs)
@@ -824,49 +878,20 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
     assert len(p_f_cl_s_list_embs) == len(p_f_cl_s_list_assigs)
     print("assiglist", p_f_cl_list_assigs)
     ############### P F Cl 
-    #create paths on what to name the plots
-    pathway = Path(str(save_path_prefix) +
-                   f"umap_{min_dist}_{n_neighbors}_pfcl_1.svg")
-    pathway_pca = Path(str(save_path_prefix) + "pca_pfcl_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfcl_1")
-    # plot UMAP
-    plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
-    # plot PCA
-    plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
-             atomtype2color, pathway_pca, alpha)
-    # plot LDA
-    plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
-             atomtype2color, pathway_lda, alpha)
-    ############## P F Cl O -
-        #create paths on what to name the plots
-    pathway = Path(str(save_path_prefix) +
-                   f"umap_{min_dist}_{n_neighbors}_pfclo_1.svg")
-    pathway_pca = Path(str(save_path_prefix) + "pca_pfclo_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfclo_1")
-    #atomtype2color, set_list = getcolorstoatomtype(set(p_f_cl_o_list_assigs.copy()))
-    # plot UMAP
-    plot_umap(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
-    # plot PCA
-    plot_pca(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
-             atomtype2color, pathway_pca, alpha)
-    # plot LDA
-    plot_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs,
-             atomtype2color, pathway_lda, alpha)
-    ############## P F Cl S 
-        #create paths on what to name the plots
-    pathway = Path(str(save_path_prefix) +
-                   f"umap_{min_dist}_{n_neighbors}_pfcls_1.svg")
-    pathway_pca = Path(str(save_path_prefix) + "pca_pfcls_1.svg")
-    pathway_lda = Path(str(save_path_prefix) + "lda_pfcls_1")
-    # plot UMAP
-    plot_umap(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
-    # plot PCA
-    plot_pca(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
-             atomtype2color, pathway_pca, alpha)
-    # plot LDA
-    plot_lda(p_f_cl_s_list_embs, p_f_cl_s_list_assigs,
-             atomtype2color, pathway_lda, alpha)
+    namestring="pfcl"
+    plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
     
+    ############## P F Cl O -
+    namestring="pfclo"
+    plot_umap_pca_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
+   
+    ############## P F Cl S 
+    namestring="pfcls"
+    plot_umap_pca_lda(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
+    
+    ############## C O
+    namestring="co"
+    plot_umap_pca_lda(c_o_list_embs, c_o_list_assigs, save_path_prefix, namestring, atomtype2color_co, min_dist, n_neighbors, alpha)
 
     print("Plotting................................BY ELEMENT")
     # plot all atomtypes of one element only
@@ -890,8 +915,6 @@ def create_plotsperelem(keylist, dikt_forelems, min_dist, n_neighbors, alpha, sa
         except AssertionError as e:
             print(f"Assertion error occurred for element {key}: {e}")
             continue
-
-
 
 if __name__ == "__main__":
 
@@ -944,8 +967,10 @@ if __name__ == "__main__":
     # get embeddings per token
     # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
     # path to finetuned models
+
     TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
     # path for BART  
+
     specific_model_path = (
         TASK_MODEL_PATH
         / task
@@ -953,7 +978,7 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-    """ 
+    """
     #path for RoBERTa
     specific_model_path = (
         TASK_MODEL_PATH
@@ -962,11 +987,13 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-
+    """
     # ----------------------specific model paths for pretrained models of BART and RoBERTa-------------------------
+    """ 
     TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
     # TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
     # path for BART   
+
     specific_model_path = (
         TASK_MODEL_PATH
         / "smiles_atom_isomers_bart"
@@ -979,7 +1006,7 @@ if __name__ == "__main__":
        / "smiles_atom_isomers_roberta"
        / "checkpoint_last.pt"
     )
-    """
+    """   
     # ------------------------------------------------------------------------------------------------------------
     
     print("specific model path: ",specific_model_path)
@@ -1054,6 +1081,7 @@ if __name__ == "__main__":
     big_set = set().union(*atomtype_set)
     big_set = sorted(list(big_set))
     print("set of atomtypes in dataset sorted alphabetically: ", big_set)
+    print("big_set: ",big_set)
 
     
     # for atoms in big set create separate embedding lists
@@ -1063,15 +1091,24 @@ if __name__ == "__main__":
     keylist, dikt_forelems = create_elementsubsets(
         big_set, embeds_fin_singlelist, atom_assigns_fin_singlelist)
     
+    print("---------------------------------------------------------")
+    print("embassdikt", embass_dikt.keys())
+    print("keylist: ",keylist)
+    print("---------------------------------------------------------")
     
     ################################### Plotting the embeddings per element and saving them as .svg ############################################
     
     atomtype2color, set_list = get_colorsforallatomtypes(embass_dikt_o)
+    atomtype2color_co, set_list_co = getcolorstoatomtypesCandO(embass_dikt_o)
+    print("for c and o only: ",atomtype2color_co, "setlist co: ",set_list_co)
+    
+    print("dictionary keys: ",dikt_forelems.keys())
+    print("atomtype2color",atomtype2color.keys())
     
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./plots_BART_finetuned_+LDA_thresh{penalty_threshold}/"
+    save_path_prefix = f"./26June_BART_finetuned_thresh{penalty_threshold}/"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
-                        n_neighbors, alpha, save_path_prefix, atomtype2color)
+                        n_neighbors, alpha, save_path_prefix, atomtype2color,atomtype2color_co)
                         
