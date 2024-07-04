@@ -469,12 +469,13 @@ def map_embeddings_to_atomtypes(dikt,task_SMILES):
             atomtype_to_embedding = {}
             atom_types = dikt[SMILES]['atom_types']
             embeddings = dikt[SMILES]['clean_embedding']
-            type_to_emb_dict = dict()
+            type_to_emb_tuples_list = list()
             for atom_type, embedding in zip(atom_types, embeddings):
-                atomtype_to_embedding.setdefault(atom_type, []).append(embedding)
-                type_to_emb_dict[atom_type] = embedding
+                type_to_emb_tuples_list.append((atom_type, embedding))
+                #atomtype_to_embedding.setdefault(atom_type, []).append(embedding)
+                #type_to_emb_dict[atom_type] = embedding
                 assert(atom_type.lower() if atom_type.lower() =='cl' else atom_type[0].lower()==(embedding[1][1].lower() if embedding[1].startswith("[") else embedding[1]).lower()), f"Atom assignment failed: {atom_type} != {embedding[1]}"
-            dikt[SMILES]["atomtype_to_embedding"] = type_to_emb_dict
+            dikt[SMILES]["atomtype_to_embedding"] = type_to_emb_tuples_list
         else:
             dikt[SMILES]["atomtype_to_embedding"]=None
     logging.info("Embeddings mapped to atom types, all checks passed")
@@ -718,27 +719,47 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
         save_path_prefix (_string_): Path prefix where to save output plot
     """
     print(colordict.keys())
+    cs=0
+    #for key,val in dikt.items():
+    #    if dikt[key]['atomtype_to_embedding'] is not None:
+    #        #dikt[key]['atomtype_to_embedding']['c']
+            #print(dikt[key]['atomtype_to_embedding'])
+    #        for tuple in dikt[key]['atomtype_to_embedding']:
+    #            print("%%%",tuple[0],len(tuple[1][0]), tuple[1][1])
+    #            print()
+    #            print()
+    #        print(dikt[key]['atom_types'])
+    #        cs+=1
+    print("cs-----------------",cs)   
     # Assuming 'dikt' is your dictionary and each value has a 'penalty_score' key
     filtered_dict = {smiles: info for smiles, info in dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
-    #print(filtered_dict.items())
-    for key, value in filtered_dict.items():
-        print(value['max_penalty'])
+    print("keys in filtered dict:",len(filtered_dict.keys()))
+    #for key, value in filtered_dict.items():
+    #    print(value['max_penalty'])
     
-    atomtype_to_embedding_dicts = [value['atomtype_to_embedding'] for value in filtered_dict.values() if 'atomtype_to_embedding' in value and value['atomtype_to_embedding'] is not None]
+    atomtype_to_embedding_lists = [value['atomtype_to_embedding'] for value in filtered_dict.values() if 'atomtype_to_embedding' in value and value['atomtype_to_embedding'] is not None]
     
+    countit = 0
+    clist = ['c','c1','c2','c3','ca','cc','cd','ce','cf','cp','cq','cs','cx','cy']
+    for liste in atomtype_to_embedding_lists:
+        for el in liste:
+            if el[0] in clist:
+                countit+=1
+    print("-------------------countit ",countit)
     # sort embeddings according to atomtype, I checked it visually and the mapping works
     embeddings_by_atomtype = {}  # Dictionary to hold lists of embeddings for each atom type
-
-    for atom_type_dict in atomtype_to_embedding_dicts:
+    listembeddings = list()
+    for atom_type_list in atomtype_to_embedding_lists:
         # go through single dictionary
-        for atom_type, embeddings in atom_type_dict.items():
-            print(f"atomtype {atom_type} embeddings {embeddings[1]}")
-            if atom_type not in embeddings_by_atomtype:
-                embeddings_by_atomtype[atom_type] = []
+        for tuple in atom_type_list:
+           # print(f"atomtype {atom_type} embeddings {embeddings[1]}")
+            if tuple[0] not in embeddings_by_atomtype:
+                embeddings_by_atomtype[tuple[0]] = []
             # extend the list of embeddings for this atom type(, but only by the embedding not the attached token)
-            embeddings_by_atomtype[atom_type].append(embeddings[0])
-            print(len(embeddings[0]))
-    print(embeddings_by_atomtype.keys())
+            embeddings_by_atomtype[tuple[0]].append(tuple[1][0])
+            #print("\ntuple01",len(tuple[1][0]),tuple[1][0])
+            #print(len(embeddings[0]))
+    print("embeddings c",len(embeddings_by_atomtype['c']))
     
     # sort dictionary that is mapping embeddings to atomtypes to elements so that e.g. all carbon atom types can be accessed at once in one list
     atom_types_repeated = []
@@ -759,8 +780,10 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
                     atomtype_embedding_perelem_dict[key][0].extend(atypes)
                     atomtype_embedding_perelem_dict[key][1].extend(embsofatype)
     
+    print(atomtype_embedding_perelem_dict.keys())
     #print(atomtype_embedding_perelem_dict['c'][0])
-    print(f"lens of the different lists: {len(atomtype_embedding_perelem_dict['c'][0])} {len(atomtype_embedding_perelem_dict['c'][1])}")
+    # sanity checked, same embeddings for all c atom types before and after reshuffling
+    #print(f"lens of the different lists: {len(atomtype_embedding_perelem_dict['c'][0])} {len(atomtype_embedding_perelem_dict['c'][1])}")
     #print(f"shapes of the different lists: {shape(atomtype_embedding_perelem_dict['c'][0])} {shape(atomtype_embedding_perelem_dict['c'][1])}")
     ############### P F Cl 
     namestring="c"
@@ -832,7 +855,7 @@ if __name__ == "__main__":
     embeds_clean = get_clean_embeds(embeds, dikt, totalfails, task_SMILES)
     # within the dikt, map embeddings to atom types
     map_embeddings_to_atomtypes(dikt,task_SMILES)
-    # following this, the dict looks as follows:     
+    # following this, the dict looks as follows: atomtype_to_dict should be a list of tuples with atomtype and embeddings    
     # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding'])
     
     unique_atomtype_set = set(chain.from_iterable(dikt[key]['atom_types'] for key in dikt if dikt[key].get('atom_types') is not None))
