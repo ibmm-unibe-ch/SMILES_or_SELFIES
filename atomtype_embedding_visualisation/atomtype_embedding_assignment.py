@@ -17,6 +17,7 @@ from tokenisation import tokenize_dataset, get_tokenizer
 from constants import SEED
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from itertools import chain
 
 # requires Python 3.10.14
 
@@ -225,15 +226,15 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
                     for str1, str2 in zip(smi_clean, atoms_assignment_list):
                         assert(str1[1] if str1.startswith("[") else str1[0].lower() == str2[0].lower()), f"Atom assignment failed: {str1} != {str2}"
                     
-                    dikt[smi] = {"posToKeep": posToKeep, "smi_clean": smi_clean, "atomtypes": atoms_assignment_list, "max_penalty": max_penalty}
+                    dikt[smi] = {"posToKeep": posToKeep, "smi_clean": smi_clean, "atom_types": atoms_assignment_list, "max_penalty": max_penalty}
                     posToKeep_list.append(posToKeep)
                 else:
-                    dikt[smi] = {"posToKeep": None, "smi_clean": None, "atomtypes": None, "max_penalty": None}
+                    dikt[smi] = {"posToKeep": None, "smi_clean": None, "atom_types": None, "max_penalty": None}
                     failedSmiPos.append(num)
                     assignment_fail += 1
                     parmchkfailedSMILES.append(smi)
         else:
-            dikt[smi] = {"posToKeep": None, "smi_clean": None, "atomtypes": None, "max_penalty": None}
+            dikt[smi] = {"posToKeep": None, "smi_clean": None, "atom_types": None, "max_penalty": None}
             failedSmiPos.append(num)
             assignment_fail += 1
             acfailedSMILES.append(smi)
@@ -316,7 +317,7 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     # print(len(labels))
     return embeds
 
-def get_embeddings_from_model(task, TASK_MODEL_PATH, traintype, model):
+def get_embeddings_from_model(task, TASK_MODEL_PATH, traintype, model, smiles_dict):
     # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
     # path to finetuned models
     if traintype=="finetuned":
@@ -359,6 +360,7 @@ def get_embeddings_from_model(task, TASK_MODEL_PATH, traintype, model):
     
     embeds = []
     embeds = get_embeddings(task, specific_model_path, data_path, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
+    assert check_lengths(smiles_dict.values(), embeds), "Length of SMILES_tokens and embeddings do not agree."
     #print("got the embeddings")
     return embeds
 
@@ -404,6 +406,12 @@ def get_clean_embeds(embeds, dikt, creation_assignment_fail, task_SMILES):
     Returns:
         _list[float]_: Embeddings that do not encode hydrogens, digits, or structural tokens, but only atoms
     """
+    # some sanity checks on embeddings per SMILES
+    assert (len(dikt.keys())) == (len(
+        embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(dikt.keys())} of which {totalfails} failures and Number of embeddings: {len(embeds[0])}"
+    print(f"Number of SMILES: {len(dikt.keys())} with {totalfails} failures and Number of embeddings: {len(embeds[0])}")
+    
+    #check that every token has an embedding
     posToKeep_list = [value["posToKeep"] for value in dikt.values() if value["posToKeep"] is not None ]
     #only keep embeddings for SMILES where atoms could be assigned to types
     embeds_clean = list()
@@ -455,6 +463,345 @@ def get_clean_embeds(embeds, dikt, creation_assignment_fail, task_SMILES):
     logging.info("Cleaning embeddings finished, all checks passed")
     return embeds_cleaner
 
+def map_embeddings_to_atomtypes(dikt,task_SMILES):
+    for SMILES in task_SMILES:
+        if dikt[SMILES]["posToKeep"] is not None:
+            atomtype_to_embedding = {}
+            atom_types = dikt[SMILES]['atom_types']
+            embeddings = dikt[SMILES]['clean_embedding']
+            type_to_emb_dict = dict()
+            for atom_type, embedding in zip(atom_types, embeddings):
+                atomtype_to_embedding.setdefault(atom_type, []).append(embedding)
+                type_to_emb_dict[atom_type] = embedding
+                assert(atom_type.lower() if atom_type.lower() =='cl' else atom_type[0].lower()==(embedding[1][1].lower() if embedding[1].startswith("[") else embedding[1]).lower()), f"Atom assignment failed: {atom_type} != {embedding[1]}"
+            dikt[SMILES]["atomtype_to_embedding"] = type_to_emb_dict
+        else:
+            dikt[SMILES]["atomtype_to_embedding"]=None
+    logging.info("Embeddings mapped to atom types, all checks passed")
+    
+
+
+def colorstoatomtypesbyelement(atomtoelems_dict):
+    """Generating a dictionary of colors given a dictionary that maps atomtypes to elements
+
+    Args:
+        atomtoelems_dict (_dict_): Dictionary that maps atom types to elements
+
+    Returns:
+        _dict,: Dictionary that maps atom types to colors
+    """
+    # https://sashamaps.net/docs/resources/20-colors/ #95% accessible only, subject to change, no white
+    colors_sash = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
+                   '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000']
+   
+    colordict = dict()
+    for key in atomtoelems_dict.keys():
+        atypes = atomtoelems_dict[key]
+        keycoldict=dict()
+        for at, col in zip(atypes, colors_sash[0:len(atypes)]):
+            keycoldict[at]=col    
+        colordict[key]=keycoldict 
+    print(colordict.items())
+    
+    # now instead for each element, get colors for a combination of atomtypes
+    # p f cl o s
+    key='p f cl o s'
+    pfclos_types = atomtoelems_dict['p']+atomtoelems_dict['f']+atomtoelems_dict['cl']+atomtoelems_dict['o']+atomtoelems_dict['s']
+    keycoldicti=dict()
+    for at, col in zip(pfclos_types, colors_sash[0:len(pfclos_types)]):
+        keycoldicti[at]=col
+    colordict[key]=keycoldicti 
+    # c o
+    key='c o'
+    pfclos_types = atomtoelems_dict['c']+atomtoelems_dict['o']
+    keycoldicti=dict()
+    for at, col in zip(pfclos_types, colors_sash[0:len(pfclos_types)]):
+        keycoldicti[at]=col
+    colordict[key]=keycoldicti 
+    print(colordict.keys())
+    print(colordict.items())
+    return colordict
+
+def create_elementsubsets(atomtype_set):
+    """Creation of element subsets according to alphabet
+
+    Args:
+        big_set (_set_): Set of atom types
+    Returns:
+        _list,dict[string][list[float],list[string]]_: List of keys (elements), dictionary that contains embeddings and their atomtypes sorted by element
+    """
+    atomtype_set=sorted(atomtype_set)
+    element_dict = dict()
+    elements = list()
+    ctr=0
+    last_firstval = ''
+    for atype in atomtype_set:
+        if ctr==0:
+            last_firstval = atype[0]
+        if not atype.startswith('cl') and atype not in element_dict.items() and atype[0]==last_firstval:
+            #print(elements)
+            elements.append(atype)
+            element_dict[last_firstval] = elements
+        elif last_firstval != atype[0] and atype != 'cl':
+            element_dict[last_firstval] = elements
+            elements = list()
+            elements.append(atype)
+            last_firstval = atype[0]
+        ctr+=1
+    element_dict['cl']=['cl']
+    return element_dict
+
+def build_legend(data):
+    """
+    Build a legend for matplotlib plt from dict
+    """
+    legend_elements = []
+    for key in data:
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', label=key,
+                                      markerfacecolor=data[key], markersize=9))
+    return legend_elements
+
+def plot_umap(embeddings, labels, colours_dict, save_path, min_dist=0.1, n_neighbors=15, alpha=0.2):
+    """Performing UMAP and plotting it
+
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        set_list (_set(string)_): Set of atomtypes
+        save_path (_string_): Path where to save plot
+        min_dist (float, optional): Minimum distance for UMAP. Defaults to 0.1.
+        n_neighbors (int, optional): Number of neighbors for UMAP. Defaults to 15.
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
+    logging.info("Started plotting UMAP")
+    os.makedirs(save_path.parent, exist_ok=True)
+    reducer = umap.UMAP(
+        n_neighbors=n_neighbors, min_dist=min_dist, random_state=SEED + 6539
+    )
+    umap_embeddings = reducer.fit_transform(embeddings)
+    fig, ax = plt.subplots(1)
+    ax.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("UMAP 2", fontsize=17)
+    ax.set_xlabel("UMAP 1", fontsize=17)
+    ax.set_title("UMAP - Embeddings resp. to atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
+    fig.clf()
+
+
+def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
+    """Performing PCA and plotting it
+
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        save_path (_string_): Path where to save plot
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
+    logging.info("Started plotting PCA")
+    os.makedirs(save_path.parent, exist_ok=True)
+    pca = PCA(n_components=2, random_state=SEED + 6541)
+    pca_embeddings = pca.fit_transform(embeddings)
+    logging.info(
+        f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    )
+    explained_variance_percentages = [f"{var:.2%}" for var in pca.explained_variance_ratio_]  # Format as percentages
+    fig, ax = plt.subplots(1)
+    ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel(f"PCA 2, var {explained_variance_percentages[1]}", fontsize=17)
+    ax.set_xlabel(f"PCA 1, var {explained_variance_percentages[0]}", fontsize=17)
+    ax.set_title("PCA - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
+    fig.clf()
+
+def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
+    """Performing Linear Discriminant Analysis and plotting it
+
+    Args:
+        embeddings (_list[float]_): Embeddings of one element or a subgroup
+        labels (_list[string]_): List of assigned atom types
+        colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
+        save_path (_string_): Path where to save plot
+        alpha (float, optional): Level of opacity. Defaults to 0.2.
+    """
+    logging.info("Started plotting LDA")
+    os.makedirs(save_path.parent, exist_ok=True)
+    lda = LDA(n_components=2)
+    lda_embeddings = lda.fit_transform(embeddings,labels)
+    #logging.info(
+    #    f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    #)
+    fig, ax = plt.subplots(1)
+    ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("LDA 2", fontsize=17)
+    ax.set_xlabel("LDA 1", fontsize=17)
+    ax.set_title("LDA - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(f"{save_path}.svg", format="svg", bbox_inches='tight', transparent=True)
+    fig.clf()
+    
+    # same but random labels
+    lda = LDA(n_components=2)
+    random_labels=labels.copy()
+    np.random.shuffle(random_labels)
+    lda_embeddings = lda.fit_transform(embeddings,random_labels)
+    #logging.info(
+    #    f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
+    #)
+    fig, ax = plt.subplots(1)
+    ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
+               colours_dict[x] for x in random_labels])
+    legend_elements = build_legend(colours_dict)
+    ax.legend(handles=legend_elements, loc='center right',
+              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.set_ylabel("LDA 2", fontsize=17)
+    ax.set_xlabel("LDA 1", fontsize=17)
+    ax.set_title("LDA random - Embeddings resp. atom types", fontsize=21)
+    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines["bottom"].set_linewidth(2)
+    ax.spines["left"].set_linewidth(2)
+    ax.tick_params(length=8, width=3, labelsize=15)
+    fig.savefig(f"{save_path}_random.svg", format="svg", bbox_inches='tight', transparent=True)
+    fig.clf()
+
+
+def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, namestring, save_path_prefix, atomtype2color, min_dist, n_neighbors, alpha):
+    #create paths on what to name the plots
+    pathway = Path(str(save_path_prefix) +
+                   f"umap_{min_dist}_{n_neighbors}_{namestring}.svg")
+    pathway_pca = Path(str(save_path_prefix) + f"pca_{namestring}.svg")
+    pathway_lda = Path(str(save_path_prefix) + f"lda_{namestring}")
+    
+    # plot UMAP
+    #plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
+    # plot PCA
+    plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
+             atomtype2color[namestring], pathway_pca, alpha)
+    # plot LDA
+    plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
+             atomtype2color[namestring], pathway_lda, alpha)
+
+def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix):
+    """Create plot per element and for all element subsets
+
+    Args:
+        dikt (_dict_): Dictionary of atom mappings etc
+        colordict (_dict[string][dict[string],[color]]): Dictionary that maps atom types to colors
+        penalty_threshold (_float_): Threshold for max penalty score
+        min_dist (_float_): Number of min dist to use in UMAP
+        n_neighbors (_int_): Number of neighbors to use in UMAP
+        alpha (_int_): Level of opacity
+        save_path_prefix (_string_): Path prefix where to save output plot
+    """
+    print(colordict.keys())
+    # Assuming 'dikt' is your dictionary and each value has a 'penalty_score' key
+    filtered_dict = {smiles: info for smiles, info in dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
+    #print(filtered_dict.items())
+    for key, value in filtered_dict.items():
+        print(value['max_penalty'])
+    
+    atomtype_to_embedding_dicts = [value['atomtype_to_embedding'] for value in filtered_dict.values() if 'atomtype_to_embedding' in value and value['atomtype_to_embedding'] is not None]
+    
+    # sort embeddings according to atomtype, I checked it visually and the mapping works
+    embeddings_by_atomtype = {}  # Dictionary to hold lists of embeddings for each atom type
+
+    for atom_type_dict in atomtype_to_embedding_dicts:
+        # go through single dictionary
+        for atom_type, embeddings in atom_type_dict.items():
+            print(f"atomtype {atom_type} embeddings {embeddings[1]}")
+            if atom_type not in embeddings_by_atomtype:
+                embeddings_by_atomtype[atom_type] = []
+            # extend the list of embeddings for this atom type(, but only by the embedding not the attached token)
+            embeddings_by_atomtype[atom_type].append(embeddings[0])
+            print(len(embeddings[0]))
+    print(embeddings_by_atomtype.keys())
+    
+    # sort dictionary that is mapping embeddings to atomtypes to elements so that e.g. all carbon atom types can be accessed at once in one list
+    atom_types_repeated = []
+    embeddings_list = []
+    atomtype_embedding_perelem_dict = dict()
+    ctr = 0
+    for key in colordict.keys():
+        print(f"key {key}")
+        for atype in colordict[key]:
+            print(atype) 
+            if atype in embeddings_by_atomtype.keys():
+                embsofatype = embeddings_by_atomtype[atype]
+                atypes = [atype] * len(embeddings_by_atomtype[atype])
+                assert len(embsofatype) == len(atypes), "Length of embeddings and atom types do not match."
+                if key not in atomtype_embedding_perelem_dict:
+                    atomtype_embedding_perelem_dict[key] = ([],[])
+                if key in atomtype_embedding_perelem_dict:
+                    atomtype_embedding_perelem_dict[key][0].extend(atypes)
+                    atomtype_embedding_perelem_dict[key][1].extend(embsofatype)
+    
+    #print(atomtype_embedding_perelem_dict['c'][0])
+    print(f"lens of the different lists: {len(atomtype_embedding_perelem_dict['c'][0])} {len(atomtype_embedding_perelem_dict['c'][1])}")
+    #print(f"shapes of the different lists: {shape(atomtype_embedding_perelem_dict['c'][0])} {shape(atomtype_embedding_perelem_dict['c'][1])}")
+    ############### P F Cl 
+    namestring="c"
+    plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
+    """
+    ############## P F Cl O -
+    namestring="pfclo"
+    plot_umap_pca_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
+   
+    ############## P F Cl S 
+    namestring="pfcls"
+    plot_umap_pca_lda(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
+    
+    ############## C O
+    namestring="co"
+    plot_umap_pca_lda(c_o_list_embs, c_o_list_assigs, save_path_prefix, namestring, atomtype2color_co, min_dist, n_neighbors, alpha)
+
+    print("Plotting................................BY ELEMENT")
+    # plot all atomtypes of one element only
+    for key in keylist:
+        print(f"#######KEY {key}\n")
+        pathway_umap = Path(str(save_path_prefix) +
+                            f"umap_{min_dist}_{n_neighbors}_{key}_1.svg")
+        pathway_pca = Path(str(save_path_prefix) + f"pca_{key}_1.svg")
+        pathway_lda = Path(str(save_path_prefix) + f"lda_{key}_1")
+        embeddings = dikt_forelems[key][0]
+        assignments = dikt_forelems[key][1]
+        atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
+
+        try:
+            assert len(embeddings) == (len(assignments)), "Assignments and embeddings do not have same length."
+            assert len(embeddings)>10, "Not enough embeddings for plotting"
+            print(f"len embeddings of key {key}: {len(embeddings)}")
+            plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
+            plot_lda(embeddings, assignments, atomtype2color, pathway_lda, alpha)
+            plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
+        except AssertionError as e:
+            print(f"Assertion error occurred for element {key}: {e}")
+            continue """
+
+
 if __name__ == "__main__":
 
     # get SMILES from task
@@ -472,8 +819,6 @@ if __name__ == "__main__":
     smiles_dict = get_tokenized_SMILES(task_SMILES)
     
     # get atom assignments from folder that contains antechamber atom assignments and parmchk files
-    #smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = load_assignments_from_folder(
-        #"./delaney_mols_bccc0_gaff2_assigned", smiles_dict, task_SMILES)
     dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder("./delaney_mols_bccc0_gaff2_assigned", smiles_dict, task_SMILES)
     
     #get embeddings from model
@@ -481,17 +826,29 @@ if __name__ == "__main__":
     pretrained_TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
     model = "BART"
     traintype = "finetuned"
-    embeds = get_embeddings_from_model(task, finetuned_TASK_MODEL_PATH, traintype, model)
-    
-    # some sanity checks on embeddings per SMILES
-    assert (len(dikt.keys())) == (len(
-        embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(dikt.keys())} of which {totalfails} failures and Number of embeddings: {len(embeds[0])}"
-    print(f"Number of SMILES: {len(dikt.keys())} with {totalfails} failures and Number of embeddings: {len(embeds[0])}")
-    #check that every token has an embedding
-    assert check_lengths(
-        smiles_dict.values(), embeds), "Length of SMILES_tokens and embeddings do not agree."
-    #print("embeddings passed length checks")
+    embeds = get_embeddings_from_model(task, finetuned_TASK_MODEL_PATH, traintype, model, smiles_dict)
 
     #get rid of embeddings that encode for digits or hydrogens
     embeds_clean = get_clean_embeds(embeds, dikt, totalfails, task_SMILES)
-    #assert check_lengths()
+    # within the dikt, map embeddings to atom types
+    map_embeddings_to_atomtypes(dikt,task_SMILES)
+    # following this, the dict looks as follows:     
+    # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding'])
+    
+    unique_atomtype_set = set(chain.from_iterable(dikt[key]['atom_types'] for key in dikt if dikt[key].get('atom_types') is not None))
+    atomtypes_to_elems_dict = create_elementsubsets(unique_atomtype_set)
+
+    # get colors for atomtypes by element and element groups
+    colordict = colorstoatomtypesbyelement(atomtypes_to_elems_dict)
+
+    # plot embeddings
+    min_dist = 0.1
+    n_neighbors = 15
+    alpha = 0.8
+    penalty_threshold = 300
+    save_path_prefix = f"./4July_{model}_{traintype}_thresh{penalty_threshold}/"
+    create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
+    
+    
+    
+    
