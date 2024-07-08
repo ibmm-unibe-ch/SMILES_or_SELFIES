@@ -329,6 +329,7 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
         subfolder = "smiles_atom_isomers"
     elif rep=="selfies":
         subfolder="selfies_atom_isomers"
+        
     if traintype=="finetuned":
         if model=="BART":
             # path for BART  
@@ -340,14 +341,24 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
             / "checkpoint_best.pt"
             )
         else:
-            #path for RoBERTa
-            specific_model_path = (
-                finetuned_TASK_MODEL_PATH
-                / task
-                / f"{subfolder}_roberta"
-                / "1e-05_0.2_seed_0" 
-                / "checkpoint_best.pt"
-            )
+            if rep=='selfies':
+                #path for RoBERTa
+                specific_model_path = (
+                    finetuned_TASK_MODEL_PATH
+                    / task
+                    / f"{subfolder}_roberta"
+                    / "5e-06_0.2_seed_0" 
+                    / "checkpoint_best.pt"
+                )
+            else:
+                #path for RoBERTa
+                specific_model_path = (
+                    finetuned_TASK_MODEL_PATH
+                    / task
+                    / f"{subfolder}_roberta"
+                    / "1e-05_0.2_seed_0" 
+                    / "checkpoint_best.pt"
+                )
     # ----------------------specific model paths for pretrained models of BART and RoBERTa-------------------------
     elif traintype=="pretrained":
         if model=="BART":
@@ -938,7 +949,7 @@ if __name__ == "__main__":
 
     #get embeddings from model
 
-    model = "BART"
+    model = "ROBERTA"
     traintype = "finetuned"
     rep = "smiles"
     embeds = get_embeddings_from_model(task, traintype, model, rep, smiles_dict.keys(), smiles_dict.values())
@@ -974,8 +985,7 @@ if __name__ == "__main__":
     print(f"mappings {maps_num}")
     
     rep="selfies"
-    model = "BART"
-    traintype = "finetuned"
+    # traintype and model speicfied above
     embeds_selfies = get_embeddings_from_model(task, traintype, model, rep, selfies, selfies_tokenised)
     
     # map selfies embeddings to smiles in smiles_dict
