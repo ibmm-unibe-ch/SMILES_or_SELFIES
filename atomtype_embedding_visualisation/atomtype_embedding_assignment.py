@@ -820,7 +820,11 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
     #        cs+=1
     print("cs-----------------",cs)   
     # Assuming 'dikt' is your dictionary and each value has a 'penalty_score' key
-    filtered_dict = {smiles: info for smiles, info in dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
+    filtered_dict_filterthresh = {smiles: info for smiles, info in dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
+    
+    # there are less SELFIES embeddings that could be mapped to the SMILES and thereby the atomtypes, so the number of embeddings is less
+    # therefore filter filtered_dict further on what is available for SELFIES and also what is available for SMILES
+    filtered_dict = {smiles: info for smiles, info in filtered_dict_filterthresh.items() if info['atomtype_to_embedding'] is not None and info['atomtype_to_clean_selfies_embedding'] is not None}
     print("keys in filtered dict:",len(filtered_dict.keys()))
     #for key, value in filtered_dict.items():
     #    print(value['max_penalty'])
@@ -835,66 +839,6 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
     print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
     plot_plots(atomtype_embedding_perelem_dict_selfies, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}selfies")
     
-    """ atomtype_to_embedding_lists_selfies = [value['atomtype_to_clean_selfies_embedding'] for value in filtered_dict.values() if 'atomtype_to_clean_selfies_embedding' in value and value['atomtype_to_clean_selfies_embedding'] is not None]
-    print("len selfies atomtype to embedding:",len(atomtype_to_embedding_lists_selfies))
-    
-    # sort embeddings according to atomtype, I checked it visually and the mapping works
-    embeddings_by_atomtype_selfies = {}  # Dictionary to hold lists of embeddings for each atom type
-    listembeddings = list()
-    for atom_type_list in atomtype_to_embedding_lists_selfies:
-        # go through single dictionary
-        for tuple in atom_type_list:
-           # print(f"atomtype {atom_type} embeddings {embeddings[1]}")
-            if tuple[0] not in embeddings_by_atomtype_selfies:
-                embeddings_by_atomtype_selfies[tuple[0]] = []
-            # extend the list of embeddings for this atom type(, but ONLY by the embedding not the attached token)
-            embeddings_by_atomtype_selfies[tuple[0]].append(tuple[1][0])
-            #print("\ntuple01",len(tuple[1][0]),tuple[1][0])
-            #print(len(embeddings[0]))
-    print("embeddings c",len(embeddings_by_atomtype_selfies['c']))
-    
-    # sort dictionary that is mapping embeddings to atomtypes to elements so that e.g. all carbon atom types can be accessed at once in one list
-    #atom_types_repeated_selfies = []
-    #embeddings_list_selfies = []
-    atomtype_embedding_perelem_dict_selfies = dict()
-    ctr = 0
-    for key in colordict.keys():
-        print(f"key {key}")
-        for atype in colordict[key]:
-            print(atype) 
-            if atype in embeddings_by_atomtype_selfies.keys():
-                embsofatype = embeddings_by_atomtype_selfies[atype]
-                atypes = [atype] * len(embeddings_by_atomtype_selfies[atype])
-                assert len(embsofatype) == len(atypes), "Length of embeddings and atom types do not match."
-                if key not in atomtype_embedding_perelem_dict_selfies:
-                    atomtype_embedding_perelem_dict_selfies[key] = ([],[])
-                if key in atomtype_embedding_perelem_dict_selfies:
-                    atomtype_embedding_perelem_dict_selfies[key][0].extend(atypes)
-                    atomtype_embedding_perelem_dict_selfies[key][1].extend(embsofatype)
-    
-    print("selfies atomtypes keys: ",atomtype_embedding_perelem_dict_selfies.keys())
-    # ------------------------------------------------------SELFIES atomtypes end
-    
-    #print(atomtype_embedding_perelem_dict['c'][1])
-    # sanity checked, same embeddings for all c atom types before and after reshuffling
-    #print(f"lens of the different lists: {len(atomtype_embedding_perelem_dict['c'][0])} {len(atomtype_embedding_perelem_dict['c'][1])}")
-    #print(f"shapes of the different lists: {shape(atomtype_embedding_perelem_dict['c'][0])} {shape(atomtype_embedding_perelem_dict['c'][1])}")
-    ############### P F Cl 
-    
-    ############## P F Cl O -
-    namestring="pfclo"
-    plot_umap_pca_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
-   
-    ############## P F Cl S 
-    namestring="pfcls"
-    plot_umap_pca_lda(p_f_cl_s_list_embs, p_f_cl_s_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
-    
-    ############## C O
-    namestring="co"
-    plot_umap_pca_lda(c_o_list_embs, c_o_list_assigs, save_path_prefix, namestring, atomtype2color_co, min_dist, n_neighbors, alpha)
-    """
-    
-
 def map_selfies_embeddings_to_smiles(embeds_selfies, smiles_to_selfies_mapping, dikt):
     """Map  clean SELFIES embeddings to their corresponding SMILES and atomtypes
     Args:
