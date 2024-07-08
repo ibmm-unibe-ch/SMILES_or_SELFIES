@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 from pathlib import Path
 import re
 import pandas as pd
-from fairseq_utils import compute_model_output, compute_model_output_RoBERTa, load_dataset, load_BART_model, load_model
+from fairseq_utils import compute_model_output, compute_model_output_RoBERTa, load_dataset, load_model
 from fairseq.data import Dictionary
 from deepchem.feat import RawFeaturizer
 from tokenisation import tokenize_dataset, get_tokenizer
@@ -18,8 +18,9 @@ from constants import SEED
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from itertools import chain
+from SMILES_to_SELFIES_mapping import canonize_smiles, generate_mapping, generate_mappings_for_task_SMILES_to_SELFIES
 
-# requires Python 3.10.14
+# requires Python 3.10.14, running with attentionviz2 environment
 
 from constants import (
    # TASK_MODEL_PATH,
@@ -254,7 +255,7 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
     
     return dikt, totalfails, failedSmiPos, posToKeep_list
 
-def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: int):
+def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: int, task_reps: List[str]):
     """Generate the embeddings dict of a task
     Args:
         task (str): Task to find attention of
@@ -262,7 +263,7 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     Returns:
         Tuple[List[List[float]], np.ndarray]: attention, labels
     """
-    task_SMILES, task_labels = load_molnet_test_set(task)
+    #task_SMILES, task_labels = load_molnet_test_set(task)
 
     #data_path = "/data/jgut/SMILES_or_SELFIES/task/delaney/smiles_atom_isomers"
     model = load_model(specific_model_path, data_path, cuda)
@@ -273,12 +274,13 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     dataset = load_dataset(data_path, True)
     source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
-    assert len(task_SMILES) == len(
+    assert len(task_reps) == len(
         dataset
-    ), f"Real and filtered dataset {task} do not have same length."
+    ), f"Real and filtered dataset {task} do not have same length: len(task_reps): {len(task_reps)} vs. len(dataset):{len(dataset)} ."
+    
 
     #text = [canonize_smile(smile) for smile in task_SMILES]
-    text = [smile for smile in task_SMILES]
+    text = [rep for rep in task_reps]
     embeds= []
     tokenizer = None
     if "bart" in str(specific_model_path):
@@ -311,31 +313,38 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
         )
    # print("attention encodings",len(attention_encodings[0]))
    # print(len(attention_encodings))
-    output = list(zip(*embeds))
-    labels = np.array(task_labels).transpose()[0]
+    #output = list(zip(*embeds))
+    #labels = np.array(task_labels).transpose()[0]
     # print("labels",labels)
     # print(len(labels))
     return embeds
 
-def get_embeddings_from_model(task, TASK_MODEL_PATH, traintype, model, smiles_dict):
+def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenisedreps):
     # ----------------------specific model paths for Delaney for BART and RoBERTa-------------------------
+    finetuned_TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
+    pretrained_TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
     # path to finetuned models
+    subfolder=""
+    if rep=="smiles":
+        subfolder = "smiles_atom_isomers"
+    elif rep=="selfies":
+        subfolder="selfies_atom_isomers"
     if traintype=="finetuned":
         if model=="BART":
             # path for BART  
             specific_model_path = (
-            TASK_MODEL_PATH
+            finetuned_TASK_MODEL_PATH
             / task
-            / "smiles_atom_isomers_bart"
+            / f"{subfolder}_bart"
             / "1e-05_0.2_seed_0" 
             / "checkpoint_best.pt"
             )
         else:
             #path for RoBERTa
             specific_model_path = (
-                TASK_MODEL_PATH
+                finetuned_TASK_MODEL_PATH
                 / task
-                / "smiles_atom_isomers_roberta"
+                / f"{subfolder}_roberta"
                 / "1e-05_0.2_seed_0" 
                 / "checkpoint_best.pt"
             )
@@ -344,23 +353,23 @@ def get_embeddings_from_model(task, TASK_MODEL_PATH, traintype, model, smiles_di
         if model=="BART":
             # path for BART   
             specific_model_path = (
-                TASK_MODEL_PATH
-                / "smiles_atom_isomers_bart"
+                pretrained_TASK_MODEL_PATH
+                / f"{subfolder}_bart"
                 / "checkpoint_last.pt"
             ) 
         else:
             #path for RoBERTa
             specific_model_path = (
-            TASK_MODEL_PATH
-            / "smiles_atom_isomers_roberta"
+            pretrained_TASK_MODEL_PATH
+            / f"{subfolder}_roberta"
             / "checkpoint_last.pt"
             )
     print("specific model path: ",specific_model_path)
-    data_path = TASK_PATH / task / "smiles_atom_isomers"
+    data_path = TASK_PATH / task / f"{subfolder}"
     
     embeds = []
-    embeds = get_embeddings(task, specific_model_path, data_path, False) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
-    assert check_lengths(smiles_dict.values(), embeds), "Length of SMILES_tokens and embeddings do not agree."
+    embeds = get_embeddings(task, specific_model_path, data_path, False, reps) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
+    assert check_lengths(listoftokenisedreps, embeds), "Length of SMILES_tokens and embeddings do not agree."
     #print("got the embeddings")
     return embeds
 
@@ -376,15 +385,17 @@ def check_lengths(smi_toks, embeds):
     smismaller = 0
     new_embs = list()
     for smi, embs in zip(smi_toks, embeds[0]):
-        if len(smi) == len(embs):
-            samenums += 1
-            new_embs.append(embs)
-        else:
-            print(f"smilen: {len(smi)} emblen: {len(embs)}")
-            print(f"{smi} and len diff {len(smi)-len(embs)}")
-            diffnums += 1
-            if len(smi) < len(embs):
-                smismaller += 1
+        # only compare when both are not None)
+        if embs is not None and smi is not None:
+            if len(smi) == len(embs):
+                samenums += 1
+                new_embs.append(embs)
+            else:
+                print(f"smilen: {len(smi)} emblen: {len(embs)}")
+                print(f"{smi} and len diff {len(smi)-len(embs)}")
+                diffnums += 1
+                if len(smi) < len(embs):
+                    smismaller += 1
     if diffnums == 0:
         return True
     else:
@@ -477,7 +488,7 @@ def map_embeddings_to_atomtypes(dikt,task_SMILES):
                 assert(atom_type.lower() if atom_type.lower() =='cl' else atom_type[0].lower()==(embedding[1][1].lower() if embedding[1].startswith("[") else embedding[1]).lower()), f"Atom assignment failed: {atom_type} != {embedding[1]}"
             dikt[SMILES]["atomtype_to_embedding"] = type_to_emb_tuples_list
         else:
-            dikt[SMILES]["atomtype_to_embedding"]=None
+            dikt[SMILES]["atomtype_to_embedding"]= (None,None)
     logging.info("Embeddings mapped to atom types, all checks passed")
     
 
@@ -824,6 +835,80 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
             print(f"Assertion error occurred for element {key}: {e}")
             continue """
 
+def map_selfies_embeddings_to_smiles(embeds_selfies, smiles_to_selfies_mapping, dikt):
+    """Map  clean SELFIES embeddings to their corresponding SMILES and atomtypes
+    Args:
+        embeds_selfies (_list_): List of lists of SELFIES embeddings
+        smiles_to_selfies_mapping (_dict_): Dictionary that maps SMILES to SELFIES and SELFIES tokens to SMILES tokens (mappings[smiles]['selfiesstr_tok_map'] = (selfies_str,tokenised_selfies,mapping))
+        dikt (_dict_): Dictionary of atom mappings etc
+    Returns:
+        adds SELFIES embeddings to atomtype mappings to dikt
+    """
+    # get embeddings for SELFIES that have a mapping to SMILES and map to SMILES in smiles_to_selfies_mapping
+    for emb, smiles in zip(embeds_selfies[0], smiles_to_selfies_mapping.keys()):
+        # Check if the mapping for the current smiles has a non-None value at index 2 for mapping of SELFIES to SMILES
+        if smiles_to_selfies_mapping[smiles]['selfiesstr_tok_map'][2] is not None:
+            # If so, set 'selfies_emb' to emb, otherwise set it to None
+            smiles_to_selfies_mapping[smiles].setdefault("raw_selfies_emb", emb)
+        else:
+            smiles_to_selfies_mapping[smiles].setdefault("raw_selfies_emb", None)
+
+    print("within", len(dikt.keys()))
+    for key,val in dikt.items():
+        #print("smiles:",key, val['atomtype_to_embedding'][0])
+        if key in smiles_to_selfies_mapping.keys():
+            # get list with positions to keep from dikt
+            #if assignment failed posToKeep will be empty, then there is no need to map anything
+            posToKeep = dikt[key]["posToKeep"]
+            if posToKeep is not None:
+               # print("selfies:", smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][0], smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][1])
+                # if mapping exists
+                if smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][2] is not None and smiles_to_selfies_mapping[key]['raw_selfies_emb'] is not None:
+                   # print("key:",key)
+                   # print("1111111111: ",smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][1])
+                   # print("1111111111: ",smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][2].keys())
+                    # 1 atom mappings and number of embeddings do not have to be even because branch, ring and overloaded tokens cannot be mapped to tokens in canonized SMILES
+                    # 1 keep only the mebeddings that have a mapping
+                    embs_with_mapping = []
+                    for x, val in smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][2].items():
+                        token_id = x[0]
+                        #print("\ttoken:",x[1])
+                        #print("\ttoken id:",x[0]) 
+                        #print("\t in embedding: ",smiles_to_selfies_mapping[key]['raw_selfies_emb'][token_id][1])
+                        #print()
+                        #print("maps to smiles id: ",val)
+                        #print()
+                        assert x[1]==smiles_to_selfies_mapping[key]['raw_selfies_emb'][token_id][1], f"Token {x[1]} does not match token {smiles_to_selfies_mapping[key]['raw_selfies_emb'][token_id][1]}"
+                        embs_with_mapping.append((val, smiles_to_selfies_mapping[key]['raw_selfies_emb'][token_id]))
+                        #embs_with_mapping.append(smiles_to_selfies_mapping[key]['raw_selfies_emb'][token_id])
+                    # 2 resort embeddings according to their position in the SMILES string
+                    embs_with_mapping = sorted(embs_with_mapping, key=lambda item: item[0])
+                    #print("sorted ", [key for key, _ in embs_with_mapping])
+                   ## for _, value in embs_with_mapping:
+                     #   print(value[1])
+                    # 3 only keep embeddings with smiles id that belong to id that is in posToKeepList
+                    filtered_embs = [(key, value) for key, value in embs_with_mapping if key in posToKeep]
+                    # 4 assert that the length of the filtered embeddings is the same as the length of the posToKeep list
+                    assert len(filtered_embs) == len(posToKeep), f"Length of filtered embeddings {len(filtered_embs)} and posToKeep list {len(posToKeep)} do not agree."
+                    # 5 map the filtered embeddings to the atom types
+                    atomtypes= dikt[key]['atom_types']
+                    assert len(atomtypes) == len(filtered_embs), f"Length of atom types {len(atomtypes)} and filtered embeddings {len(filtered_embs)} do not agree."
+                    atomtypes_to_selfies_embs = []
+                    for atomtype, emb in zip(atomtypes, filtered_embs):
+                        atomtypes_to_selfies_embs.append((atomtype, emb[1]))  
+                        # assert letters of atomtype and token of embedding match
+                        # checked visually, looks good
+                        #print("----------------------------------------------------")
+                        #print(f"atomtype {atomtype} emb {emb[1][1]}")
+                        
+                    # 6 attach this dictionary with name 'atomtype_to_clean_selfies_embedding' to the dikt
+                    dikt[key].setdefault("atomtype_to_clean_selfies_embedding", atomtypes_to_selfies_embs) 
+                else:
+                    dikt[key].setdefault("atomtype_to_clean_selfies_embedding", None)
+            else:
+                dikt[key].setdefault("atomtype_to_clean_selfies_embedding", None)
+        else:
+            dikt[key].setdefault("atomtype_to_clean_selfies_embedding", None)            
 
 if __name__ == "__main__":
 
@@ -837,19 +922,22 @@ if __name__ == "__main__":
     # get SMILES from task
     task_SMILES, task_labels = load_molnet_test_set(task)
     print(f"SMILES: {task_SMILES} \n len task_SMILES delaney: {len(task_SMILES)}")
-
+    
+    # make sure all task SMILES are the canonical SMILES
+    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    
     # get tokenized version of dataset, SMILES mapped to tokenised version
     smiles_dict = get_tokenized_SMILES(task_SMILES)
     
     # get atom assignments from folder that contains antechamber atom assignments and parmchk files
     dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder("./delaney_mols_bccc0_gaff2_assigned", smiles_dict, task_SMILES)
-    
+
     #get embeddings from model
-    finetuned_TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
-    pretrained_TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
+
     model = "BART"
     traintype = "finetuned"
-    embeds = get_embeddings_from_model(task, finetuned_TASK_MODEL_PATH, traintype, model, smiles_dict)
+    rep = "smiles"
+    embeds = get_embeddings_from_model(task, traintype, model, rep, smiles_dict.keys(), smiles_dict.values())
 
     #get rid of embeddings that encode for digits or hydrogens
     embeds_clean = get_clean_embeds(embeds, dikt, totalfails, task_SMILES)
@@ -857,6 +945,49 @@ if __name__ == "__main__":
     map_embeddings_to_atomtypes(dikt,task_SMILES)
     # following this, the dict looks as follows: atomtype_to_dict should be a list of tuples with atomtype and embeddings    
     # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding'])
+    
+    
+    ## SELFIES------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # get SELFIES equivalent of SMILES and mapping between them
+    smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
+    
+    selfies_tokenised = []
+    selfies = []
+    maps_num = 0
+    for key in smiles_to_selfies_mapping.keys():
+        print(f"SMILES: {key} SELFIES: {smiles_to_selfies_mapping[key]}")
+        selfies_tokenised.append(smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][1])
+        selfies.append(smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][0])
+        if smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][2] is not None:
+            maps_num +=1
+            for key2,val in smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][2].items():
+                print(f"SELFIES index:{key2[0]} with token:{key2[1]}\tmaps to SMILES token at pos: {val}")
+        print()
+        
+    print(f"list of tokenised selfies: {selfies_tokenised}")
+    print(f"selfies {selfies} with len() {len(selfies)}")
+    print(f"mappings {maps_num}")
+    
+    rep="selfies"
+    model = "BART"
+    traintype = "finetuned"
+    embeds_selfies = get_embeddings_from_model(task, traintype, model, rep, selfies, selfies_tokenised)
+    
+    # map selfies embeddings to smiles in smiles_dict
+    map_selfies_embeddings_to_smiles(embeds_selfies, smiles_to_selfies_mapping, dikt)
+     
+    # SELFIES embeddings mapped to atomtypes-------------------------------------------------------------------------------------------------------------------------     
+
+       
+    """ if dikt[key]['atomtype_to_clean_selfies_embedding'] is not None:
+            #print(f"val {val["atomtype_to_clean_selfies_embedding"]}")
+            for key2,val2 in dikt[key]["atomtype_to_clean_selfies_embedding"].items():
+                print(f"\tkey2: {key2} and emb tok: {val2[1]}") """
+
+     
+      
+    """
     
     unique_atomtype_set = set(chain.from_iterable(dikt[key]['atom_types'] for key in dikt if dikt[key].get('atom_types') is not None))
     atomtypes_to_elems_dict = create_elementsubsets(unique_atomtype_set)
@@ -870,7 +1001,7 @@ if __name__ == "__main__":
     alpha = 0.8
     penalty_threshold = 300
     save_path_prefix = f"./4July_{model}_{traintype}_thresh{penalty_threshold}/"
-    create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
+    create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix) """
     
     
     
