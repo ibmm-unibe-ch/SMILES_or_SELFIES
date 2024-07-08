@@ -605,7 +605,7 @@ def plot_umap(embeddings, labels, colours_dict, save_path, min_dist=0.1, n_neigh
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
     ax.tick_params(length=8, width=3, labelsize=15)
-    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
+    fig.savefig(f"{save_path}.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
 
@@ -640,7 +640,7 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
     ax.tick_params(length=8, width=3, labelsize=15)
-    fig.savefig(save_path, format="svg", bbox_inches='tight', transparent=True)
+    fig.savefig(f"{save_path}.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
 def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
@@ -704,18 +704,95 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
 def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, namestring, save_path_prefix, atomtype2color, min_dist, n_neighbors, alpha):
     #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
-                   f"umap_{min_dist}_{n_neighbors}_{namestring}.svg")
-    pathway_pca = Path(str(save_path_prefix) + f"pca_{namestring}.svg")
+                   f"umap_{min_dist}_{n_neighbors}_{namestring}")
+    pathway_pca = Path(str(save_path_prefix) + f"pca_{namestring}")
     pathway_lda = Path(str(save_path_prefix) + f"lda_{namestring}")
     
-    # plot UMAP
-    #plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
+ 
     # plot PCA
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color[namestring], pathway_pca, alpha)
     # plot LDA
     plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color[namestring], pathway_lda, alpha)
+    # plot UMAP
+   # plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
+   
+def get_atomtype_embedding_perelem_dict(filtered_dict, colordict, entry_name_atomtype_to_embedding):
+    atomtype_to_embedding_lists = [value[entry_name_atomtype_to_embedding] for value in filtered_dict.values() if entry_name_atomtype_to_embedding in value and value[entry_name_atomtype_to_embedding] is not None]
+    print("len atomtype to embedding list smiles: ",len(atomtype_to_embedding_lists))
+    
+    # sort embeddings according to atomtype, I checked it visually and the mapping works
+    embeddings_by_atomtype = {}  # Dictionary to hold lists of embeddings for each atom type
+    #listembeddings = list()
+    for atom_type_list in atomtype_to_embedding_lists:
+        # go through single dictionary
+        for tuple in atom_type_list:
+           # print(f"atomtype {atom_type} embeddings {embeddings[1]}")
+            if tuple[0] not in embeddings_by_atomtype:
+                embeddings_by_atomtype[tuple[0]] = []
+            # extend the list of embeddings for this atom type(, but ONLY by the embedding not the attached token)
+            embeddings_by_atomtype[tuple[0]].append(tuple[1][0])
+            #print("\ntuple01",len(tuple[1][0]),tuple[1][0])
+            #print(len(embeddings[0]))
+    print("embeddings c",len(embeddings_by_atomtype['c']))
+    
+    # sort dictionary that is mapping embeddings to atomtypes to elements so that e.g. all carbon atom types can be accessed at once in one list
+    #atom_types_repeated = []
+    #embeddings_list = []
+    atomtype_embedding_perelem_dict = dict()
+    ctr = 0
+    for key in colordict.keys():
+        print(f"key {key}")
+        for atype in colordict[key]:
+            print(atype) 
+            if atype in embeddings_by_atomtype.keys():
+                embsofatype = embeddings_by_atomtype[atype]
+                atypes = [atype] * len(embeddings_by_atomtype[atype])
+                assert len(embsofatype) == len(atypes), "Length of embeddings and atom types do not match."
+                if key not in atomtype_embedding_perelem_dict:
+                    atomtype_embedding_perelem_dict[key] = ([],[])
+                if key in atomtype_embedding_perelem_dict:
+                    atomtype_embedding_perelem_dict[key][0].extend(atypes)
+                    atomtype_embedding_perelem_dict[key][1].extend(embsofatype)
+    
+    print(atomtype_embedding_perelem_dict.keys())
+    return atomtype_embedding_perelem_dict
+
+def plot_plots(atomtype_embedding_perelem_dict, colordict, min_dist, n_neighbors, alpha, save_path_prefix):
+    namestring="c"
+    plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
+    
+    namestring="p f cl o s"
+    plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
+    
+    namestring = "c o"
+    plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
+    
+    print("Plotting................................BY ELEMENT")
+    # plot all atomtypes of one element only
+    for key in colordict.keys():
+        if len(key)<=2 and key!='cl' and key in atomtype_embedding_perelem_dict.keys():
+            print(f"#######KEY {key}\n")
+            pathway_umap = Path(str(save_path_prefix) +
+                                f"umap_{min_dist}_{n_neighbors}_{key}.svg")
+            pathway_pca = Path(str(save_path_prefix) + f"pca_{key}.svg")
+            pathway_lda = Path(str(save_path_prefix) + f"lda_{key}.svg")
+            embeddings = atomtype_embedding_perelem_dict[key][1]
+            assignments = atomtype_embedding_perelem_dict[key][0]
+            #atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
+
+            try:
+                assert len(embeddings) == (len(assignments)), "Assignments and embeddings do not have same length."
+                assert len(embeddings)>10, "Not enough embeddings for plotting"
+                print(f"len embeddings of key {key}: {len(embeddings)}")
+                plot_umap_pca_lda(embeddings, assignments, key, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
+                #plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
+                #plot_lda(embeddings, assignments, atomtype2color, pathway_lda, alpha)
+                #plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
+            except AssertionError as e:
+                print(f"Assertion error occurred for element {key}: {e}")
+                continue 
 
 def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix):
     """Create plot per element and for all element subsets
@@ -748,58 +825,62 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
     #for key, value in filtered_dict.items():
     #    print(value['max_penalty'])
     
-    atomtype_to_embedding_lists = [value['atomtype_to_embedding'] for value in filtered_dict.values() if 'atomtype_to_embedding' in value and value['atomtype_to_embedding'] is not None]
+    # -------------------------SMILES
+    atomtype_embedding_perelem_dict_smiles = get_atomtype_embedding_perelem_dict(filtered_dict, colordict, 'atomtype_to_embedding')
+    print(f"len of atomtype embs per elem smiles: {len(atomtype_embedding_perelem_dict_smiles)}")
+    plot_plots(atomtype_embedding_perelem_dict_smiles, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}smiles")
     
-    countit = 0
-    clist = ['c','c1','c2','c3','ca','cc','cd','ce','cf','cp','cq','cs','cx','cy']
-    for liste in atomtype_to_embedding_lists:
-        for el in liste:
-            if el[0] in clist:
-                countit+=1
-    print("-------------------countit ",countit)
+    #------------------------------SELFIES 
+    atomtype_embedding_perelem_dict_selfies = get_atomtype_embedding_perelem_dict(filtered_dict, colordict, 'atomtype_to_clean_selfies_embedding')
+    print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
+    plot_plots(atomtype_embedding_perelem_dict_selfies, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}selfies")
+    
+    """ atomtype_to_embedding_lists_selfies = [value['atomtype_to_clean_selfies_embedding'] for value in filtered_dict.values() if 'atomtype_to_clean_selfies_embedding' in value and value['atomtype_to_clean_selfies_embedding'] is not None]
+    print("len selfies atomtype to embedding:",len(atomtype_to_embedding_lists_selfies))
+    
     # sort embeddings according to atomtype, I checked it visually and the mapping works
-    embeddings_by_atomtype = {}  # Dictionary to hold lists of embeddings for each atom type
+    embeddings_by_atomtype_selfies = {}  # Dictionary to hold lists of embeddings for each atom type
     listembeddings = list()
-    for atom_type_list in atomtype_to_embedding_lists:
+    for atom_type_list in atomtype_to_embedding_lists_selfies:
         # go through single dictionary
         for tuple in atom_type_list:
            # print(f"atomtype {atom_type} embeddings {embeddings[1]}")
-            if tuple[0] not in embeddings_by_atomtype:
-                embeddings_by_atomtype[tuple[0]] = []
-            # extend the list of embeddings for this atom type(, but only by the embedding not the attached token)
-            embeddings_by_atomtype[tuple[0]].append(tuple[1][0])
+            if tuple[0] not in embeddings_by_atomtype_selfies:
+                embeddings_by_atomtype_selfies[tuple[0]] = []
+            # extend the list of embeddings for this atom type(, but ONLY by the embedding not the attached token)
+            embeddings_by_atomtype_selfies[tuple[0]].append(tuple[1][0])
             #print("\ntuple01",len(tuple[1][0]),tuple[1][0])
             #print(len(embeddings[0]))
-    print("embeddings c",len(embeddings_by_atomtype['c']))
+    print("embeddings c",len(embeddings_by_atomtype_selfies['c']))
     
     # sort dictionary that is mapping embeddings to atomtypes to elements so that e.g. all carbon atom types can be accessed at once in one list
-    atom_types_repeated = []
-    embeddings_list = []
-    atomtype_embedding_perelem_dict = dict()
+    #atom_types_repeated_selfies = []
+    #embeddings_list_selfies = []
+    atomtype_embedding_perelem_dict_selfies = dict()
     ctr = 0
     for key in colordict.keys():
         print(f"key {key}")
         for atype in colordict[key]:
             print(atype) 
-            if atype in embeddings_by_atomtype.keys():
-                embsofatype = embeddings_by_atomtype[atype]
-                atypes = [atype] * len(embeddings_by_atomtype[atype])
+            if atype in embeddings_by_atomtype_selfies.keys():
+                embsofatype = embeddings_by_atomtype_selfies[atype]
+                atypes = [atype] * len(embeddings_by_atomtype_selfies[atype])
                 assert len(embsofatype) == len(atypes), "Length of embeddings and atom types do not match."
-                if key not in atomtype_embedding_perelem_dict:
-                    atomtype_embedding_perelem_dict[key] = ([],[])
-                if key in atomtype_embedding_perelem_dict:
-                    atomtype_embedding_perelem_dict[key][0].extend(atypes)
-                    atomtype_embedding_perelem_dict[key][1].extend(embsofatype)
+                if key not in atomtype_embedding_perelem_dict_selfies:
+                    atomtype_embedding_perelem_dict_selfies[key] = ([],[])
+                if key in atomtype_embedding_perelem_dict_selfies:
+                    atomtype_embedding_perelem_dict_selfies[key][0].extend(atypes)
+                    atomtype_embedding_perelem_dict_selfies[key][1].extend(embsofatype)
     
-    print(atomtype_embedding_perelem_dict.keys())
-    #print(atomtype_embedding_perelem_dict['c'][0])
+    print("selfies atomtypes keys: ",atomtype_embedding_perelem_dict_selfies.keys())
+    # ------------------------------------------------------SELFIES atomtypes end
+    
+    #print(atomtype_embedding_perelem_dict['c'][1])
     # sanity checked, same embeddings for all c atom types before and after reshuffling
     #print(f"lens of the different lists: {len(atomtype_embedding_perelem_dict['c'][0])} {len(atomtype_embedding_perelem_dict['c'][1])}")
     #print(f"shapes of the different lists: {shape(atomtype_embedding_perelem_dict['c'][0])} {shape(atomtype_embedding_perelem_dict['c'][1])}")
     ############### P F Cl 
-    namestring="c"
-    plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
-    """
+    
     ############## P F Cl O -
     namestring="pfclo"
     plot_umap_pca_lda(p_f_cl_o_list_embs, p_f_cl_o_list_assigs, save_path_prefix, namestring, atomtype2color, min_dist, n_neighbors, alpha)
@@ -811,29 +892,8 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
     ############## C O
     namestring="co"
     plot_umap_pca_lda(c_o_list_embs, c_o_list_assigs, save_path_prefix, namestring, atomtype2color_co, min_dist, n_neighbors, alpha)
-
-    print("Plotting................................BY ELEMENT")
-    # plot all atomtypes of one element only
-    for key in keylist:
-        print(f"#######KEY {key}\n")
-        pathway_umap = Path(str(save_path_prefix) +
-                            f"umap_{min_dist}_{n_neighbors}_{key}_1.svg")
-        pathway_pca = Path(str(save_path_prefix) + f"pca_{key}_1.svg")
-        pathway_lda = Path(str(save_path_prefix) + f"lda_{key}_1")
-        embeddings = dikt_forelems[key][0]
-        assignments = dikt_forelems[key][1]
-        atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
-
-        try:
-            assert len(embeddings) == (len(assignments)), "Assignments and embeddings do not have same length."
-            assert len(embeddings)>10, "Not enough embeddings for plotting"
-            print(f"len embeddings of key {key}: {len(embeddings)}")
-            plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
-            plot_lda(embeddings, assignments, atomtype2color, pathway_lda, alpha)
-            plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
-        except AssertionError as e:
-            print(f"Assertion error occurred for element {key}: {e}")
-            continue """
+    """
+    
 
 def map_selfies_embeddings_to_smiles(embeds_selfies, smiles_to_selfies_mapping, dikt):
     """Map  clean SELFIES embeddings to their corresponding SMILES and atomtypes
@@ -944,7 +1004,7 @@ if __name__ == "__main__":
     # within the dikt, map embeddings to atom types
     map_embeddings_to_atomtypes(dikt,task_SMILES)
     # following this, the dict looks as follows: atomtype_to_dict should be a list of tuples with atomtype and embeddings    
-    # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding'])
+    # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding', 'atomtype_to_clean_selfies_embedding'])
     
     
     ## SELFIES------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -978,16 +1038,8 @@ if __name__ == "__main__":
     map_selfies_embeddings_to_smiles(embeds_selfies, smiles_to_selfies_mapping, dikt)
      
     # SELFIES embeddings mapped to atomtypes-------------------------------------------------------------------------------------------------------------------------     
-
-       
-    """ if dikt[key]['atomtype_to_clean_selfies_embedding'] is not None:
-            #print(f"val {val["atomtype_to_clean_selfies_embedding"]}")
-            for key2,val2 in dikt[key]["atomtype_to_clean_selfies_embedding"].items():
-                print(f"\tkey2: {key2} and emb tok: {val2[1]}") """
-
-     
-      
-    """
+    # following this, the dict looks as follows: atomtype_to_dict should be a list of tuples with atomtype and embeddings    
+    # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding', 'atomtype_to_clean_selfies_embedding'])
     
     unique_atomtype_set = set(chain.from_iterable(dikt[key]['atom_types'] for key in dikt if dikt[key].get('atom_types') is not None))
     atomtypes_to_elems_dict = create_elementsubsets(unique_atomtype_set)
@@ -1000,8 +1052,8 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./4July_{model}_{traintype}_thresh{penalty_threshold}/"
-    create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix) """
+    save_path_prefix = f"./8July_{model}_{traintype}_thresh{penalty_threshold}/"
+    create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
     
     
     
