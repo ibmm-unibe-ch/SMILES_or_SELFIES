@@ -80,7 +80,7 @@ def to_minmaxnormalisation(molecule, smiles_atom, smiles_sentencepiece, selfies_
 
 def gather_attention_model(input_mols, tokenizer_suffix, model_path): # PREDICTION_MODEL_PATH/model_suffix/"checkpoint_last.pt"
     fairseq_dict_path = TASK_PATH / "bbbp" /tokenizer_suffix
-    tokenizer = get_tokenizer(TOKENIZER_PATH /tokenizer_suffix)
+    tokenizer = get_tokenizer(TOKENIZER_PATH) 
     model = load_model(model_path, fairseq_dict_path,None)
     source_dictionary = get_dictionary(FAIRSEQ_PREPROCESS_PATH/tokenizer_suffix/"dict.txt")
     #preprocessed = model.encode(input_mols)

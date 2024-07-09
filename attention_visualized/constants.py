@@ -104,7 +104,8 @@ TOKENIZER_SUFFIXES = [
 
 PROJECT_PATH = Path("/data/jgut/SMILES_or_SELFIES")
 PROCESSED_PATH = PROJECT_PATH / "processed"
-TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
+#TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
+TOKENIZER_PATH = Path("/data/jgut/SMILES_or_SELFIES/tokenizer/smiles_atom_isomers")
 #TOKENIZER_PATH = Path("/data/jgut/SMILES_or_SELFIES/tokenizer")
 MODEL_PATH = PROJECT_PATH / "fairseq_models"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
