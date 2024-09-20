@@ -619,14 +619,15 @@ def plot_pca(embeddings, labels, colours_dict, save_path, alpha=0.2):
     logging.info(
         f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
     )
+    explained_variance_percentages = [f"{var:.2%}" for var in pca.explained_variance_ratio_]  # Format as percentages
     fig, ax = plt.subplots(1)
     ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker='.', alpha=alpha, c=[
                colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel("PCA 2", fontsize=17)
-    ax.set_xlabel("PCA 1", fontsize=17)
+    ax.set_ylabel(f"PCA 2, var {explained_variance_percentages[1]}", fontsize=17)
+    ax.set_xlabel(f"PCA 1, var {explained_variance_percentages[0]}", fontsize=17)
     ax.set_title("PCA - Embeddings resp. atom types", fontsize=21)
     ax.spines[['right', 'top']].set_visible(False)
     ax.spines["bottom"].set_linewidth(2)
@@ -969,6 +970,7 @@ if __name__ == "__main__":
     # path to finetuned models
 
     TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
+    """
     # path for BART  
 
     specific_model_path = (
@@ -978,7 +980,7 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-    """
+    """  
     #path for RoBERTa
     specific_model_path = (
         TASK_MODEL_PATH
@@ -987,13 +989,13 @@ if __name__ == "__main__":
         / "1e-05_0.2_seed_0" 
         / "checkpoint_best.pt"
     )
-    """
+
     # ----------------------specific model paths for pretrained models of BART and RoBERTa-------------------------
-    """ 
+
     TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
     # TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
     # path for BART   
-
+    """
     specific_model_path = (
         TASK_MODEL_PATH
         / "smiles_atom_isomers_bart"
@@ -1006,7 +1008,8 @@ if __name__ == "__main__":
        / "smiles_atom_isomers_roberta"
        / "checkpoint_last.pt"
     )
-    """   
+    """ 
+       
     # ------------------------------------------------------------------------------------------------------------
     
     print("specific model path: ",specific_model_path)
@@ -1108,7 +1111,7 @@ if __name__ == "__main__":
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.8
-    save_path_prefix = f"./26June_BART_finetuned_thresh{penalty_threshold}/"
+    save_path_prefix = f"./26June_RoBERTa_finetuned_thresh{penalty_threshold}/"
     create_plotsperelem(keylist, dikt_forelems, min_dist,
                         n_neighbors, alpha, save_path_prefix, atomtype2color,atomtype2color_co)
                         

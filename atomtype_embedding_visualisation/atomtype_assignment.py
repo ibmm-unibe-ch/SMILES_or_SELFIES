@@ -9,14 +9,32 @@ from matplotlib.lines import Line2D
 from pathlib import Path
 import re
 import pandas as pd
+from rdkit import Chem
 from deepchem.feat import RawFeaturizer
-from preprocessing import canonize_smile
 from tokenisation import tokenize_dataset, get_tokenizer
 
 from constants import (
     MOLNET_DIRECTORY,
     TOKENIZER_PATH
 )
+#from preprocessing and also exists in SMILES_to_SELFIES_mapping
+def canonize_smiles(input_str: str, remove_identities: bool = True) -> str:
+    """Canonize SMILES string
+
+    Args:
+        input_str (str): SMILES input string
+
+    Returns:
+        str: canonize SMILES string
+    """
+    mol = Chem.MolFromSmiles(input_str)
+    if mol is None:
+        return None
+    # not sure remove_identities is neccessary for generate mapping, cannot see a difference
+    if remove_identities:
+        [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+
+    return Chem.MolToSmiles(mol)
 
 def load_molnet_test_set(task: str) -> Tuple[List[str], List[int]]:
     """Load MoleculeNet task
@@ -286,18 +304,22 @@ def get_atom_assignments(smiles_arr, smi_toks, filepath):
 
 if __name__ == "__main__":
     ############################### get SMILES from Task ###################################################   
-    task = "delaney"
-    """     assert task in list(
+    #task = "delaney"
+    #task = "bace_classification"
+    #task="bbbp"
+    task="clearance"
+    assert task in list(
         MOLNET_DIRECTORY.keys()
     ), f"{task} not in MOLNET tasks."
-    """
+    
     task_SMILES, task_labels = load_molnet_test_set(task)
+    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
     print(
-        f"SMILES: {task_SMILES} \n len task_SMILES delaney: {len(task_SMILES)}")
+        f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
     #print(f"task labels",task_labels)
     rndm_smiles = task_SMILES
     print(f"first smiles {task_SMILES[0]} and length {len(task_SMILES[0])}")
-    print("delaney reading done")
+    print(f"{task} reading done")
     
     ###############################get tokenized version of dataset ########################################
     # get tokenized version of dataset
@@ -309,9 +331,12 @@ if __name__ == "__main__":
     print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
 
 
-    ############################## get atomassignments for Delaney using antechamber and parmchk2 OR from previous antechamber assignment with antechamber and parmchk2 ########################################
+    ############################## get atomassignments for task test set using antechamber and parmchk2 (not here: OR from previous antechamber assignment with antechamber and parmchk2) ########################################
         # get atom assignments from SMILES
-    filepath = "./mols/"
+    filepath = f"/data/ifender/SOS_atoms/{task}_mols_bccc0_gaff2_assigned/"
+    #Check if the directory exists, and create it if it doesn't
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
     smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath)
   
      

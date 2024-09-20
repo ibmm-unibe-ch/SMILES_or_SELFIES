@@ -1,5 +1,5 @@
 from io import StringIO
-import os
+import os, sys
 import numpy as np
 import logging
 from typing import List, Tuple
@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.lines import Line2D
 from pathlib import Path
-import re
+import re, sys
 import pandas as pd
-from fairseq_utils import compute_model_output, compute_model_output_RoBERTa, load_dataset, load_model
+import importlib.util
+from fairseq_utils2 import compute_model_output, compute_model_output_RoBERTa, load_dataset, load_model
 from fairseq.data import Dictionary
 from deepchem.feat import RawFeaturizer
 from tokenisation import tokenize_dataset, get_tokenizer
@@ -19,6 +20,9 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from itertools import chain
 from SMILES_to_SELFIES_mapping import canonize_smiles, generate_mapping, generate_mappings_for_task_SMILES_to_SELFIES
+
+#from constants
+PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
 
 # requires Python 3.10.14, running with attentionviz2 environment
 
@@ -45,13 +49,25 @@ def load_molnet_test_set(task: str) -> Tuple[List[str], List[int]]:
     task_labels = task_test.y
     return task_SMILES, task_labels
 
-def get_tokenized_SMILES(task_SMILES: List[str]):
-    tokenizer = get_tokenizer(TOKENIZER_PATH)
-    print(f"tokenizer {tokenizer}")
-    smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
-    smi_toks = [smi_tok.split() for smi_tok in smi_toks]
-    print(f"SMILES tokens: {smi_toks[0]}")
-    smiles_dict = dict(zip(task_SMILES,smi_toks))
+def get_tokenized_SMILES(task_SMILES_orig: List[str], tokenizer_set=False):
+
+    if tokenizer_set==False:
+        #### TEST: TURN ALL SMALL C INZTO CAPITALIZED VERSIONS TO SEE EFFECT ON EMBEDDINGS
+        task_SMILES = [smiles.replace("c","C") for smiles in task_SMILES_orig]
+        print(task_SMILES)
+        #tokenised_smiles = [elem for elem in re.split(PARSING_REGEX,smiles) if elem]
+        tokenised_smiles = [re.split(PARSING_REGEX,smiles) for smiles in task_SMILES if isinstance(smiles,str)]
+        print(f"SMILES tokens: {tokenised_smiles}")
+        tokenised_smiles = [[elem for elem in tokens if elem] for tokens in tokenised_smiles]  # Remove empty tokens
+        print(f"SMILES tokens: {tokenised_smiles}")
+        smiles_dict = dict(zip(task_SMILES_orig,tokenised_smiles))
+    else:
+        tokenizer = get_tokenizer(TOKENIZER_PATH)
+        print(f"tokenizer {tokenizer}")
+        smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
+        smi_toks = [smi_tok.split() for smi_tok in smi_toks]
+        print(f"SMILES tokens: {smi_toks[0]}")
+        smiles_dict = dict(zip(task_SMILES,smi_toks))
     return smiles_dict
 
 def clean_SMILES(SMILES_tok):
@@ -551,7 +567,7 @@ def create_elementsubsets(atomtype_set):
     Args:
         big_set (_set_): Set of atom types
     Returns:
-        _list,dict[string][list[float],list[string]]_: List of keys (elements), dictionary that contains embeddings and their atomtypes sorted by element
+        _list,dict[string][list[float],list[string]]_: List of keys (elements), dictionary that contains atomtypes sorted by element
     """
     atomtype_set=sorted(atomtype_set)
     element_dict = dict()
@@ -942,7 +958,7 @@ if __name__ == "__main__":
     task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
     
     # get tokenized version of dataset, SMILES mapped to tokenised version
-    smiles_dict = get_tokenized_SMILES(task_SMILES)
+    smiles_dict = get_tokenized_SMILES(task_SMILES,False)
     
     # get atom assignments from folder that contains antechamber atom assignments and parmchk files
     dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder("./delaney_mols_bccc0_gaff2_assigned", smiles_dict, task_SMILES)
@@ -1006,9 +1022,5 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./8July_{model}_{traintype}_thresh{penalty_threshold}/"
+    save_path_prefix = f"./19Sept_moredata_{model}_{traintype}_thresh{penalty_threshold}/"
     create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
-    
-    
-    
-    
