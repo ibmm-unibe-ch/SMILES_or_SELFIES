@@ -33,11 +33,11 @@ conda activate fairseq_git
 Whole pipeline works as follows:
 1. Run assignment of atom types on one of the Molnet task test sets specified (line 310, e.g. delaney) and determine the folder you want to save the output files to (line 336). Then run 
 ```
-python atomtype_assignment.py. 
+python 1_atomtype_assignment.py. 
 ```
 2. Run creation of dictionaries that assign SMILES mainly to clean tokenized SMILES and to assigned atom types. Run 
 ```
-python SMILEStoAtomAssignments.py
+python 2_SMILEStoAtomAssignments.py
 ```
     This file creates two files: 
 
