@@ -49,12 +49,12 @@ python 2_SMILEStoAtomAssignments.py
 
         2. **assignment_info_task.json** that contains info on failed assignments.
 
-3. TBA run plotting: This file reads in the previously created dictionaries and info files, gets the embeddings for the task, connects embeddings with aotm assignments, clusters the data on elements in a sensible way and plots PCA, UMAP, and LDA for the embeddings labelled to their assigned atom types.
+3. Run plotting: This file reads in the previously created dictionaries and info files, gets the embeddings for the task, connects embeddings with atom assignments, clusters the data on elements in a sensible way and plots PCA, UMAP, and LDA for the embeddings labelled to their assigned atom types.
 ```
-python thisfilewillfollowshortlybutisinside__atomtype_embedding_assignment_contained.py
+python 3_AssignEmbedsPlot.py
 ```
 
-If you only want to plot PCAs of embeddings of assigned atoms for one of the many Molnet tasks, run
+If you only want to plot PCAs of embeddings of assigned atoms for one of the many Molnet tasks, run (and before that change the folder name)
 ```
 python atomtype_embedding_assignment.py
 ```
