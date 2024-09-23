@@ -442,39 +442,50 @@ def get_clean_embeds(embeds, dikt, creation_assignment_fails, task_SMILES):
         embeds[0])), f"Number of SMILES and embeddings do not agree. Number of SMILES: {len(dikt.keys())} of which {creation_assignment_fails} failures and Number of embeddings: {len(embeds[0])}"
     print(f"Number of SMILES: {len(dikt.keys())} with {creation_assignment_fails} failures and Number of embeddings: {len(embeds[0])}")
     
-    #check that every token has an embedding
-    posToKeep_list = [value["posToKeep"] for value in dikt.values() if value["posToKeep"] is not None ]
+    none_embeddings = sum([1 for emb in embeds[0] if emb is None])
+    print("Sum of NONE embeddings:",none_embeddings)
+    
+    none_sth =0
     #only keep embeddings for SMILES where atoms could be assigned to types
     embeds_clean = list()
     for smi, emb in zip(task_SMILES, embeds[0]):
         posToKeep = dikt[smi]["posToKeep"]
-        if posToKeep is not None:
+        # new: embeddings can be none too
+        if posToKeep is not None and emb is not None:
             embeds_clean.append(emb)
             dikt[smi]["orig_embedding"]=emb
         else:
             dikt[smi]["orig_embedding"]=None
+            none_sth+=1
     
     logging.info(
-        f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed: {len(embeds_clean)}")
-    assert creation_assignment_fails == (len(
-        embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fails}) and number of deleted embeddings do not agree ({(len(embeds[0])-len(embeds_clean))})."
+        f"Length embeddings before removal: {len(embeds[0])}, after removal where atom assignment failed or embedding is None: {len(embeds_clean)}")
+    creation_assignment_fails_AND_none_embeddings =creation_assignment_fails+none_embeddings
+    numberdel_embs = (len(embeds[0])-len(embeds_clean))
+    assert none_sth == (len(
+        embeds[0])-len(embeds_clean)), f"Assignment fails ({creation_assignment_fails}) plus none embeddings {none_embeddings} (leads to: {none_sth}) and number of deleted embeddings do not agree ({numberdel_embs})."
 
     embeds_cleaner = []
-    assert len(embeds_clean) == (len([item for item in posToKeep_list if item is not None])
-                                 ), f"Not the same amount of embeddings as assigned SMILES. {len(embeds_clean)} embeddings vs. {len([item for item in posToKeep_list if item is not None])} SMILES with positions"
+    #assert len(embeds_clean) == (len([item for item in posToKeep_list if item is not None])
+     #                            ), f"Not the same amount of embeddings as assigned SMILES. {len(embeds_clean)} embeddings vs. {len([item for item in posToKeep_list if item is not None])} SMILES with positions"
     # only keep embeddings that belong to atoms
     for SMILES in task_SMILES:
         poslist = dikt[SMILES]["posToKeep"]
         emb_clean = dikt[SMILES]["orig_embedding"]
 
-        if poslist is not None:
+        if poslist is not None and emb_clean is not None:
             newembsforsmi = []
             newembsforsmi = [emb_clean[pos] for pos in poslist]
             embeds_cleaner.append(newembsforsmi)
             dikt[SMILES]["clean_embedding"]=newembsforsmi  
         else:
+            # if original embeddings is None, make clean embedding None too
             dikt[SMILES]["clean_embedding"]=None   
+            # also set posToKeep to None
+            dikt[SMILES]["posToKeep"]=None
 
+    # sanity check that length of embeddings to keep is the same as length of embeddings to keep
+    posToKeep_list = [value["posToKeep"] for value in dikt.values() if value["posToKeep"] is not None]
     # sanity check that the lengths agree
     for smiemb, pos_list in zip(embeds_cleaner, posToKeep_list):
         assert len(smiemb) == len(
@@ -485,7 +496,7 @@ def get_clean_embeds(embeds, dikt, creation_assignment_fails, task_SMILES):
     for SMILES in task_SMILES:
         smi_clean=dikt[SMILES]["smi_clean"]
         emb_clean = dikt[SMILES]["clean_embedding"]
-        if dikt[SMILES]["posToKeep"] is not None:
+        if dikt[SMILES]["posToKeep"] is not None and emb_clean is not None:
             assert len(smi_clean) == len(
                 emb_clean), "SMILES and embeddings do not have same length."
             for sm, em in zip(smi_clean,emb_clean):
@@ -496,6 +507,7 @@ def get_clean_embeds(embeds, dikt, creation_assignment_fails, task_SMILES):
 
 def check_lengths(smi_toks, embeds):
     """Check that number of tokens corresponds to number of embeddings per SMILES, otherwise sth went wrong
+     new: if sth went wrong turn that embedding to None and return the embeddings
 
     Args:
         smi_toks (_list[string]_): SMILES tokens for a SMILES
@@ -513,19 +525,22 @@ def check_lengths(smi_toks, embeds):
                 new_embs.append(embs)
             else:
                 print(f"smilen: {len(smi)} emblen: {len(embs)}")
-                print(f"{smi} and len diff {len(smi)-len(embs)}")
+                embs_signs = [emb1 for (emb0,emb1) in embs]
+                print(f"smi: {smi} \nemb: {embs_signs} \nwith len diff {len(smi)-len(embs)}")
                 diffnums += 1
+                new_embs.append(None)
                 if len(smi) < len(embs):
                     smismaller += 1
+    embeds[0]=new_embs
     if diffnums == 0:
-        return True
+        return embeds
     else:
         print(
-            f"samenums: {samenums} and diffnums: {diffnums} of which smiles have smaller length: {smismaller}")
+            f"same numbers between tokens and embeddings: {samenums} and different number betqween tokens and embeddings: {diffnums} of which smiles tokens have smaller length: {smismaller}")
         perc = (diffnums/(diffnums+samenums))*100
         print(
-            "percentage of embeddings not correct compared to smiles: {:.2f}".format(perc))
-        return False
+            "percentage of embeddings not correct compared to smiles: {:.2f}%".format(perc))
+        return embeds
 
 def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: int, task_reps: List[str]):
     """Generate the embeddings dict of a task
@@ -652,9 +667,9 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
     
     embeds = []
     embeds = get_embeddings(task, specific_model_path, data_path, False, reps) #works for BART model with newest version of fairseq on github, see fairseq_git.yaml file
-    assert check_lengths(listoftokenisedreps, embeds), "Length of SMILES_tokens and embeddings do not agree."
+    checked_embeds = check_lengths(listoftokenisedreps, embeds) #, "Length of SMILES_tokens and embeddings do not agree."
     print("got the embeddings")
-    return embeds
+    return checked_embeds
 
 
 def get_tokenized_SMILES(task_SMILES: List[str]):
@@ -713,14 +728,21 @@ if __name__ == "__main__":
     # get atom assignments from folder that contains antechamber atom assignments and info files on failed assignments
     input_folder = "./assignment_dicts"
     task_dikt, task_totalfails = load_dictsandinfo_from_jsonfolder(input_folder)
-    onlyworkingtasks=["delaney", "clearance"]
+    #currently available processed tasks 
+    #task = "delaney" --> regression
+    #task = "bace_classification" --> only fails
+    #task="bbbp" --> classification
+    #task="clearance" --> regression
+    #onlyworkingtasks=["delaney", "clearance", "bbbp"]
+    test_tasks=["delaney"]
+    
 
     merged_dikt = {}
     #print(f"totalfails: {totalfails} and total assigned molecules: {len(dikt.keys())}")
     for key, val in task_dikt.items():
         print("TASK: ",key)
         task=key
-        if task not in onlyworkingtasks:
+        if task not in test_tasks:
             continue
         #print(f"SMILES task: {key} \nwith dict_keys {val.keys()}")
         #print(task_dikt[key].keys())
@@ -781,15 +803,18 @@ if __name__ == "__main__":
             for key, val in dikt.items():
                 dikt[key]['task']=task
             
+            
         except Exception as e:
             print(f"Error: {e}")
             continue
         merged_dikt.update(dikt)
 
+    
     print(len(merged_dikt.keys()))
     print(merged_dikt.keys())
     valid_keys_count = len([key for key in merged_dikt.keys() if merged_dikt[key]['posToKeep'] is not None])
-    print(f"Number of valid keys in merged_dikt: {valid_keys_count}")
+    print("==============================================================================================================================================")
+    print(f"Number of valid keys in final merged_dikt: {valid_keys_count}")
 
     # following this, the dict looks as follows: atomtype_to_dict should be a list of tuples with atomtype and embeddings    
     # dikt[SMILES] with dict_keys(['posToKeep', 'smi_clean', 'atom_types', 'max_penalty', 'orig_embedding', 'clean_embedding', 'atomtype_to_embedding', 'atomtype_to_clean_selfies_embedding'])
@@ -809,5 +834,6 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./22Sept_moredata_{model}_{traintype}_thresh{penalty_threshold}/"
+    save_path_prefix = f"./22Sept_delaney{valid_keys_count}_{model}_{traintype}_thresh{penalty_threshold}/"
     create_plotsperelem(merged_dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
+    

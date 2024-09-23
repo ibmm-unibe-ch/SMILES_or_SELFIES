@@ -307,7 +307,8 @@ if __name__ == "__main__":
     #task = "delaney"
     #task = "bace_classification"
     #task="bbbp"
-    task="clearance"
+    #task="clearance"
+    task="lipo"
     assert task in list(
         MOLNET_DIRECTORY.keys()
     ), f"{task} not in MOLNET tasks."
