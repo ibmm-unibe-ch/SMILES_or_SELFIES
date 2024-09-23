@@ -135,8 +135,8 @@ def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, namestring, save_pat
     plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs,
              atomtype2color[namestring], pathway_pca, alpha)
     # plot LDA
-    plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
-             atomtype2color[namestring], pathway_lda, alpha)
+    #plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
+    #         atomtype2color[namestring], pathway_lda, alpha)
     # plot UMAP
    # plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
 
@@ -257,6 +257,7 @@ def create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbor
     plot_plots(atomtype_embedding_perelem_dict_smiles, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}smiles")
     
     #------------------------------SELFIES 
+    print("plotting SELFIES")
     atomtype_embedding_perelem_dict_selfies = get_atomtype_embedding_perelem_dict(filtered_dict, colordict, 'atomtype_to_clean_selfies_embedding')
     print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
     plot_plots(atomtype_embedding_perelem_dict_selfies, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}selfies")
@@ -733,8 +734,8 @@ if __name__ == "__main__":
     #task = "bace_classification" --> only fails
     #task="bbbp" --> classification
     #task="clearance" --> regression
-    #onlyworkingtasks=["delaney", "clearance", "bbbp"]
-    test_tasks=["delaney"]
+    onlyworkingtasks=["delaney", "clearance", "bbbp"]
+    #test_tasks=["delaney"]
     
 
     merged_dikt = {}
@@ -742,7 +743,7 @@ if __name__ == "__main__":
     for key, val in task_dikt.items():
         print("TASK: ",key)
         task=key
-        if task not in test_tasks:
+        if task not in onlyworkingtasks:
             continue
         #print(f"SMILES task: {key} \nwith dict_keys {val.keys()}")
         #print(task_dikt[key].keys())
@@ -757,7 +758,8 @@ if __name__ == "__main__":
         percentagefailures = (totalfails/len(dikt.keys()))*100
         print(f"total fails for task {task}: {totalfails} out of {len(dikt.keys())} SMILES ({percentagefailures:.2f}%) ")
         #get embeddings from model
-        model = "ROBERTA"
+        #model = "ROBERTA"
+        model="BART"
         traintype = "pretrained"
         rep = "smiles"
         # task needs specifiyng for loading of finetuned model
@@ -791,7 +793,7 @@ if __name__ == "__main__":
                 print()
                 
             print(f"list of tokenised selfies: {selfies_tokenised}")
-            print(f"selfies {selfies} with len() {len(selfies)}")
+            print(f"selfies {selfies} \nwith len() {len(selfies)}")
             print(f"mappings {maps_num}")
             
             rep="selfies"
@@ -812,7 +814,7 @@ if __name__ == "__main__":
     
     print(len(merged_dikt.keys()))
     print(merged_dikt.keys())
-    valid_keys_count = len([key for key in merged_dikt.keys() if merged_dikt[key]['posToKeep'] is not None])
+    valid_keys_count = len([key for key in merged_dikt.keys() if merged_dikt[key]['posToKeep'] is not None and merged_dikt[key]['atomtype_to_embedding'] is not None and merged_dikt[key]['atomtype_to_clean_selfies_embedding'] is not None])
     print("==============================================================================================================================================")
     print(f"Number of valid keys in final merged_dikt: {valid_keys_count}")
 
@@ -834,6 +836,7 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./22Sept_delaney{valid_keys_count}_{model}_{traintype}_thresh{penalty_threshold}/"
+    save_path_prefix = f"./22Sept_delaney_bbbp_clearance_{valid_keys_count}_{model}_{traintype}_thresh{penalty_threshold}/"
     create_plotsperelem(merged_dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
+    
     
