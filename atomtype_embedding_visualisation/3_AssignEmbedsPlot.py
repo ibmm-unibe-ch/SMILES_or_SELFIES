@@ -734,8 +734,8 @@ if __name__ == "__main__":
     #task = "bace_classification" --> only fails
     #task="bbbp" --> classification
     #task="clearance" --> regression
-    onlyworkingtasks=["delaney", "clearance", "bbbp"]
-    #test_tasks=["delaney"]
+    onlyworkingtasks=["delaney", "clearance", "bbbp","lipo"]
+    test_tasks=["delaney"]
     
 
     merged_dikt = {}
@@ -758,8 +758,8 @@ if __name__ == "__main__":
         percentagefailures = (totalfails/len(dikt.keys()))*100
         print(f"total fails for task {task}: {totalfails} out of {len(dikt.keys())} SMILES ({percentagefailures:.2f}%) ")
         #get embeddings from model
-        #model = "ROBERTA"
-        model="BART"
+        model = "ROBERTA"
+        #model="BART"
         traintype = "pretrained"
         rep = "smiles"
         # task needs specifiyng for loading of finetuned model
@@ -836,7 +836,5 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./22Sept_delaney_bbbp_clearance_{valid_keys_count}_{model}_{traintype}_thresh{penalty_threshold}/"
+    save_path_prefix = f"./27Sept_delaney_bbbp_clearance_lipo_{valid_keys_count}_{model}_{traintype}_thresh{penalty_threshold}/"
     create_plotsperelem(merged_dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
-    
-    
