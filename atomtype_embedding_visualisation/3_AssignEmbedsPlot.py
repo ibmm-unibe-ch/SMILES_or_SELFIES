@@ -614,9 +614,11 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
     # path to finetuned models
     subfolder=""
     if rep=="smiles":
-        subfolder = "smiles_atom_isomers"
+        #subfolder = "smiles_atom_isomers"
+        subfolder = "smiles_atom_standard"
     elif rep=="selfies":
-        subfolder="selfies_atom_isomers"
+        #subfolder="selfies_atom_isomers"
+        subfolder="selfies_atom_standard"
         
     if traintype=="finetuned":
         if model=="BART":
@@ -758,8 +760,8 @@ if __name__ == "__main__":
         percentagefailures = (totalfails/len(dikt.keys()))*100
         print(f"total fails for task {task}: {totalfails} out of {len(dikt.keys())} SMILES ({percentagefailures:.2f}%) ")
         #get embeddings from model
-        model = "ROBERTA"
-        #model="BART"
+        #model = "ROBERTA"
+        model="BART"
         traintype = "pretrained"
         rep = "smiles"
         # task needs specifiyng for loading of finetuned model
