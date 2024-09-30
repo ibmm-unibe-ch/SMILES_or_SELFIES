@@ -21,13 +21,19 @@ from constants import (
     TOKENIZER_PATH
 )
 
-def build_legend(data, markerdict):
+def build_legend(data, markerdict, labels):
     """
     Build a legend for matplotlib plt from dict
     """
+    # Count how often which label appears in the dataset
+    label_counts = {label: labels.count(label) for label in set(labels)}
     legend_elements = []
     for key in data:
-        legend_elements.append(Line2D([0], [0], marker=markerdict[key], color='w', label=key,
+        if key not in labels:
+            continue
+        # Create label for legend that contains number of occurrences
+        legend_label = f"{key} ({label_counts.get(key, 0)})"
+        legend_elements.append(Line2D([0], [0], marker=markerdict[key], color='w', label=legend_label,
                                       markerfacecolor=data[key], markersize=9))
     return legend_elements
 
@@ -88,7 +94,7 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     fig.savefig(f"{save_path}_random.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
-def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_path, namestring, alpha):
+def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_path, namestring, alpha=0.2):
     """Performing PCA and plotting it
 
     Args:
@@ -119,7 +125,7 @@ def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_pa
         
     #ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker=".", alpha=alpha, c=[
      #          colours_dict[x] for x in labels])
-    legend_elements = build_legend(colours_dict, marker_dict)
+    legend_elements = build_legend(colours_dict, marker_dict, labels)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel(f"PC 2 ({explained_variance_percentages[1]})", fontsize=17)
@@ -129,7 +135,8 @@ def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_pa
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
     ax.tick_params(length=8, width=3, labelsize=15)
-    fig.savefig(f"{save_path}_withmarkers_alpha{alpha}.svg", format="svg", bbox_inches='tight', transparent=True)
+    #fig.savefig(f"{save_path}_withmarkers_alpha{alpha}.svg", format="svg", bbox_inches='tight', transparent=True)
+    fig.savefig(f"{save_path}_withmarkers_alpha{alpha}.png", format="png", dpi=600, bbox_inches='tight')
     fig.clf()
     #fig.show()
 
@@ -151,10 +158,12 @@ def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestrin
         f"{save_path} has the explained variance of {pca.explained_variance_ratio_}"
     )
     explained_variance_percentages = [f"{var:.2%}" for var in pca.explained_variance_ratio_]  # Format as percentages
+    
+    rep = save_path.name.split('pca')[0]
     fig, ax = plt.subplots(1)
     ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker='.', alpha=alpha, c=[
                colours_dict[x] for x in labels])
-    legend_elements = build_legend(colours_dict, marker_dict)
+    legend_elements = build_legend(colours_dict, marker_dict, labels)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel(f"PC 2 ({explained_variance_percentages[1]})", fontsize=17)
