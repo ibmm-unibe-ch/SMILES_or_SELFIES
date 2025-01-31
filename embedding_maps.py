@@ -3,6 +3,7 @@ SMILES or SELFIES, 2023
 """
 
 from pathlib import Path
+import random
 from typing import Optional
 
 import numpy as np
@@ -21,28 +22,22 @@ from constants import (
 from fairseq_utils import get_embeddings, load_model, preprocess_series, create_random_prediction_model, transform_to_prediction_model 
 from plotting import plot_representations
 from preprocessing import canonize_smile, check_valid, translate_selfie
-from sample_molecules import BETA_LACTAMS, STEROIDS, TETRACYCLINE_ANTIBIOTICS
+from sample_molecules import BETA_LACTAMS, STEROIDS, TROPANES, SULFONAMIDES
 from tokenisation import get_tokenizer, tokenize_to_ids
 from utils import parse_arguments
 
 from fairseq.data import Dictionary
 
 
-def prepare_selected_molecules(
-    ignore_steroids: Optional[bool] = False,
-    ignore_beta_lactams: Optional[bool] = False,
-    ignore_tetracycline_antibiotics: Optional[bool] = False,
-):
+def prepare_selected_molecules(sample_amount:Optional[int]=64):
+    random.seed(4)
     iterator_variables = zip(
-        [ignore_steroids, ignore_beta_lactams, ignore_tetracycline_antibiotics],
-        [STEROIDS, BETA_LACTAMS, TETRACYCLINE_ANTIBIOTICS],
-        ["Steroids", "Beta lactams", "Tetracycline antibiotics"],
+        [random.sample(list(set(STEROIDS)),sample_amount), random.sample(list(set(BETA_LACTAMS)),sample_amount), random.sample(list(set(TROPANES)),sample_amount), random.sample(list(set(SULFONAMIDES)),sample_amount)],
+        ["Steroids", "Beta lactams", "Tropanes", "Sulfonamides"],
     )
     output = []
     output_labels = []
-    for ignore_flag, dataset, name in iterator_variables:
-        if ignore_flag:
-            continue
+    for dataset, name in iterator_variables:
         dataset = set(dataset)
         dataset = [
             (canonize_smile(smile), translate_selfie(smile)[0])
@@ -60,6 +55,8 @@ def prepare_selected_molecules(
 
 
 def sample_other_molecules(data_path: Path, amount: int):
+    if amount<=0:
+        return None
     df = pd.read_csv(data_path, skiprows=0, usecols=["SMILES", "SELFIES"])
     df = df.dropna()
     df = df.sample(n=amount, random_state=SEED + 39775)
@@ -69,14 +66,9 @@ def sample_other_molecules(data_path: Path, amount: int):
 
 def get_molecule_dataframe(
     data_path: Path,
-    ignore_steroids: Optional[bool] = False,
-    ignore_beta_lactams: Optional[bool] = False,
-    ignore_tetracycline_antibiotics: Optional[bool] = False,
 ):
-    selected_df = prepare_selected_molecules(
-        ignore_steroids, ignore_beta_lactams, ignore_tetracycline_antibiotics
-    )
-    other_df = sample_other_molecules(data_path, amount=10 * selected_df.shape[0])
+    selected_df = prepare_selected_molecules(64)
+    other_df = sample_other_molecules(data_path, amount=0)#selected_df.shape[0])
     df = pd.concat([selected_df, other_df], axis="index", ignore_index=True)
     return df
 
@@ -90,7 +82,7 @@ if __name__ == "__main__":
         tokenizer_suffixes = TOKENIZER_SUFFIXES
     modeltype = variables["modeltype"]
     molecule_dataframe = get_molecule_dataframe(
-        PROCESSED_PATH/ "isomers" / "full_deduplicated_isomers.csv", False, False, False
+        PROCESSED_PATH/ "standard" / "full_deduplicated_standard.csv"
     )
     if modeltype == "random":
         tokenizer_suffix = "smiles_atom_isomers"
@@ -99,16 +91,16 @@ if __name__ == "__main__":
         tokenized_molecules = tokenize_to_ids(tokenizer, molecule_series)
         fairseq_dict_path = FAIRSEQ_PREPROCESS_PATH/tokenizer_suffix/"dict.txt"
         data_path = TASK_PATH/"bbbp"/tokenizer_suffix
-        preprocess_series(tokenized_molecules, Path(PROJECT_PATH / "embedding_mapping"), fairseq_dict_path)
+        preprocess_series(tokenized_molecules, Path(PROJECT_PATH / f"embedding_mapping_{modeltype}"), fairseq_dict_path)
         model_path = PREDICTION_MODEL_PATH/"random_bart"/"checkpoint_last.pt"
         if not model_path.exists():
             create_random_prediction_model(model_path.parent)
         model = load_model(model_path,data_path,str(cuda))
         fairseq_dict = Dictionary.load(str(fairseq_dict_path))
-        mol_dataset_path = PROJECT_PATH / "embedding_mapping" / "train"
+        mol_dataset_path = PROJECT_PATH / f"embedding_mapping_{modeltype}" / "train"
         embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
         for min_dist in [0.01, 0.1, 0.5]:
-            for n_neighbors in [5, 15, len(STEROIDS)]:
+            for n_neighbors in [5, 15, 25, 35]:
                 plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / "random",min_dist,n_neighbors)
     else:
         for tokenizer_suffix in tokenizer_suffixes:
@@ -120,15 +112,16 @@ if __name__ == "__main__":
             tokenized_molecules = tokenize_to_ids(tokenizer, molecule_series)
             fairseq_dict_path = FAIRSEQ_PREPROCESS_PATH/tokenizer_suffix/"dict.txt"
             data_path = TASK_PATH/"bbbp"/tokenizer_suffix
-            preprocess_series(tokenized_molecules, Path(PROJECT_PATH / "embedding_mapping"), fairseq_dict_path)
+            preprocess_series(tokenized_molecules, Path(PROJECT_PATH / f"embedding_mapping_{modeltype}"), fairseq_dict_path)
             tokenizer_model_suffix = tokenizer_suffix+"_"+modeltype
             model_path = PREDICTION_MODEL_PATH/tokenizer_model_suffix/"checkpoint_last.pt"
             if not model_path.exists():
                 transform_to_prediction_model(tokenizer_model_suffix)
             model = load_model(model_path,data_path,str(cuda))
             fairseq_dict = Dictionary.load(str(fairseq_dict_path))
-            mol_dataset_path = PROJECT_PATH / "embedding_mapping" / "train"
+            mol_dataset_path = PROJECT_PATH / f"embedding_mapping_{modeltype}" / "train"
             embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
-            for min_dist in [0.01, 0.1, 0.5]:
-                for n_neighbors in [5, 15, len(STEROIDS)]:
-                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors)    
+            for min_dist in [0.5]:
+                for n_neighbors in [15]:
+                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors)
+    

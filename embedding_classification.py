@@ -31,6 +31,7 @@ from preprocessing import get_weight
 from scoring import load_dataset, load_model
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC, LinearSVC
@@ -60,11 +61,11 @@ def eval_weak_estimators(
     """
     estimators = {
         "KNN": KNeighborsClassifier(),
-        "RBF SVC": SVC(kernel="rbf", random_state=SEED + 49057),
-        "Linear SVC": LinearSVC(random_state=SEED + 57, max_iter=100000),
-        "Logistic Regression": LogisticRegression(
-            random_state=SEED + 497, solver="saga", max_iter=10000
-        ),
+        "RBF SVC": SVC(kernel=rbf_kernel, random_state=SEED + 49057),
+        "Linear SVC": LinearSVC(random_state=SEED + 57, max_iter=1000),
+        #"Logistic Regression": LogisticRegression(
+        #    random_state=SEED + 497, solver="saga", max_iter=10000
+        #),
     }
     for name, estimator in estimators.items():
         if name == "KNN":
@@ -115,7 +116,7 @@ def parse_column_name(
 
 
 def create_selected_dataframe(
-    indexes: List[str], data_path: Path, amount: Optional[int] = None
+    indexes: List[str], data_path: Path, amount: Optional[int] = None, max_len = 512,
 ) -> pd.DataFrame:
     """Create a dataframe with the columns indicated by indexes from data_path. With size of amount.
 
@@ -128,6 +129,7 @@ def create_selected_dataframe(
         pd.DataFrame: selected dataframe
     """
     df = pd.read_csv(data_path, skiprows=0, usecols=indexes).dropna()
+    df = df[df.SMILES.str.len()<max_len]
     property_col = df[indexes[0]]
     for index in indexes[1:-1]: # exclude SMILES at -1, only relevant if more indexes
         property_col += df[index]
@@ -190,14 +192,14 @@ def create_dataset(
 if __name__ == "__main__":
     args = parse_arguments(cuda=True, tokenizer=True, model_type=True)
     cuda = args["cuda"]
-    if "tokenizer" in args:
+    if args.get("tokenizer", None):
         tokenizers = [args["tokenizer"]]
     else:
         tokenizers = TOKENIZER_SUFFIXES
-    model_type = args["model_type"]
+    model_type = args["modeltype"]
     for descriptor in [
         "NumHDonors",
-        "NumAromaticRings",
+        #"NumAromaticRings",
         (
             "Heterocycles",
             [
@@ -210,7 +212,7 @@ if __name__ == "__main__":
         create_dataset(
             descriptor,
             PROCESSED_PATH / "standard"/ "full_deduplicated_standard.csv",
-            PROJECT_PATH / "embeddings",
+            PROJECT_PATH / f"embeddings_{model_type}",
             100000,
         )
         descriptor_name = descriptor[0] if isinstance(descriptor, tuple) else descriptor
@@ -222,7 +224,7 @@ if __name__ == "__main__":
             if not model_path.exists():
                 transform_to_prediction_model(model_suffix)
             model = load_model(model_path,fairseq_dict_path,str(cuda))
-            descriptor_path = (PROJECT_PATH / "embeddings" / descriptor_name / tokenizer_suffix)
+            descriptor_path = (PROJECT_PATH / f"embeddings_{model_type}" / descriptor_name / tokenizer_suffix)
             #WEIGHTSif weights is None: # only goes for first iteration, which is preferred
             #WEIGHTS    smiles = pd.read_csv(descriptor_path / "test.input", header=None).values
             #WEIGHTS    weights = [

@@ -190,12 +190,12 @@ def get_embeddings(model, dataset, source_dictionary, cuda=3):
                     prev_output_tokens,
                     features_only=True,
                 )[0][0][-1, :]
-                .cpu()
                 .detach()
+                .cpu()
                 .numpy()
             )
         else:
-            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), None)[0][0][-1, :].cpu().detach().numpy()
+            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), None)[0][0][-1, :].detach().cpu().numpy()
         embeddings.append(embedding)
     return embeddings
 
