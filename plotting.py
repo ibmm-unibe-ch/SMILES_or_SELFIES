@@ -11,15 +11,15 @@ from constants import SEED
 from matplotlib.lines import Line2D
 from sklearn.decomposition import PCA
 import seaborn as sns
+import pandas as pd
 
 matplotlib.use("Agg")
-matplotlib.rcParams["axes.spines.right"] = False
-matplotlib.rcParams["axes.spines.top"] = False
 plt.rcParams['font.size'] = 12
 plt.style.use('seaborn-v0_8-colorblind')
-prop_cycle = plt.rcParams["axes.prop_cycle"]
-#https://personal.sron.nl/~pault/#fig:scheme_rainbow_smooth
-default_colours = prop_cycle.by_key()['color']
+sns.set_style("whitegrid", {'axes.grid' : False})
+matplotlib.rcParams["axes.spines.right"] = False
+matplotlib.rcParams["axes.spines.top"] = False
+default_colours = ['#332288', '#117733', '#44AA99', '#88CCEE', '#DDCC77', '#CC6677', '#AA4499', '#882255']
 default_markers = ["d", "^", "s", "X", "+"]
 hatches = ["", "/", "\\", "|", "-", "x", "o", "+", "O", ".", "*"]
 default_hatches = [
@@ -68,28 +68,35 @@ def plot_umap(embeddings, colours, save_path, min_dist=0.1, n_neighbors=15, alph
     fig = matplotlib.pyplot.gcf()
     fig.set_size_inches(half_page_width_in_inches, half_page_width_in_inches)
     draw_colours, markers = get_colours_markers(0, markers_offset)
-    if isinstance(colours[0], str):
-        for counter, label in enumerate(colours.unique()):
-            plt.scatter(
-                umap_embeddings[colours == label, 0],
-                umap_embeddings[colours == label, 1],
-                s=20,
-                alpha=alpha,
-                c=default_colours[counter % len(draw_colours)],
-                marker=markers[counter % len(markers)],
-                label=label,
-            )
-        #plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),ncol=4, fontsize=10, markerscale=2)
-    else:
-        plt.scatter(
-            umap_embeddings[:, 0],
-            umap_embeddings[:, 1],
-            s=20,
-            c=colours,
-        )
-        plt.colorbar()
-    plt.ylabel("UMAP 2")
-    plt.xlabel("UMAP 1")
+    dataframe = pd.DataFrame()
+    dataframe["UMAP 1"] = umap_embeddings[:,0]
+    dataframe["UMAP 2"] = umap_embeddings[:,1]
+    dataframe["Molecule type"] = colours
+    sns.scatterplot(data=dataframe, x="UMAP 1", y="UMAP 2",hue="Molecule type", style="Molecule type", size=20, palette=draw_colours, markers=markers, legend=False)
+#    if isinstance(colours[0], str):
+#        for counter, label in enumerate(colours.unique()):
+#            plt.scatter(
+#                umap_embeddings[colours == label, 0],
+#                umap_embeddings[colours == label, 1],
+#                s=20,
+#                alpha=alpha,
+#                c=default_colours[counter % len(draw_colours)],
+#                marker=markers[counter % len(markers)],
+#                label=label,
+#            )
+#        #plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),ncol=4, fontsize=10, markerscale=2)
+#    else:
+#        plt.scatter(
+#            umap_embeddings[:, 0],
+#            umap_embeddings[:, 1],
+#            s=20,
+#            c=colours,
+#        )
+#        plt.colorbar()
+#   plt.ylabel("UMAP 2")
+#   plt.xlabel("UMAP 1")
+    fig.gca().spines['bottom'].set_color('black')
+    fig.gca().spines['left'].set_color('black')
     plt.tight_layout()
     plt.savefig(save_path, format="svg", dpi=600, transparent=True)
     plt.savefig(str(save_path)[:-3]+"png", format="png", dpi=600, transparent=True)
@@ -106,30 +113,36 @@ def plot_pca(embeddings, colours, save_path, alpha=0.5, markers_offset=0):
     fig = matplotlib.pyplot.gcf()
     fig.set_size_inches(half_page_width_in_inches, half_page_width_in_inches)
     draw_colours, markers = get_colours_markers(0, markers_offset)
-    if isinstance(colours[0], str):
-        for counter, label in enumerate(colours.unique()):
-            plt.scatter(
-                pca_embeddings[colours == label, 0],
-                pca_embeddings[colours == label, 1],
-                s=20,
-                alpha=alpha,
-                c=default_colours[counter % len(draw_colours)],
-                marker=markers[counter % len(markers)],
-                label=label,
-            )
-        #plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),ncol=4, markerscale=2)
-
-    else:
-        plt.scatter(
-            pca_embeddings[:, 0],
-            pca_embeddings[:, 1],
-            s=20,
-            alpha=alpha,
-            c=colours,
-        )
-        plt.colorbar()  
-    plt.ylabel(f"PC 2 ({variances[1]*100:.2f}%)")
-    plt.xlabel(f"PC 1 ({variances[0]*100:.2f}%)")
+    dataframe = pd.DataFrame()
+    dataframe[f"PC 1 ({variances[0]*100:.2f}%)"] = pca_embeddings[:,0]
+    dataframe[f"PC 2 ({variances[1]*100:.2f}%)"] = pca_embeddings[:,1]
+    dataframe["Molecule type"] = colours
+    sns.scatterplot(data=dataframe, x=f"PC 1 ({variances[0]*100:.2f}%)", y=f"PC 2 ({variances[1]*100:.2f}%)",hue="Molecule type", style="Molecule type", size=20, palette=draw_colours, markers=markers, legend=False)
+#    if isinstance(colours[0], str):
+#        for counter, label in enumerate(colours.unique()):
+#            plt.scatter(
+#                pca_embeddings[colours == label, 0],
+#                pca_embeddings[colours == label, 1],
+#                s=20,
+#                alpha=alpha,
+#                c=default_colours[counter % len(draw_colours)],
+#                marker=markers[counter % len(markers)],
+#                label=label,
+#            )
+#        #plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),ncol=4, markerscale=2)
+#    else:
+#        plt.scatter(
+#            pca_embeddings[:, 0],
+#            pca_embeddings[:, 1],
+#            s=20,
+#            alpha=alpha,
+#            c=colours,
+#        )
+#        plt.colorbar()  
+#    plt.ylabel(f"PC 2 ({variances[1]*100:.2f}%)")
+#    plt.xlabel(f"PC 1 ({variances[0]*100:.2f}%)")
+    fig.gca().spines['bottom'].set_color('black')
+    fig.gca().spines['left'].set_color('black')
     plt.tight_layout()
     plt.savefig(save_path, format="svg", dpi=600, transparent=True)
     plt.savefig(str(save_path)[:-3]+"png", format="png", dpi=600, transparent=True)
