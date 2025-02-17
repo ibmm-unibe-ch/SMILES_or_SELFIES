@@ -99,11 +99,11 @@ if __name__ == "__main__":
         fairseq_dict = Dictionary.load(str(fairseq_dict_path))
         mol_dataset_path = PROJECT_PATH / f"embedding_mapping_{modeltype}" / "train"
         embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
-        for min_dist in [0.01, 0.1, 0.5]:
-            for n_neighbors in [5, 15, 25, 35]:
-                plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / "random",min_dist,n_neighbors)
+        for min_dist in [0.5]:
+            for n_neighbors in [15]:
+                plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / "random",min_dist,n_neighbors, alpha=0.6, offset=3)
     else:
-        for tokenizer_suffix in tokenizer_suffixes:
+        for it, tokenizer_suffix in enumerate(tokenizer_suffixes):
             tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
             if tokenizer_suffix.startswith("selfies"):
                 molecule_series = molecule_dataframe["SELFIES"]
@@ -123,5 +123,5 @@ if __name__ == "__main__":
             embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
             for min_dist in [0.5]:
                 for n_neighbors in [15]:
-                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors)
+                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors, alpha=0.6,offset=it)
     
