@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2025-02-17T11:20:17.508984</dc:date>
+    <dc:date>2025-02-19T15:56:38.225397</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -49,7 +49,7 @@ L 24 23.857707
 L 36 23.857707 
 " style="fill: none; stroke: #ffffff; stroke-width: 1.5; stroke-linecap: square"/>
      <defs>
-      <path id="mfe59f2fd91" d="M 0 9 
+      <path id="mdc1747d231" d="M 0 9 
 C 2.386828 9 4.676219 8.051703 6.363961 6.363961 
 C 8.051703 4.676219 9 2.386828 9 0 
 C 9 -2.386828 8.051703 -4.676219 6.363961 -6.363961 
@@ -62,7 +62,7 @@ z
 " style="stroke: #ffffff"/>
      </defs>
      <g>
-      <use xlink:href="#mfe59f2fd91" x="24" y="23.857707" style="fill: #882e72; stroke: #ffffff"/>
+      <use xlink:href="#mdc1747d231" x="24" y="23.857707" style="fill: #882e72; stroke: #ffffff"/>
      </g>
     </g>
     <g id="text_1">
@@ -186,7 +186,7 @@ L 117.39 23.857707
 L 129.39 23.857707 
 " style="fill: none; stroke: #ffffff; stroke-width: 1.5; stroke-linecap: square"/>
      <defs>
-      <path id="maaa012a4f7" d="M -9 9 
+      <path id="mc71a07d08c" d="M -9 9 
 L 9 9 
 L 9 -9 
 L -9 -9 
@@ -194,7 +194,7 @@ z
 " style="stroke: #ffffff; stroke-linejoin: miter"/>
      </defs>
      <g>
-      <use xlink:href="#maaa012a4f7" x="117.39" y="23.857707" style="fill: #1965b0; stroke: #ffffff; stroke-linejoin: miter"/>
+      <use xlink:href="#mc71a07d08c" x="117.39" y="23.857707" style="fill: #1965b0; stroke: #ffffff; stroke-linejoin: miter"/>
      </g>
     </g>
     <g id="text_2">
@@ -280,7 +280,7 @@ L 218.385 23.857707
 L 230.385 23.857707 
 " style="fill: none; stroke: #ffffff; stroke-width: 1.5; stroke-linecap: square"/>
      <defs>
-      <path id="m743146838b" d="M -4.5 9 
+      <path id="ma33a21fbaa" d="M -4.5 9 
 L 0 4.5 
 L 4.5 9 
 L 9 4.5 
@@ -296,7 +296,7 @@ z
 " style="stroke: #ffffff; stroke-linejoin: miter"/>
      </defs>
      <g>
-      <use xlink:href="#m743146838b" x="218.385" y="23.857707" style="fill: #7bafde; stroke: #ffffff; stroke-linejoin: miter"/>
+      <use xlink:href="#ma33a21fbaa" x="218.385" y="23.857707" style="fill: #f1932d; stroke: #ffffff; stroke-linejoin: miter"/>
      </g>
     </g>
     <g id="text_3">
