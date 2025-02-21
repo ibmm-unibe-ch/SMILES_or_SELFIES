@@ -20,7 +20,7 @@ plt.style.use('seaborn-v0_8-colorblind')
 #sns.set_style("whitegrid", {'axes.grid' : False})
 matplotlib.rcParams["axes.spines.right"] = False
 matplotlib.rcParams["axes.spines.top"] = False
-default_colours = ['#882e72','#1965B0', '#7bafde', '#4eb265', '#cae0ab', '#f7f056', '#f1932d', '#dc050c']
+default_colours = ['#332288', '#117733', '#44AA99', '#88CCEE', '#DDCC77', '#CC6677', '#AA4499', '#882255']
 default_markers = ["d", "^", "s", "X", "P"]
 hatches = ["", "/", "\\", "|", "-", "x", "o", "+", "O", ".", "*"]
 default_hatches = [
