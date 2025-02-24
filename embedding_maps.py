@@ -101,7 +101,7 @@ if __name__ == "__main__":
         embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
         for min_dist in [0.5]:
             for n_neighbors in [15]:
-                plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / "random",min_dist,n_neighbors, alpha=0.6, offset=3)
+                plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / "random",min_dist,n_neighbors, alpha=0.6, offset=0)
     else:
         for it, tokenizer_suffix in enumerate(tokenizer_suffixes):
             tokenizer = get_tokenizer(TOKENIZER_PATH / tokenizer_suffix)
@@ -123,5 +123,5 @@ if __name__ == "__main__":
             embeddings = get_embeddings(model, mol_dataset_path, fairseq_dict, cuda)
             for min_dist in [0.5]:
                 for n_neighbors in [15]:
-                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors, alpha=0.6,offset=it)
+                    plot_representations(embeddings,molecule_dataframe["label"],PLOT_PATH / "selected_molecules" / tokenizer_model_suffix,min_dist,n_neighbors, alpha=0.6,offset=0)
     
