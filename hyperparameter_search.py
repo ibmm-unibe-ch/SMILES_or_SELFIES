@@ -3,7 +3,6 @@ SMILES or SELFIES, 2022
 """
 import logging
 import os
-
 from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES
 from utils import parse_arguments
 from hyperparameters import EPOCHS, BATCH_SIZE, DROPOUT
