@@ -4,7 +4,6 @@ SMILES or SELFIES, 2022
 import logging
 import os
 from pathlib import Path
-
 import pandas as pd
 from constants import (
     FAIRSEQ_PREPROCESS_PATH,
@@ -15,7 +14,6 @@ from constants import (
 )
 from deepchem.feat import RawFeaturizer
 from tokenisation import get_tokenizer, tokenize_dataset
-
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 
 
@@ -25,6 +23,7 @@ def prepare_molnet(
     selfies: bool,
     output_dir: Path,
     model_dict: Path,
+    big_c:bool=False,
 ):
     """Prepare Molnet tasks with fairseq, so that they can be used for fine-tuning.
 
@@ -37,12 +36,12 @@ def prepare_molnet(
     """
     molnet_infos = MOLNET_DIRECTORY[task]
     _, splits, _ = molnet_infos["load_fn"](
-        featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"]
+        featurizer=RawFeaturizer(smiles=True), splitter=molnet_infos["split"], reload=False,
     )
     embedding_name = "SELFIES" if selfies else "SMILES"
     tasks = ["train", "valid", "test"]
     for id_number, split in enumerate(splits):
-        mol = tokenize_dataset(tokenizer, split.X, selfies)
+        mol = tokenize_dataset(tokenizer, split.X, selfies, big_c)
         # no normalisation of labels
         if "tasks_wanted" in molnet_infos:
             correct_column = split.tasks.tolist().index(molnet_infos["tasks_wanted"][0])
@@ -84,5 +83,11 @@ if __name__ == "__main__":
         for key in molnets:
             output_dir = TASK_PATH / key / tokenizer_suffix
             output_dir.mkdir(parents=True, exist_ok=True)
-            prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path)
+            prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path, big_c=False)
+            logging.info(f"Finished creating {output_dir}")
+
+        if tokenizer_suffix in ["smiles_atom_standard","selfies_atom_standard"]:
+            output_dir = TASK_PATH / key / (tokenizer_suffix+"_big_c")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            prepare_molnet(key, tokenizer, selfies, output_dir, preprocess_path, big_c=True)
             logging.info(f"Finished creating {output_dir}")

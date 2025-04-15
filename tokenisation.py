@@ -4,7 +4,6 @@ SMILES or SELFIES, 2022
 
 import logging
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from constants import PROCESSED_PATH, TOKENIZER_PATH
@@ -98,7 +97,7 @@ def get_tokenizer(tokenizer_path: Path) -> BartTokenizerFast:
     return tok
 
 
-def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
+def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False, big_c=False) -> str:
     """Tokenize sample with tokenizer
 
     Args:
@@ -114,13 +113,15 @@ def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
     ):
         return None
     canon_smiles = canonize_smile(sample_smiles)
+    if big_c:
+        canon_smiles = canon_smiles.replace("c","C")
     if selfies:
         canon_smiles = translate_selfie(str(canon_smiles))[0]
     tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(canon_smiles)).input_ids)
     return " ".join(tokens)
 
 
-def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
+def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False, big_c=False) -> pd.Series:
     """Tokenize whole dataset with tokenizer
 
     Args:
@@ -133,7 +134,7 @@ def tokenize_dataset(tokenizer, dataset: pd.Series, selfies=False) -> pd.Series:
     """
     output = np.array(
         [
-            tokenize_with_space(tokenizer, sample, selfies)
+            tokenize_with_space(tokenizer, sample, selfies, big_c)
             for sample in tqdm(dataset)
         ]
     )
