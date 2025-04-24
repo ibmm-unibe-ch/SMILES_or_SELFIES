@@ -1,0 +1,481 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Ehp34W93un4F"
+      },
+      "source": [
+        "# Attention readout and visualisation"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "/home/ifender/miniconda3/envs/attentionviz2/bin/python\n"
+          ]
+        }
+      ],
+      "source": [
+        "# this file uses the environment called attentionviz2"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "LEs0mviXKYo-"
+      },
+      "outputs": [],
+      "source": [
+        "from rdkit import Chem\n",
+        "from rdkit.Chem.Draw import rdMolDraw2D\n",
+        "from rdkit.Chem import Draw\n",
+        "from rdkit.Chem import AllChem\n",
+        "from rdkit.Chem import rdmolops\n",
+        "from rdkit import RDConfig\n",
+        "import os\n",
+        "import sys\n",
+        "#plotting\n",
+        "from IPython.display import SVG\n",
+        "import matplotlib.pyplot as plt\n",
+        "import matplotlib.cm as cm\n",
+        "import matplotlib.colors as mcolors\n",
+        "from collections import namedtuple\n",
+        "import torch\n",
+        "from IPython.display import SVG\n",
+        "from IPython.display import Image, display\n",
+        "import io\n",
+        "import numpy as np"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "id": "pO95aIvjIXMY"
+      },
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/home/ifender/miniconda3/envs/attentionviz2/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+            "  from .autonotebook import tqdm as notebook_tqdm\n",
+            "Skipped loading some Tensorflow models, missing a dependency. No module named 'tensorflow'\n",
+            "Skipped loading modules with pytorch-geometric dependency, missing a dependency. No module named 'torch_geometric'\n",
+            "Skipped loading modules with pytorch-geometric dependency, missing a dependency. cannot import name 'DMPNN' from 'deepchem.models.torch_models' (/home/ifender/miniconda3/envs/attentionviz2/lib/python3.10/site-packages/deepchem/models/torch_models/__init__.py)\n",
+            "Skipped loading modules with pytorch-lightning dependency, missing a dependency. No module named 'pytorch_lightning'\n",
+            "Skipped loading some Jax models, missing a dependency. No module named 'jax'\n",
+            "2024-06-12 15:22:18 | INFO | fairseq.tasks.text_to_speech | Please install tensorboardX: pip install tensorboardX\n"
+          ]
+        }
+      ],
+      "source": [
+        "#to import to get attention from model\n",
+        "from attention_readout import gather_attention\n",
+        "from constants import PREDICTION_MODEL_PATH"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ocjXuy29IXvG"
+      },
+      "source": [
+        "## Functions"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "id": "WcNcUlL7_0Zm"
+      },
+      "outputs": [],
+      "source": [
+        "def clean_SMILES(SMILES_tok):\n",
+        "    \"\"\"Removing structural tokens, hydrogens, and numbers from SMILES token input\n",
+        "\n",
+        "    Args:\n",
+        "        SMILES_tok (_list_): List of SMILES_tokens for a given SMILES\n",
+        "\n",
+        "    Returns:\n",
+        "        _list,list_: Processed SMILES_token list and list of positions in input tokens list that were kept\n",
+        "        (needed to distinguish which embeddings are relevant)\n",
+        "    \"\"\"\n",
+        "    SMILES_tok_prep = list()\n",
+        "    struc_toks = r\"()=:~1234567890#\"\n",
+        "    posToKeep = list()\n",
+        "    pos = 0\n",
+        "    for i in range(len(SMILES_tok)):\n",
+        "        # when it's an H in the SMILES, ignore, cannot deal\n",
+        "        if SMILES_tok[i] != \"H\" and SMILES_tok[i] != \"h\" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():\n",
+        "            if any(elem in struc_toks for elem in SMILES_tok[i]) == False:\n",
+        "                if SMILES_tok[i] != \"-\":\n",
+        "                    SMILES_tok_prep.append(SMILES_tok[i])\n",
+        "                    # keep pos where you keep SMILES token\n",
+        "                    posToKeep.append(pos)\n",
+        "        pos += 1\n",
+        "    assert(len(posToKeep) == (len(SMILES_tok_prep))\n",
+        "           ), f\"Length of positions-to-keep-array ({len(posToKeep)}) and length of SMILES_tok_prep ({len(SMILES_tok_prep)}) are not the same\"\n",
+        "    print(\"SMILES_tok: \", SMILES_tok)\n",
+        "    print(\"posToKeep: \", posToKeep)\n",
+        "    print(\"SMILES_tok_prep: \", SMILES_tok_prep)\n",
+        "\n",
+        "    return SMILES_tok_prep, posToKeep\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\n",
+        "def cleanAndNormalizeAttention(attention_array,posToKeep,clean_smiles):\n",
+        "    # filter attention tensor according to posToKeep to only keep attention for non-hydrogen atoms\n",
+        "    filtered_attentions = attention_array[posToKeep]\n",
+        "    print(len(filtered_attentions))\n",
+        "    assert len(clean_smiles)==len(filtered_attentions), \"Assert failed\"\n",
+        "    # condense attention depending on method chosen\n",
+        "    mean_values = np.mean(filtered_attentions)\n",
+        "    min_val = np.min(filtered_attentions)\n",
+        "    max_val = np.max(filtered_attentions)\n",
+        "    normalized_means = (filtered_attentions - min_val) / (max_val - min_val)\n",
+        "    print(\"before normalisation: \",filtered_attentions)\n",
+        "    print(\"normalized means where all values fall between 0 and 1: \",normalized_means)\n",
+        "    return normalized_means\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "id": "Epb-EaYNo64g"
+      },
+      "outputs": [],
+      "source": [
+        "def drawMoleculeWithAttention(orig_smiles,clean_smiles,norm_attentions):\n",
+        "\n",
+        "    # Generate a color map from 0-1 scaled to attentions\n",
+        "    min_val = norm_attentions.min()\n",
+        "    max_val = norm_attentions.max()\n",
+        "    print(f\"Minimum and maximum attention values: {min_val}, {max_val}\")\n",
+        "    norm = mcolors.Normalize(vmin=min_val, vmax=max_val)\n",
+        "    scalar_map = plt.cm.ScalarMappable(norm=norm, cmap='viridis')\n",
+        "\n",
+        "    mol = Chem.MolFromSmiles(orig_smiles)\n",
+        "    drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)\n",
+        "    mol_with_style = rdMolDraw2D.PrepareMolForDrawing(mol, kekulize=False)\n",
+        "\n",
+        "    # Set the drawing options\n",
+        "    opts = drawer.drawOptions()\n",
+        "\n",
+        "    # Create a color map for the atoms\n",
+        "    atom_colors = {i: scalar_map.to_rgba(norm_attentions[i])[:-1] for i in range(mol.GetNumAtoms())}  # Remove alpha channel\n",
+        "\n",
+        "    # Draw the molecule with colored atoms according to attention scores\n",
+        "    AllChem.Compute2DCoords(mol)\n",
+        "    d = rdMolDraw2D.MolDraw2DSVG(400, 400)\n",
+        "    rdMolDraw2D.PrepareAndDrawMolecule(d, mol, highlightAtoms=range(mol.GetNumAtoms()),\n",
+        "                                      highlightAtomColors=atom_colors)\n",
+        "\n",
+        "    d.FinishDrawing()\n",
+        "    # get the SVG string\n",
+        "    svg = d.GetDrawingText()\n",
+        "    # fix the svg string and display it\n",
+        "    display(SVG(svg.replace('svg:','')))\n",
+        "\n",
+        "    # Colorbar\n",
+        "    plt.figure(figsize=(4.5, 0.5))\n",
+        "    img = np.array([[min_val, max_val]])\n",
+        "    plt.imshow(img, cmap='viridis')\n",
+        "    plt.gca().set_visible(False)\n",
+        "    cax = plt.axes([0.1, 0.2, 0.8, 0.6])\n",
+        "    colba = plt.colorbar(cax=cax, orientation=\"horizontal\")\n",
+        "    colba.set_label('Attention Score')\n",
+        "    plt.savefig(\"test.png\")\n",
+        "    plt.show()"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "def colorAtomsByAttention(smiles):\n",
+        "    #tokenize, only atomwise supported\n",
+        "    smiles_tok = list(smiles)\n",
+        "    clean_smiles,posToKeep = clean_SMILES(smiles_tok)\n",
+        "    # get attention from model, only BART for now\n",
+        "    attention = gather_attention(smiles,\n",
+        "                 smiles_atom_path=PREDICTION_MODEL_PATH/\"smiles_atom_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 smiles_sentencepiece_path=PREDICTION_MODEL_PATH/\"smiles_trained_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 selfies_atom_path=PREDICTION_MODEL_PATH/\"selfies_atom_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 selfies_sentencepiece_path=PREDICTION_MODEL_PATH/\"selfies_trained_isomers_bart\"/\"checkpoint_last.pt\")\n",
+        "    # remove attention on hydrogens, numbers, structural tokens and minmax normalize attention to values between 0 and 1\n",
+        "    norm_attention = cleanAndNormalizeAttention(attention,posToKeep,clean_smiles)\n",
+        "    # draw molecule with colored atoms according to attention scores\n",
+        "    drawMoleculeWithAttention(smiles,clean_smiles,norm_attention)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "HR2Zt87NIarq"
+      },
+      "source": [
+        "## Main"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Zmivm1QdIlXy"
+      },
+      "source": [
+        "### Choose SMILES and get only the atoms from it"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "OUHmlTHw-x6U",
+        "outputId": "bfe6ea26-2fea-4305-e80c-674dc91b537e"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "SMILES_tok:  ['C', 'C', '=', 'C', 'C', 'O', 'C', 'C']\n",
+            "posToKeep:  [0, 1, 3, 4, 5, 6, 7]\n",
+            "SMILES_tok_prep:  ['C', 'C', 'C', 'C', 'O', 'C', 'C']\n"
+          ]
+        }
+      ],
+      "source": [
+        "# get rid of structural topkens and hydrogens in SMILES\n",
+        "smiles=\"CC=CCOCC\"\n",
+        "#only care about atomwise tokenisation\n",
+        "smiles_tok = list(smiles)\n",
+        "clean_smiles,posToKeep = clean_SMILES(smiles_tok)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "bYgYMmZeItck"
+      },
+      "source": [
+        "### Decide on the model to analyze and gather the attention for the previously chosen SMILES"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "id": "SAggJ1VhIj4u"
+      },
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "2024-06-12 15:22:36 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/prediction_models/smiles_atom_isomers_bart\n",
+            "2024-06-12 15:22:36 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/task/bbbp/smiles_atom_isomers\n",
+            "2024-06-12 15:22:36 | INFO | fairseq.tasks.sentence_prediction | [input] dictionary: 433 types\n",
+            "/home/ifender/miniconda3/envs/attentionviz2/lib/python3.10/site-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)\n",
+            "  return torch._C._cuda_getDeviceCount() > 0\n",
+            "2024-06-12 15:22:38 | INFO | fairseq.models.bart.model | Registering classification head: sentence_classification_head\n",
+            "2024-06-12 15:22:38 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/prediction_models/smiles_trained_isomers_bart\n",
+            "2024-06-12 15:22:38 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/task/bbbp/smiles_trained_isomers\n",
+            "2024-06-12 15:22:39 | INFO | fairseq.tasks.sentence_prediction | [input] dictionary: 905 types\n",
+            "2024-06-12 15:22:40 | INFO | fairseq.models.bart.model | Registering classification head: sentence_classification_head\n",
+            "2024-06-12 15:22:40 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/prediction_models/selfies_atom_isomers_bart\n",
+            "2024-06-12 15:22:40 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/task/bbbp/selfies_atom_isomers\n",
+            "2024-06-12 15:22:40 | INFO | fairseq.tasks.sentence_prediction | [input] dictionary: 577 types\n",
+            "2024-06-12 15:22:42 | INFO | fairseq.models.bart.model | Registering classification head: sentence_classification_head\n",
+            "2024-06-12 15:22:42 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/prediction_models/selfies_trained_isomers_bart\n",
+            "2024-06-12 15:22:42 | INFO | fairseq.file_utils | loading archive file /data/jgut/SMILES_or_SELFIES/task/bbbp/selfies_trained_isomers\n",
+            "2024-06-12 15:22:42 | INFO | fairseq.tasks.sentence_prediction | [input] dictionary: 929 types\n",
+            "2024-06-12 15:22:43 | INFO | fairseq.models.bart.model | Registering classification head: sentence_classification_head\n"
+          ]
+        }
+      ],
+      "source": [
+        "attention = gather_attention(smiles,\n",
+        "                 smiles_atom_path=PREDICTION_MODEL_PATH/\"smiles_atom_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 smiles_sentencepiece_path=PREDICTION_MODEL_PATH/\"smiles_trained_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 selfies_atom_path=PREDICTION_MODEL_PATH/\"selfies_atom_isomers_bart\"/\"checkpoint_last.pt\",\n",
+        "                 selfies_sentencepiece_path=PREDICTION_MODEL_PATH/\"selfies_trained_isomers_bart\"/\"checkpoint_last.pt\")\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Remove attention on structural tokens and hydrogens"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "7\n",
+            "normalized means where all values fall between 0 and 1:  0.631425447834213\n"
+          ]
+        }
+      ],
+      "source": [
+        "norm_attention = cleanAndNormalizeAttention(attention,posToKeep,clean_smiles)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Draw Molecule"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 20,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 532
+        },
+        "id": "d0v8O3zMpQk3",
+        "outputId": "98bf6d04-9b72-43bb-e851-8f0ff8203430"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Minimum and maximum attention values: 0.0, 1.0\n"
+          ]
+        },
+        {
+          "data": {
+            "image/svg+xml": [
+              "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:rdkit=\"http://www.rdkit.org/xml\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" baseProfile=\"full\" xml:space=\"preserve\" width=\"400px\" height=\"400px\" viewBox=\"0 0 400 400\">\n",
+              "<!-- END OF HEADER -->\n",
+              "<rect style=\"opacity:1.0;fill:#FFFFFF;stroke:none\" width=\"400.0\" height=\"400.0\" x=\"0.0\" y=\"0.0\"> </rect>\n",
+              "<ellipse cx=\"32.9\" cy=\"215.8\" rx=\"12.9\" ry=\"12.9\" class=\"atom-0\" style=\"fill:#FDE724;fill-rule:evenodd;stroke:#FDE724;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"88.6\" cy=\"183.7\" rx=\"12.9\" ry=\"12.9\" class=\"atom-1\" style=\"fill:#E4E318;fill-rule:evenodd;stroke:#E4E318;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"144.3\" cy=\"215.8\" rx=\"12.9\" ry=\"12.9\" class=\"atom-2\" style=\"fill:#4BC26C;fill-rule:evenodd;stroke:#4BC26C;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"200.0\" cy=\"183.7\" rx=\"12.9\" ry=\"12.9\" class=\"atom-3\" style=\"fill:#365B8C;fill-rule:evenodd;stroke:#365B8C;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"255.7\" cy=\"216.0\" rx=\"12.9\" ry=\"13.2\" class=\"atom-4\" style=\"fill:#440154;fill-rule:evenodd;stroke:#440154;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"311.4\" cy=\"183.7\" rx=\"12.9\" ry=\"12.9\" class=\"atom-5\" style=\"fill:#CAE01E;fill-rule:evenodd;stroke:#CAE01E;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<ellipse cx=\"367.1\" cy=\"215.8\" rx=\"12.9\" ry=\"12.9\" class=\"atom-6\" style=\"fill:#208F8C;fill-rule:evenodd;stroke:#208F8C;stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-0 atom-0 atom-1\" d=\"M 32.9,215.8 L 88.6,183.7\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-1 atom-1 atom-2\" d=\"M 88.6,183.7 L 144.3,215.8\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-1 atom-1 atom-2\" d=\"M 88.6,194.8 L 139.5,224.2\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-2 atom-2 atom-3\" d=\"M 144.3,215.8 L 200.0,183.7\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-3 atom-3 atom-4\" d=\"M 200.0,183.7 L 222.6,196.7\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-3 atom-3 atom-4\" d=\"M 222.6,196.7 L 245.2,209.8\" style=\"fill:none;fill-rule:evenodd;stroke:#FF0000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-4 atom-4 atom-5\" d=\"M 266.2,209.8 L 288.8,196.7\" style=\"fill:none;fill-rule:evenodd;stroke:#FF0000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-4 atom-4 atom-5\" d=\"M 288.8,196.7 L 311.4,183.7\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path class=\"bond-5 atom-5 atom-6\" d=\"M 311.4,183.7 L 367.1,215.8\" style=\"fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1\"/>\n",
+              "<path d=\"M 85.8,185.3 L 88.6,183.7 L 91.4,185.3\" style=\"fill:none;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;\"/>\n",
+              "<path d=\"M 141.5,214.2 L 144.3,215.8 L 147.1,214.2\" style=\"fill:none;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;\"/>\n",
+              "<path d=\"M 197.2,185.3 L 200.0,183.7 L 201.1,184.3\" style=\"fill:none;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;\"/>\n",
+              "<path d=\"M 310.3,184.3 L 311.4,183.7 L 314.2,185.3\" style=\"fill:none;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;\"/>\n",
+              "<path class=\"atom-4\" d=\"M 247.3 215.9 Q 247.3 211.5, 249.5 209.1 Q 251.7 206.6, 255.7 206.6 Q 259.8 206.6, 261.9 209.1 Q 264.1 211.5, 264.1 215.9 Q 264.1 220.3, 261.9 222.8 Q 259.7 225.3, 255.7 225.3 Q 251.7 225.3, 249.5 222.8 Q 247.3 220.3, 247.3 215.9 M 255.7 223.3 Q 258.5 223.3, 260.0 221.4 Q 261.5 219.5, 261.5 215.9 Q 261.5 212.3, 260.0 210.5 Q 258.5 208.7, 255.7 208.7 Q 252.9 208.7, 251.4 210.5 Q 249.9 212.3, 249.9 215.9 Q 249.9 219.6, 251.4 221.4 Q 252.9 223.3, 255.7 223.3 \" fill=\"#FF0000\"/>\n",
+              "</svg>"
+            ],
+            "text/plain": [
+              "<IPython.core.display.SVG object>"
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        },
+        {
+          "data": {
+            "image/png": "iVBORw0KGgoAAAANSUhEUgAAAZIAAABdCAYAAACPS+AvAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjguNCwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8fJSN1AAAACXBIWXMAAA9hAAAPYQGoP6dpAAAS5UlEQVR4nO3deWxU5dcH8O8zWzstbUVQqJS0UqgU4gIlRcpLIIqFVGQRtAaiSNRIDFoVNRAMFBWNEsxPDG6kYDSgKFAXFAQVoSyyVBqJBcpSF9yaIsSWWrrMef+YmTv3zlKZuTNTwO8nIT73PtuZ43CPszhXiYiAiIgoQpbODoCIiC5uLCRERGQKCwkREZnCQkJERKawkBARkSksJEREZAoLCRERmcJCQkREpthisWhzczNaWlpisTQREZngcDiQmJgY1TWjXkiam5uR5uyKFjRHe2kiIjKpZ8+eqK2tjWoxiXohaWlpQQua8X9qHGywQ1kUoNzvoLnbyj3Q01YWz7trSgH6tlJQnnnQz/OO044RsCaCzYOnbfGtI9o8354h+zxLiFLuPf3HeeIQi77P19bmetYUw5q+PcS7lid+d5/70DBO6eYG7AddHMZ5WqxB1/Bvq4CxxjUD+/TzA/q0PIWYF2L9oDHqHk7QPf328raNfWLcO0QsUALD7wgZxolxL22eBI7TPYUD5sF3rJRvNxVinlISsI53ntL3w/u0188Tw3nvsQWie2q7z+vnWfTj9Md+bQWE7LNAf+zyrQ9vnwsAYPWM9Y1zx2WFQOnmuce5tPWt0Pe5oOBrW5QLVs/jc7d16+vnwQWrJw4LxD3Xu4en37eGC1YtL/p5Li1+q2cv/2NvXq3QxyJa2wqBRcGXBwBWLQ/Kc6w8fQoW+NpWpWDxfHLhPna3GxsEmXk/oqWl5cIuJL6F7bApO5Tuwq5vBxQL/z7L+RYSXV9HhcQ7zlQh8Zw3FIsoFxL9xSgGhSTYxTvqhSRUHzroi7SQ+BcH+BeL0I81rELiPfbfJ5aFxNsOMs9bKALGepcMUjAQ4ryhkGh/lSIvJMZicX6FxHs+dCHRX1zPv5BYAgqJb01j+/wKiVUJrN4LtlKwQukKidIu7O4LvXdv5Skk3jXgVzj8j42FxHqehUSLq4NC4o0p2vhhOxERmcJCQkREprCQEBGRKSwkRERkCgsJERGZwkJCRESmsJAQEZEpLCRERGQKCwkREZnCQkJERKawkBARkSksJEREZAoLCRERmcJCQkREprCQEBGRKSwkRERkCgsJERGZwkJCRESmsJAQEZEpLCRERGQKCwkREZnCQkJERKawkBARkSksJEREZAoLCRERmcJCQkREpthitXAbWgEBlCh465W7rdwDPG0l3lqmAH3bpaCU7lh55inPetoxfG3vuGDzvG3xrSPePvGsoTro84aoFOBC4DhPHL6HoLSt3GvDN9YCwzzRPQbxrgUAFoXAlCl9+gx7iO6hGtJqyJH/ejDOM7RVwFjjmoF9+vkBfVqeQswLsX7QGHUPJ+iefnt528Y+Me4dIhYocccO3TltnBj30uZJ4Dj9U9h/HnzHSvl2UyHmKSUB63jnKX0/vE97/TwxnPceC0QL3+U5b9HN87YtMPZZ/NrK889gfRboj12+9eHtc//lsnrG+sa547JCoHTz3ONc2vpW6PtcUPC1LcoFq+fxudu69fXz4ILVE4cF4p7r3cPT71vDBauWF/08lxa/1bOX/7E3r1boYxGtbYXAouDLAwCrlgflOVaePgULfG2rUtqrBPexu93YYHgmR03UC4mIoEuXLtjRuMF9oj3aOxARUaS6dOkCkegWlKgXEqUUGhsb8csvvyA1NTXay1/0/v77b/Tu3Zv5CYH56Rjz0zHmp2Pe/Cj9OxRRELO3tlJTU/kvsgPMT8eYn44xPx1jfuKLH7YTEZEpLCRERGRK1AtJQkICFixYgISEhGgvfUlgfjrG/HSM+ekY89OxWOVHSbQ/viciov8UvrVFRESmsJAQEZEpLCRERGQKCwkREZkSUSF57bXXcPXVVyMxMRF5eXmoqKjocPy2bduQl5eHxMRE9OnTB2+88UZEwV4swsnP+vXrccstt+CKK65Aamoqhg0bhi+++CKO0cZfuM8fr507d8Jms+GGG26IbYCdLNz8nDt3DvPmzUNmZiYSEhKQnZ2NFStWxCna+As3P6tWrcL111+PpKQkpKenY8aMGTh16lScoo2v7du347bbbsNVV10FpRQ++uijf50TleuzhOn9998Xu90uy5cvl+rqaikpKZHk5GT56aefgo4/ceKEJCUlSUlJiVRXV8vy5cvFbrfL2rVrw936ohBufkpKSuTFF1+UvXv3Sk1NjcydO1fsdrt89913cY48PsLNj9eZM2ekT58+UlhY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u2L+/PkYN24cevfujTvuuAMWiwXff/89Dh48iOeee+684srMzIRSChs2bEBRURGcTmfAf5X369cPEyZMwAMPPIA333wTKSkpmDNnDnr16oUJEyZEnJPS0lI0NTWhqKgImZmZOHPmDJYuXYrW1lbccsstAIAFCxbg5ptvRnZ2Nu666y60tbVh48aNeOqppyKOKycnB9OmTcM999yDJUuWYNCgQaivr8fXX3+Na6+9FkVFRRE/JqIAnfj5DF1ixo0bJ0VFRUH7KisrBYBUVlZKc3OzTJ48WS677DLtm1oi7q/59u3bV2w2m+Hrv5s2bZKCggJxOp2Smpoq+fn58tZbb2n9CPIhfVpamrauiMgzzzwjPXv2FKXUv379Ny0tTZxOp4wZMybo12z1ysvLpaO/Rl9//bVMnjxZevfuLQ6HQ3r06CFjx46ViooKw7h169bJDTfcIA6HQ7p37y633367qbhERFpaWmT+/PmSlZUldrtdevbsKZMmTZLvv/8+ZLxEkeCtdomIyBT+n+1ERGQKCwkREZnCQkJERKawkBARkSksJEREZAoLCRERmcJCQkREprCQEBGRKSwkRERkCgsJERGZwkJCRESmsJAQEZEp/w94FmIfotQIoQAAAABJRU5ErkJggg==",
+            "text/plain": [
+              "<Figure size 450x50 with 2 Axes>"
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        }
+      ],
+      "source": [
+        "drawMoleculeWithAttention(smiles,clean_smiles,norm_attention)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "NEH_PxhTzA9M"
+      },
+      "source": [
+        "## SMILES to look into:\n",
+        "### Looking into attention differences in symmetrical molecules:\n",
+        "\n",
+        "1) c1cc2ccc3cccc4ccc(c1)c2c34 (Highly symmetrical (4 benzol rings))\n",
+        "\n",
+        "2) O=CNC(N1C=CN(C(NC=O)C(Cl)(Cl)Cl)C=C1)C(Cl)(Cl)Cl (Also very symmetrical, espc. Ns, Cls and Os in similar positions interesting to compare attention)\n",
+        "\n",
+        "3) c1ccc(-c2ccc(-c3ccccc3)cc2)cc1 (three benzol rings in a chain)\n",
+        "\n",
+        "4) c1ccc2c(c1)sc1ccccc12 (2 benzol rings, one five-ring )\n",
+        "\n",
+        "### Looking into differences in hydrophobicity:\n",
+        "\n",
+        "5) C1=CC=CC=C1 (Benzol, Solubility in water: 1.84 g/L (30 °C) (see: https://en.wikipedia.org/wiki/Benzene))\n",
+        "\n",
+        "6) CC(OC1=C(C(=O)O)C=CC=C1)=O CC(=O)OC1C=CC=CC=1C(O)=O (Aspirin, Solubility in water 3g/L (see: https://en.wikipedia.org/wiki/Aspirin))\n",
+        "\n",
+        "7) C1=CC(=CC=C1C(=O)O)O (PHBA (found in: https://www.sciencedirect.com/science/article/pii/S095965262030247X#fig1), Solubility in Water 5g/L at 25 °C (https://pubchem.ncbi.nlm.nih.gov/compound/135#section=Melting-Point))\n",
+        "\n",
+        "8) CCCCOC(=O)C1=CC=C(C=C1)N (Butyl 4-aminobenzoate (see: https://pubchem.ncbi.nlm.nih.gov/compound/2482#section=Melting-Point), Solubility in Water: 0.14g/L (no temperature stated))"
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.10.14"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}

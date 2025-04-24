@@ -79,7 +79,7 @@ def to_minmaxnormalisation(molecule, smiles_atom, smiles_sentencepiece, selfies_
     return dikt
 
 def gather_attention_model(input_mols, tokenizer_suffix, model_path): # PREDICTION_MODEL_PATH/model_suffix/"checkpoint_last.pt"
-    fairseq_dict_path = TASK_PATH / "bbbp" /tokenizer_suffix
+    fairseq_dict_path = TASK_PATH / "delaney" /tokenizer_suffix
     tokenizer = get_tokenizer(TOKENIZER_PATH) 
     model = load_model(model_path, fairseq_dict_path,None)
     source_dictionary = get_dictionary(FAIRSEQ_PREPROCESS_PATH/tokenizer_suffix/"dict.txt")
@@ -96,14 +96,15 @@ def gather_attention(SMILES, smiles_atom_path=None, smiles_sentencepiece_path=No
         smiles_atom = gather_attention_model(SMILES, "smiles_atom_isomers", smiles_atom_path)
     else:
         smiles_atom = [None]
-    """if smiles_sentencepiece_path:
-        smiles_sentencepiece = gather_attention_model(SMILES, "smiles_trained_isomers", smiles_sentencepiece_path)
-    else:
-        smiles_sentencepiece = [None]
     if selfies_atom_path:
         selfies_atom = gather_attention_model(SELFIES, "selfies_atom_isomers", selfies_atom_path)
     else:
         selfies_atom = [None]
+    """if smiles_sentencepiece_path:
+        smiles_sentencepiece = gather_attention_model(SMILES, "smiles_trained_isomers", smiles_sentencepiece_path)
+    else:
+        smiles_sentencepiece = [None]
+    
     if selfies_sentencepiece_path:
         selfies_sentencepiece = gather_attention_model(SELFIES, "selfies_trained_isomers", selfies_sentencepiece_path)
     else:
@@ -113,5 +114,7 @@ def gather_attention(SMILES, smiles_atom_path=None, smiles_sentencepiece_path=No
     #markdown = to_markdown(mkd,smiles_atom[0], smiles_sentencepiece[0], selfies_atom[0], selfies_sentencepiece[0])
     #dikt = to_minmaxnormalisation(SMILES,smiles_atom[0], smiles_sentencepiece[0], selfies_atom[0], selfies_sentencepiece[0])
     #dikt={}
-    attention_array_smiles = np.array([letter[0] for letter in smiles_atom[0]])
-    return attention_array_smiles
+    #attention_array_smiles = np.array([letter[0] for letter in smiles_atom[0]])
+    #attention_array_selfies = np.array([letter[0] for letter in selfies_atom[0]])
+    #return attention_array_smiles, attention_array_selfies
+    return smiles_atom[0], selfies_atom[0]
