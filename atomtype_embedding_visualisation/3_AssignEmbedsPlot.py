@@ -14,6 +14,9 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from constants import SEED
 import numpy as np
+import matplotlib.colors as mcolors
+from matplotlib.ticker import MultipleLocator
+from collections import Counter
 
 from constants import (
     TASK_PATH,
@@ -57,7 +60,7 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     fig, ax = plt.subplots(1)
     ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
                colours_dict[x] for x in labels])
-    legend_elements = build_legend(colours_dict)
+    legend_elements = build_legend(colours_dict, markerdict, labels)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("LDA 2", fontsize=17)
@@ -81,7 +84,7 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     fig, ax = plt.subplots(1)
     ax.scatter(lda_embeddings[:, 0], lda_embeddings[:, 1], marker='.', alpha=alpha, c=[
                colours_dict[x] for x in random_labels])
-    legend_elements = build_legend(colours_dict)
+    legend_elements = build_legend(colours_dict, markerdict, labels)
     ax.legend(handles=legend_elements, loc='center right',
               bbox_to_anchor=(1.13, 0.5), fontsize=8)
     ax.set_ylabel("LDA 2", fontsize=17)
@@ -91,10 +94,12 @@ def plot_lda(embeddings, labels, colours_dict, save_path, alpha=0.2):
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
     ax.tick_params(length=8, width=3, labelsize=15)
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.2)
     fig.savefig(f"{save_path}_random.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
-def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_path, namestring, alpha=0.2):
+def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_path, namestring, color, alpha):
     """Performing PCA and plotting it
 
     Args:
@@ -102,8 +107,10 @@ def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_pa
         labels (_list[string]_): List of assigned atom types
         colours_dict (_dict[string][int]_): Dictionary of colors linking atomtypes to colors
         save_path (_string_): Path where to save plot
-        alpha (float, optional): Level of opacity. Defaults to 0.2.
+        alpha (float, optional): Level of opacity.
     """
+    #inches to centimeters
+    cm = 1/2.54 
     logging.info("Started plotting PCA")
     print("markerdict:",marker_dict)
     os.makedirs(save_path.parent, exist_ok=True)
@@ -114,33 +121,46 @@ def plot_pca_with_markers(embeddings, labels, marker_dict, colours_dict, save_pa
     )
     explained_variance_percentages = [f"{var:.2%}" for var in pca.explained_variance_ratio_]  # Format as percentages
     
-    rep = save_path.name.split('pca')[0]
-    fig, ax = plt.subplots(1)
     
-    for label in labels:
+    label_counts = Counter(labels)
+    sorted_labels = sorted(label_counts, key=label_counts.get, reverse=True)
+    print("sorted labels:",sorted_labels)
+    rep = save_path.name.split('pca')[0]
+    fig, ax = plt.subplots(1, figsize=(8.3*cm, 10*cm)) #8.3cm is one column figure
+    
+    #for color in colours_dict.keys():
+    for label in sorted_labels:
         marker = marker_dict[label]
         idx = [i for i, x in enumerate(labels) if x == label]
         col = colours_dict[label]
-        ax.scatter(pca_embeddings[idx, 0], pca_embeddings[idx, 1], marker=marker, alpha=alpha, c=col, edgecolors="none")
+        ax.scatter(pca_embeddings[idx, 0], pca_embeddings[idx, 1], c=col, marker=marker, alpha=alpha)
         
     #ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker=".", alpha=alpha, c=[
-     #          colours_dict[x] for x in labels])
+    #          colours_dict[x] for x in labels])
     legend_elements = build_legend(colours_dict, marker_dict, labels)
     ax.legend(handles=legend_elements, loc='center right',
-              bbox_to_anchor=(1.13, 0.5), fontsize=8)
-    ax.set_ylabel(f"PC 2 ({explained_variance_percentages[1]})", fontsize=17)
-    ax.set_xlabel(f"PC 1 ({explained_variance_percentages[0]})", fontsize=17)
-    ax.set_title(f"PCA for {rep} of element {namestring}", fontsize=21)
+           bbox_to_anchor=(1.13, 0.5), fontsize=8)
+    ax.legend(handles=legend_elements, loc='upper center',bbox_to_anchor=(0.5, -0.2), fontsize=12, ncol=len(legend_elements), markerscale=2)
+    ax.set_ylabel(f"PC 2 ({explained_variance_percentages[1]})", fontsize=12)
+    ax.set_xlabel(f"PC 1 ({explained_variance_percentages[0]})", fontsize=12)
+    ax.set_title(f"PCA for {rep} of element {namestring}", fontsize=12)
     ax.spines[['right', 'top']].set_visible(False)
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
-    ax.tick_params(length=8, width=3, labelsize=15)
+    ax.tick_params(length=8, width=3, labelsize=12)
     #fig.savefig(f"{save_path}_withmarkers_alpha{alpha}.svg", format="svg", bbox_inches='tight', transparent=True)
-    fig.savefig(f"{save_path}_withmarkers_alpha{alpha}.png", format="png", dpi=600, bbox_inches='tight')
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.yaxis.set_major_locator(MultipleLocator(10))
+    ax.set_aspect('equal', adjustable='box')
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.4)
+     # Set ticks every 10 units
+
+    fig.savefig(f"{save_path}_withmarkers_alpha{alpha}_col{color}_wlegend.png", format="png", dpi=600, bbox_inches='tight')
     fig.clf()
     #fig.show()
 
-def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestring, alpha):
+def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestring, color, alpha):
     """Performing PCA and plotting it
 
     Args:
@@ -150,6 +170,7 @@ def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestrin
         save_path (_string_): Path where to save plot
         alpha (float, optional): Level of opacity. Defaults to 0.2.
     """
+    print("plot pca!")
     logging.info("Started plotting PCA")
     os.makedirs(save_path.parent, exist_ok=True)
     pca = PCA(n_components=2, random_state=SEED + 6541)
@@ -160,12 +181,18 @@ def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestrin
     explained_variance_percentages = [f"{var:.2%}" for var in pca.explained_variance_ratio_]  # Format as percentages
     
     rep = save_path.name.split('pca')[0]
+
+    print("make figure with colors",color)
+   #print("colours_dict[color]: ",colours_dict[color])
     fig, ax = plt.subplots(1)
     ax.scatter(pca_embeddings[:, 0], pca_embeddings[:, 1], marker='.', alpha=alpha, c=[
-               colours_dict[x] for x in labels])
-    legend_elements = build_legend(colours_dict, marker_dict, labels)
-    ax.legend(handles=legend_elements, loc='center right',
-              bbox_to_anchor=(1.13, 0.5), fontsize=8)
+            colours_dict[x] for x in labels])
+    
+    markerdict_copy = {key: {key2: '.' for key2 in val} for key, val in markerdict.items()}
+    legend_elements = build_legend(colours_dict, markerdict_copy, labels)
+    #ax.legend(handles=legend_elements, loc='center right',
+    #        bbox_to_anchor=(1.13, 0.5), fontsize=12)
+    ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.3), fontsize=12, ncol=len(legend_elements), markerscale=2)
     ax.set_ylabel(f"PC 2 ({explained_variance_percentages[1]})", fontsize=17)
     ax.set_xlabel(f"PC 1 ({explained_variance_percentages[0]})", fontsize=17)
     ax.set_title(f"PCA for {rep} of element {namestring}", fontsize=21)
@@ -173,29 +200,34 @@ def plot_pca(embeddings, labels, marker_dict, colours_dict, save_path, namestrin
     ax.spines["bottom"].set_linewidth(2)
     ax.spines["left"].set_linewidth(2)
     ax.tick_params(length=8, width=3, labelsize=15)
-    fig.savefig(f"{save_path}_alpha{alpha}.svg", format="svg", bbox_inches='tight', transparent=True)
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.yaxis.set_major_locator(MultipleLocator(10))
+    ax.set_aspect('equal', adjustable='box')
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.5)
+    fig.savefig(f"{save_path}_alpha{alpha}_col{color}.svg", format="svg", bbox_inches='tight', transparent=True)
     fig.clf()
 
-def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, namestring, save_path_prefix, markerdict, atomtype2color, min_dist, n_neighbors, alpha):
+def plot_umap_pca_lda(p_f_cl_list_embs, p_f_cl_list_assigs, namestring, save_path_prefix, markerdict, atomtype2color, min_dist, n_neighbors, color, alpha):
     #create paths on what to name the plots
     pathway = Path(str(save_path_prefix) +
                    f"umap_{min_dist}_{n_neighbors}_{namestring}")
     pathway_pca = Path(str(save_path_prefix) + f"pca_{namestring}")
     pathway_lda = Path(str(save_path_prefix) + f"lda_{namestring}")
     
- 
+    print("subplot func")
     # plot PCA
-    plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, markerdict[namestring],
-             atomtype2color[namestring], pathway_pca, namestring, alpha)
+    #plot_pca(p_f_cl_list_embs, p_f_cl_list_assigs, markerdict[namestring],
+    #         atomtype2color[namestring], pathway_pca, namestring, color, alpha)
     plot_pca_with_markers(p_f_cl_list_embs, p_f_cl_list_assigs, markerdict[namestring],
-             atomtype2color[namestring], pathway_pca, namestring, alpha)
+             atomtype2color[namestring], pathway_pca, namestring, color, alpha)
     # plot LDA
     #plot_lda(p_f_cl_list_embs, p_f_cl_list_assigs,
     #         atomtype2color[namestring], pathway_lda, alpha)
     # plot UMAP
    # plot_umap(p_f_cl_list_embs, p_f_cl_list_assigs, atomtype2color, pathway, min_dist, n_neighbors, alpha)
 
-def plot_plots(atomtype_embedding_perelem_dict, markerdict, colordict, min_dist, n_neighbors, alpha, save_path_prefix):
+def plot_plots(atomtype_embedding_perelem_dict, markerdict, colordict, min_dist, n_neighbors, alpha, save_path_prefix, color):
     #namestring="c"
     #plot_umap_pca_lda(atomtype_embedding_perelem_dict[namestring][1], atomtype_embedding_perelem_dict[namestring][0], namestring, save_path_prefix, colordict, min_dist, n_neighbors, alpha)
     
@@ -208,6 +240,7 @@ def plot_plots(atomtype_embedding_perelem_dict, markerdict, colordict, min_dist,
     print("Plotting................................BY ELEMENT")
     # plot all atomtypes of one element only
     for key in colordict.keys():
+        print("key",key)
         if len(key)<=2 and key!='cl' and key in atomtype_embedding_perelem_dict.keys():
             print(f"#######KEY {key}\n")
             pathway_umap = Path(str(save_path_prefix) +
@@ -216,13 +249,14 @@ def plot_plots(atomtype_embedding_perelem_dict, markerdict, colordict, min_dist,
             pathway_lda = Path(str(save_path_prefix) + f"lda_{key}.svg")
             embeddings = atomtype_embedding_perelem_dict[key][1]
             assignments = atomtype_embedding_perelem_dict[key][0]
+            print("ASSIGNMENTS: ", assignments)
             #atomtype2color, set_list = getcolorstoatomtype(set(assignments.copy()))
 
             try:
                 assert len(embeddings) == (len(assignments)), "Assignments and embeddings do not have same length."
                 assert len(embeddings)>10, "Not enough embeddings for plotting"
                 print(f"len embeddings of key {key}: {len(embeddings)}")
-                plot_umap_pca_lda(embeddings, assignments, key, save_path_prefix, markerdict, colordict, min_dist, n_neighbors, alpha)
+                plot_umap_pca_lda(embeddings, assignments, key, save_path_prefix, markerdict, colordict, min_dist, n_neighbors, color, alpha)
                 #plot_pca(embeddings, assignments, atomtype2color, pathway_pca, alpha)
                 #plot_lda(embeddings, assignments, atomtype2color, pathway_lda, alpha)
                 #plot_umap(embeddings, assignments, atomtype2color, pathway_umap, min_dist, n_neighbors, alpha)
@@ -271,7 +305,7 @@ def get_atomtype_embedding_perelem_dict(filtered_dict, colordict, entry_name_ato
     print(atomtype_embedding_perelem_dict.keys())
     return atomtype_embedding_perelem_dict
 
-def create_plotsperelem(dikt, markerdict, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix):
+def create_plotsperelem(atomtype_embedding_perelem_dict_smiles, atomtype_embedding_perelem_dict_selfies, markerdict, colordict, min_dist, n_neighbors, alpha, save_path_prefix, color):
     """Create plot per element and for all element subsets
 
     Args:
@@ -284,7 +318,7 @@ def create_plotsperelem(dikt, markerdict, colordict, penalty_threshold, min_dist
         save_path_prefix (_string_): Path prefix where to save output plot
     """
     print(colordict.keys())
-    cs=0
+    #cs=0
     #for key,val in dikt.items():
     #    if dikt[key]['atomtype_to_embedding'] is not None:
     #        #dikt[key]['atomtype_to_embedding']['c']
@@ -295,27 +329,15 @@ def create_plotsperelem(dikt, markerdict, colordict, penalty_threshold, min_dist
     #            print()
     #        print(dikt[key]['atom_types'])
     #        cs+=1
-    print("cs-----------------",cs)   
-    # Assuming 'dikt' is your dictionary and each value has a 'penalty_score' key
-    filtered_dict_filterthresh = {smiles: info for smiles, info in dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
+    #print("cs-----------------",cs)   
     
-    # there are less SELFIES embeddings that could be mapped to the SMILES and thereby the atomtypes, so the number of embeddings is less
-    # therefore filter filtered_dict further on what is available for SELFIES and also what is available for SMILES
-    filtered_dict = {smiles: info for smiles, info in filtered_dict_filterthresh.items() if info['atomtype_to_embedding'] is not None and info['atomtype_to_clean_selfies_embedding'] is not None}
-    print("keys in filtered dict:",len(filtered_dict.keys()))
     #for key, value in filtered_dict.items():
     #    print(value['max_penalty'])
-    
-    # -------------------------SMILES
-    atomtype_embedding_perelem_dict_smiles = get_atomtype_embedding_perelem_dict(filtered_dict, colordict, 'atomtype_to_embedding')
-    print(f"len of atomtype embs per elem smiles: {len(atomtype_embedding_perelem_dict_smiles)}")
-    plot_plots(atomtype_embedding_perelem_dict_smiles, markerdict, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}smiles")
-    
-    #------------------------------SELFIES 
-    print("plotting SELFIES")
-    atomtype_embedding_perelem_dict_selfies = get_atomtype_embedding_perelem_dict(filtered_dict, colordict, 'atomtype_to_clean_selfies_embedding')
-    print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
-    plot_plots(atomtype_embedding_perelem_dict_selfies, markerdict, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}selfies")
+
+    #plot for SMILES
+    plot_plots(atomtype_embedding_perelem_dict_smiles, markerdict, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}smiles", color)
+    # plot for SELFIES
+    plot_plots(atomtype_embedding_perelem_dict_selfies, markerdict, colordict, min_dist, n_neighbors, alpha, f"{save_path_prefix}selfies", color)
 
 def colorstoatomtypesbyelement(atomtoelems_dict):
     """Generating a dictionary of colors given a dictionary that maps atomtypes to elements
@@ -327,24 +349,46 @@ def colorstoatomtypesbyelement(atomtoelems_dict):
         _dict,: Dictionary that maps atom types to colors
     """
     # https://sashamaps.net/docs/resources/20-colors/ #95% accessible only, subject to change, no white
-    colors_sash = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
+    sash = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
                    '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000']
-    markers = [".","o", "s", "^", "v", "D", "P", "X", "*"]
+    #viridis
+    viridis = plt.cm.get_cmap('viridis', 8)  # Get the Viridis colormap
+    viridis_colors = [mcolors.to_hex(viridis(i)) for i in range(8)]  # Convert to hex 
+    # tol colorscale https://personal.sron.nl/~pault/ 
+    # 10 14 15 17 18 26
+    tol = ['#882e72','#1965B0', '#7bafde', '#4eb265', '#cae0ab', '#f7f056', '#f1932d', '#dc050c'] 
     
+    markers = ["o", "s", "^", "v", "D", "P", "X", "*"]
+    
+    # create dict for colors
+    colornames=['sash', 'tol', 'viridis']
+    colors = [sash, tol, viridis_colors]
     colordict = dict()
+
+    for colourname, colour in zip(colornames,colors):
+        colordict[colourname]={}
+        for key in atomtoelems_dict.keys():
+            atypes = atomtoelems_dict[key]
+            keycoldict=dict()
+            for at, col in zip(atypes, colour[0:len(atypes)]):
+                keycoldict[at]=col    
+            colordict[colourname][key]=keycoldict 
+    print(colordict.items())
+    print(colordict['sash'])
+    
+    # create dict for markers
     markerdict = dict()
     for key in atomtoelems_dict.keys():
-        atypes = atomtoelems_dict[key]
-        keycoldict=dict()
-        markerdictdict=dict()
-        i=0
-        for at, col in zip(atypes, colors_sash[0:len(atypes)]):
-            keycoldict[at]=col    
-            markerdictdict[at]=markers[i]
-            i+=1  
-        colordict[key]=keycoldict 
-        markerdict[key]=markerdictdict
-    print(colordict.items())
+            atypes = atomtoelems_dict[key]
+            markerdictdict=dict()
+            i=0
+            for at in atypes:
+                markerdictdict[at]=markers[i]
+                i+=1  
+            markerdict[key]=markerdictdict
+    print(markerdict.items())
+    
+    
     
     # now instead for each element, get colors for a combination of atomtypes
     # p f cl o s
@@ -893,13 +937,91 @@ if __name__ == "__main__":
     basic_atomtypes_to_elems_dict = {'c': ['c', 'c1', 'c2', 'c3', 'ca'], 'o': ['o', 'oh', 'os'], 'n': ['n', 'n1', 'n2', 'n3', 'n4', 'na', 'nh', 'no']}
     atomtypes_to_elems_dict = create_elementsubsets(unique_atomtype_set)
 
+    
+    #colors="tol"
     # get colors for atomtypes by element and element groups
     colordict, markerdict = colorstoatomtypesbyelement(basic_atomtypes_to_elems_dict)
-
-    # plot embeddings
+    #print(colordict['sash']['c'])
+    print(markerdict)
+    
+    penalty_threshold = 300
+    # Assuming 'dikt' is your dictionary and each value has a 'penalty_score' key
+    filtered_dict_filterthresh = {smiles: info for smiles, info in merged_dikt.items() if info['max_penalty'] is not None and info['max_penalty'] < penalty_threshold}
+    
+    # there are less SELFIES embeddings that could be mapped to the SMILES and thereby the atomtypes, so the number of embeddings is less
+    # therefore filter filtered_dict further on what is available for SELFIES and also what is available for SMILES
+    filtered_dict = {smiles: info for smiles, info in filtered_dict_filterthresh.items() if info['atomtype_to_embedding'] is not None and info['atomtype_to_clean_selfies_embedding'] is not None}
+    print("keys in filtered dict:",len(filtered_dict.keys()))
+    print("keys in filtered dict:",filtered_dict.keys())
+    
+    save_path_prefix = f"./TEST_10_2_{model}_{traintype}_delaney_bbbp_clearance_lipo_mols{valid_keys_count}_thresh{penalty_threshold}/"
+    
+    # only plot using color scheme tol
+    color="tol"
+    colorsubdict=colordict[color]
     min_dist = 0.1
     n_neighbors = 15
     alpha = 0.6
-    penalty_threshold = 300
-    save_path_prefix = f"./{model}_{traintype}_delaney_bbbp_clearance_lipo_mols{valid_keys_count}_thresh{penalty_threshold}/"
-    create_plotsperelem(merged_dikt, markerdict, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
+    
+        # -------------------------SMILES
+    atomtype_embedding_perelem_dict_smiles = get_atomtype_embedding_perelem_dict(filtered_dict, colorsubdict, 'atomtype_to_embedding')
+    #print(f"len of atomtype embs per elem smiles: {len(atomtype_embedding_perelem_dict_smiles['sash'])}")
+    print("keys: ",atomtype_embedding_perelem_dict_smiles.keys())
+    #print("keys: ",atomtype_embedding_perelem_dict_smiles['sash']['c'][0])
+    print('=======================')
+    # for x in atomtype_embedding_perelem_dict_smiles['sash']:
+    #     print(x)
+    # print('=======================')
+    #first_items = [tup for tup in atomtype_embedding_perelem_dict_smiles['sash']]
+    #print("First items: ", len(first_items))
+    #print("First items: ", first_items)
+    #------------------------------SELFIES 
+    # print("plotting SELFIES")
+    atomtype_embedding_perelem_dict_selfies = get_atomtype_embedding_perelem_dict(filtered_dict, colorsubdict, 'atomtype_to_clean_selfies_embedding')
+    #print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
+    #print("keys: ", atomtype_embedding_perelem_dict_selfies.keys())
+
+    create_plotsperelem(atomtype_embedding_perelem_dict_smiles, atomtype_embedding_perelem_dict_selfies, markerdict, colorsubdict, min_dist, n_neighbors, alpha, save_path_prefix, color)
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    """
+    # only if you want to try more than one color scheme
+    for color in colordict.keys():
+        print(f"---------------COLOR: {color}")
+        colorsubdict=colordict[color]
+        #print(colorsubdict)
+        #print(colorsubdict['c'])
+        # plot embeddings
+        min_dist = 0.1
+        n_neighbors = 15
+        alpha = 0.6
+        
+                # -------------------------SMILES
+        atomtype_embedding_perelem_dict_smiles = get_atomtype_embedding_perelem_dict(filtered_dict, colorsubdict, 'atomtype_to_embedding')
+        #print(f"len of atomtype embs per elem smiles: {len(atomtype_embedding_perelem_dict_smiles['sash'])}")
+        print("keys: ",atomtype_embedding_perelem_dict_smiles.keys())
+        #print("keys: ",atomtype_embedding_perelem_dict_smiles['sash']['c'][0])
+        print('=======================')
+       # for x in atomtype_embedding_perelem_dict_smiles['sash']:
+       #     print(x)
+       # print('=======================')
+        #first_items = [tup for tup in atomtype_embedding_perelem_dict_smiles['sash']]
+        #print("First items: ", len(first_items))
+        #print("First items: ", first_items)
+        #------------------------------SELFIES 
+       # print("plotting SELFIES")
+        atomtype_embedding_perelem_dict_selfies = get_atomtype_embedding_perelem_dict(filtered_dict, colorsubdict, 'atomtype_to_clean_selfies_embedding')
+        #print(f"len of atomtype embs per elem selfies: {len(atomtype_embedding_perelem_dict_selfies)}")
+        #print("keys: ", atomtype_embedding_perelem_dict_selfies.keys())
+
+        create_plotsperelem(atomtype_embedding_perelem_dict_smiles, atomtype_embedding_perelem_dict_selfies, markerdict, colorsubdict, min_dist, n_neighbors, alpha, save_path_prefix, color)
+    
+    """

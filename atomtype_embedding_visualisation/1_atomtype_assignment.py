@@ -339,5 +339,3 @@ if __name__ == "__main__":
     if not os.path.exists(filepath):
         os.makedirs(filepath)
     smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath)
-  
-     

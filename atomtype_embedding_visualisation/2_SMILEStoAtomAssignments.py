@@ -1,4 +1,4 @@
-# this file is to get atom assignments to SMILES from previously created older with mol2-files, atomassignment outputs from antechamber 
+# This file is to get atom assignments to SMILES from previously created folder with mol2-files, atomassignment outputs from antechamber 
 # and parmchk2-outputfiles that were created when checking the antechamber output
 # Output is a dictionary with SMILES as keys and a dictionary with the following keys: posToKeep, smi_clean, atom_types, max_penalty
 
@@ -270,7 +270,7 @@ def canonize_smiles(input_str: str, remove_identities: bool = True) -> str:
 
     return Chem.MolToSmiles(mol)
 
-def get_tokenized_SMILES(task_SMILES_orig: List[str]):
+def get_tokenized_SMILES(task_SMILES: List[str]):
     """Tokenize SMILES string
 
     Args:
@@ -279,18 +279,6 @@ def get_tokenized_SMILES(task_SMILES_orig: List[str]):
     Returns:
         dict: dictionary that links canonize SMILES string
     """
-
-    #if tokenizer_set==False:
-    #    #### TEST: TURN ALL SMALL C INZTO CAPITALIZED VERSIONS TO SEE EFFECT ON EMBEDDINGS
-    #    task_SMILES = [smiles.replace("c","C") for smiles in task_SMILES_orig]
-    #    print(task_SMILES)
-    #    #tokenised_smiles = [elem for elem in re.split(PARSING_REGEX,smiles) if elem]
-    #    tokenised_smiles = [re.split(PARSING_REGEX,smiles) for smiles in task_SMILES if isinstance(smiles,str)]
-    #    print(f"SMILES tokens: {tokenised_smiles}")
-    #    tokenised_smiles = [[elem for elem in tokens if elem] for tokens in tokenised_smiles]  # Remove empty tokens
-    #    print(f"SMILES tokens: {tokenised_smiles}")
-    #    smiles_dict = dict(zip(task_SMILES_orig,tokenised_smiles))
-    #else:
     tokenizer = get_tokenizer(TOKENIZER_PATH)
     print(f"tokenizer {tokenizer}")
     smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
@@ -333,10 +321,11 @@ def save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKee
     
 if __name__ == "__main__":
     print("Start")
-    task = "delaney"
+    #task = "delaney"
     #task = "bace_classification"
     #task="clearance"
     #task="bbbp"
+    task="lipo"
     assert task in list(
         MOLNET_DIRECTORY.keys()
     ), f"{task} not in MOLNET tasks."
@@ -353,7 +342,6 @@ if __name__ == "__main__":
     for key, val in smiles_dict.items():
         print(f"{key}: {val}")
     
-    
     folder=f"/data/ifender/SOS_atoms/{task}_mols_bccc0_gaff2_assigned/"
     if task=="bace_classification":
         folder="/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/bace_classification_mols_bccc0_gaff2_assigned"
@@ -368,12 +356,4 @@ if __name__ == "__main__":
     # save dikt to file and also totalfails, failedSmiPos, posToKeep_list to info file
     outfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts"
     save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKeep_list, task)
-    
-    with open(f"{outfolder}/dikt_{task}.json", 'r') as file:
-        loaded_dikt = json.load(file)
-    print(loaded_dikt)
-    print("DIKT loaded")
-    for key,val in loaded_dikt.items():
-        print(f"{key}: {val}")
-    print(len(loaded_dikt.keys()))
     
