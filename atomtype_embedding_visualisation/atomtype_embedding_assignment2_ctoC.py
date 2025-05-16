@@ -201,7 +201,7 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
     assignment_fail = 0
     # get all atom assignment files
     for file in os.listdir(folder):
-        if file.endswith(".mol2") and not file.endswith("ass.mol2"):
+        if file.endswith(".mol2") and not file.endswith("assigned.mol2"):
             mol2_files.append(file)
     # sort according to numbers
     mol2_files.sort(key=lambda f: int(re.sub('\D', '', f)))
@@ -216,7 +216,7 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
         num = int((re.findall(r'\d+', mol2.split('.')[0]))[0])
         print(num)
         parmcheck_file = f"mol_{num}_ass.frcmod"
-        assignment_file = f"mol_{num}_ass.mol2"
+        assignment_file = f"mol_{num}_assigned.mol2"
         smi = task_SMILES[num]
         assert(len(smi)==(sum(len(s) for s in smiles_tokens_dict[smi]))), f"SMILES and tokenised version do not have same length {smi} to {smiles_tokens_dict[smi]}"
         smi_clean, posToKeep = clean_SMILES(smiles_tokens_dict[smi])
@@ -968,7 +968,13 @@ if __name__ == "__main__":
     model = "BART"
     traintype = "pretrained"
     rep = "smiles"
-    smiles_dict_keys = [smiles.replace("c","C") for smiles in list(smiles_dict.keys())]
+    #smiles_dict_keys = [smiles.replace("c","C") for smiles in list(smiles_dict.keys())]
+    # Replace "c" with "C" in both keys and values of smiles_dict
+    #smiles_dict = {
+    ##    key.replace("c", "C"): [token.replace("c", "C") for token in value]
+    #    for key, value in smiles_dict.items()
+    #}
+    smiles_dict_keys = list(smiles_dict.keys())
     # safety check that renaming worked
     print(list(zip(smiles_dict.keys(),smiles_dict_keys)))
     embeds = get_embeddings_from_model(task, traintype, model, rep, smiles_dict_keys, smiles_dict.values())
@@ -1025,6 +1031,6 @@ if __name__ == "__main__":
     n_neighbors = 15
     alpha = 0.8
     penalty_threshold = 300
-    save_path_prefix = f"./16SEPT_TESTCAPITALC_{model}_{traintype}_thresh{penalty_threshold}/"
+    save_path_prefix = f"./9Apr2025_TESTCAPITALC_{model}_{traintype}_thresh{penalty_threshold}/"
     create_plotsperelem(dikt, colordict, penalty_threshold, min_dist, n_neighbors, alpha, save_path_prefix)
     

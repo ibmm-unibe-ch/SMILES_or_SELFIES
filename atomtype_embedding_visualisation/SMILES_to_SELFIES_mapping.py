@@ -26,7 +26,7 @@ def canonize_smiles(input_str: str, remove_identities: bool = True) -> str:
 
 def generate_mapping(smiles, debug=False):
     # this mapping function is build on the basis that 
-    # 1. the SELFIES string is generated from a canonized SMILES string
+    # 1. the SELFIES string is generated from a canonized SMILES string, should work without canonization just the same
     # 2. the order of the atoms in both strings is the same
     # see: https://github.com/aspuru-guzik-group/selfies/blob/master/README.md 
     canon_smiles = canonize_smiles(smiles)

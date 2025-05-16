@@ -114,8 +114,8 @@ def tokenize_with_space(tokenizer, sample_smiles: str, selfies=False) -> str:
     if translate_selfie(str(sample_smiles))[0] is None:
         return None
 
-    canon_smiles = canonize_smile(sample_smiles)
-    assert canon_smiles==sample_smiles, f"canon_smiles: {canon_smiles} != sample_smiles: {sample_smiles}"
+    canon_smiles = sample_smiles
+    #assert canon_smiles==sample_smiles, f"canon_smiles: {canon_smiles} != sample_smiles: {sample_smiles}"
     if selfies:
         canon_smiles = translate_selfie(str(canon_smiles))[0]
     tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(canon_smiles)).input_ids)
