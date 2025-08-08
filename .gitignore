@@ -17,6 +17,8 @@
 /task
 /translation_models
 
+# atomtype embedding data
+./atomtype_embedding_visualisation/delaney_mols_bccc0_gaff2_assigned/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
