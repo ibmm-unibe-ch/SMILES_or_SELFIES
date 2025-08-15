@@ -1,13 +1,41 @@
 # Smiles or Selfies
-
-## Training pipeline
-
-1. Download data with _make_
+## Usage
+### Load environment
+The fairseq framework has hit end of service, since we started our project, which resulted in using two different fairseq versions and conda environments because of this.
+- For **RoBERTa** just load the environment:
+    - `conda env create -f SMILES_OR_SELFIES.yml`
+- For **BART** you additionally need to download the nightly version of fairseq:
+    - `conda env create -f fairseq_git.yml`
+    - `git clone https://github.com/facebookresearch/fairseq.git`
+### Training pipeline
+1. Install environment with _make build-conda-from-env_
+1. Download data with _make download-10m_
 1. Preprocess with _preprocessing.py_
+1. Create tokenisers with _tokenisation.py_
 1. Parse with _parsing.py_
-1. Run `fairseq-preprocess --only-source --destdir fairseq_preprocess/atom_selfies --trainpref processed/selfies_train  --validpref processed/selfies_val`
-1. Run `fairseq-train fairseq_preprocess/atom_smiles --save-dir fairseq/smiles_atom_megamol --wandb-project smiles_atom_megamol --batch-size 32 --fp16 --mask 0.2 --tokens-per-sample 512 --total-num-update 500000 --max-update 500000 --warmup-updates 8000 --task denoising --save-interval 1 --arch bart_base --optimizer adam --lr-scheduler polynomial_decay --lr 5e-04 --dropout 0.1 --criterion cross_entropy --max-tokens 3200 --weight-decay 0.01 --attention-dropout 0.0 --relu-dropout 0.0 --share-decoder-input-output-embed --share-all-embeddings --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --log-interval 1000 --save-interval-updates 5000 --keep-interval-updates 1 --update-freq 4 --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --mask-length span-poisson --replace-length 1 --encoder-learned-pos --decoder-learned-pos --rotate 0.0 --mask-random 0.0 --permute-sentences 1 --insert 0.0 --poisson-lambda 3.5 --dataset-impl mmap --num-workers 4`
-1. Create MolNet datasets with _dataset.py_
+1. Preprocess for fairseq:
+    - `fairseq-preprocess --only-source --destdir fairseq_preprocess/selfies_atom_isomers --trainpref processed/selfies_atom_isomers  --validpref processed/selfies_atom_isomers_val`
+1. Pre-train a model with:
+    -  `fairseq-train fairseq_preprocess/selfies_atom_isomers --save-dir fairseq/selfies_atom_isomers --wandb-project pre-train --batch-size 32 --tokens-per-sample 512 --total-num-update 500000 --max-update 500000 --warmup-updates 1500 --task masked_lm --save-interval 1 --arch roberta_base --optimizer adam --lr-scheduler polynomial_decay --lr 1e-05 --dropout 0.1 --criterion masked_lm --max-tokens 3200 --weight-decay 0.01 --attention-dropout 0.2 --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --log-interval 1000 --save-interval-updates 5000 --keep-interval-updates 1 --update-freq 4 --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --dataset-impl mmap --num-workers 4`
+### Downstream results
+1. Run the "training pipeline" from above
+1. Create and prepare MolNet datasets with _dataset.py_
+1. Train different hyperparams with _hyperparameter\_search.py_
+   - Get scores with _scoring.py_, adapt the path
+   - Check results in _Scoring\_report\_hyperparameters\_final.ipynb_
+   - Adapt _BEST_PARAMS_ in _hyperparameters.py_
 1. Run finetuning with _finetuning.py_ giving the CUDA-GPU and the model configuration
-1. Get scores with _scoring.py_
-1. Translate model from fairseq to huggingface`python3 fairseq_to_huggingface.py ~/GitHub/SMILES_or_SELFIES/fairseq/smiles_trained/checkpoint_best.pt huggingface_models/smiles_trained  --hf_config bart-base`
+   - Get scores with _scoring.py_, adapt the path
+   - Check results in _Scoring\_report\_seeds_final.ipynb_
+### Weak classifiers
+1. Run the "training pipeline" from above
+1. Train weak classifiers in _embedding\_classification.py_ 
+1. Check results in _Score\_weak\_classifiers.ipynb_
+### Molecule embedding plots
+1. Run the "training pipeline" from above
+1. Run _embedding_maps.py_ and find the plots in _plots/_
+### Atom embedding
+1. Run the "training pipeline" from above
+
+## Contact
+If there are questions, please file a [GitHub issue](https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES/issues) or send an e-mail to thomas.lemmin@unibe.ch, inken.fender@unibe.ch and jannik.gut@unibe.ch.

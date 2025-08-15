@@ -5,10 +5,10 @@ SMILES or SELFIES, 2022
 import json
 from glob import glob
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Dict, List, Tuple, Union, Optional
 import pandas as pd
+from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH
+from fairseq_utils import get_predictions, load_dataset, load_model
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -18,331 +18,251 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
     roc_auc_score,
+    root_mean_squared_error,
 )
-from tqdm import tqdm
-
-from constants import (
-    MOLNET_DIRECTORY,
-    PROJECT_PATH,
-    REACTION_PREDICTION_DIRECTORY,
-    TASK_MODEL_PATH,
-    TASK_PATH,
-)
-from fairseq_utils import get_predictions, load_dataset, load_model
-from lexicographic_scores import compute_distances
-from preprocessing import canonize_smile, translate_smile
 from utils import parse_arguments
 
 
 def get_score(
-    predictions: List[float], seen_targets: List[float], classification: bool = True
-) -> Tuple[dict, str]:
-    """Compute scores of predictions and seen_targets
+    predictions: List[float],
+    seen_targets: List[float],
+    classification: bool = True
+) -> Tuple[Dict[str, float], Union[str, Dict[str, float]]]:
+    """Compute evaluation metrics for model predictions.
 
     Args:
-        predictions (List[float]): predictions made by model
-        seen_targets (List[float]): ground_truth models
-        classification (bool, optional): whether classification metrics should be used (True) or regression metrics (False). Defaults to True.
+        predictions: Model predictions as probabilities or continuous values.
+        seen_targets: Ground truth labels or values.
+        classification: Whether to compute classification metrics (True) or
+                       regression metrics (False). Defaults to True.
 
     Returns:
-        Tuple[dict, str]: score_dictionary, report
+        A tuple containing:
+        - Dictionary of metric names and values
+        - Classification report (str) for classification tasks or
+          metric dictionary for regression tasks
     """
-    score_dikt = {}
+    score_dict: Dict[str, float] = {}
+
     if classification:
         predicted_classes = [int(prediction >= 0.5) for prediction in predictions]
-        roc_auc = roc_auc_score(seen_targets, predictions)
-        score_dikt["ROC_AUC"] = roc_auc
-        average_precision = average_precision_score(seen_targets, predictions)
-        score_dikt["average_precision"] = average_precision
-        f1 = f1_score(seen_targets, predicted_classes)
-        score_dikt["F1_score"] = f1
-        acc_score = accuracy_score(seen_targets, predicted_classes)
-        score_dikt["accuracy_score"] = acc_score
+        score_dict["ROC_AUC"] = roc_auc_score(seen_targets, predictions)
+        score_dict["average_precision"] = average_precision_score(seen_targets, predictions)
+        score_dict["F1_score"] = f1_score(seen_targets, predicted_classes)
+        score_dict["accuracy_score"] = accuracy_score(seen_targets, predicted_classes)
         report = classification_report(seen_targets, predicted_classes)
-        return score_dikt, report
-    mae = mean_absolute_error(seen_targets, predictions)
-    score_dikt["mean_absolute_error"] = mae
-    max_err = max_error(seen_targets, predictions)
-    score_dikt["max_error"] = max_err
-    mse = mean_squared_error(seen_targets, predictions)
-    score_dikt["mean_squared_error"] = mse
-    rmse = mean_squared_error(seen_targets, predictions, squared=False)
-    score_dikt["rectified_mean_squared_error"] = rmse
-    return score_dikt, score_dikt
+        return score_dict, report
+    else:
+        score_dict["mean_absolute_error"] = mean_absolute_error(seen_targets, predictions)
+        score_dict["max_error"] = max_error(seen_targets, predictions)
+        score_dict["mean_squared_error"] = mean_squared_error(seen_targets, predictions)
+        score_dict["rectified_mean_squared_error"] = root_mean_squared_error(seen_targets, predictions)
+        return score_dict, score_dict
 
 
 def iterate_paths(path: Path) -> List[Tuple[Path, str]]:
-    """Iterate paths with glob and return names
+    """Find all subdirectories in a given path and return their names.
 
     Args:
-        path (Path): Path to search for subpaths
+        path: Directory path to search for subdirectories.
 
     Returns:
-        List[Tuple[Path, str]]: subpaths, name of last bit of subpaths
+        List of tuples containing:
+        - Path to subdirectory
+        - Name of the subdirectory (last component of path)
     """
     subpath_strings = glob(str(path) + "/*", recursive=True)
-    subpaths = [Path(subpath_string) for subpath_string in subpath_strings]
+    subpaths = list(reversed([Path(subpath_string) for subpath_string in subpath_strings]))
     names = [subpath.name for subpath in subpaths]
-    return zip(subpaths, names)
+    return list(zip(subpaths, names))
 
 
-def parse_hyperparams(param_string: str) -> Dict[str, str]:
-    """Parse hyperparameter string
+def parse_hyperparams(param_string: str, use_seed: bool) -> Dict[str, Union[float, str]]:
+    """Parse hyperparameter string into a dictionary.
 
     Args:
-        param_string (str): parameter string to parse
+        param_string: String containing hyperparameters in format "lr_dropout_seed"
+        use_seed: Whether to include seed in the output dictionary.
 
     Returns:
-        Dict[str, str]: dictionary with hyperparameters
+        Dictionary containing parsed hyperparameters with keys:
+        - learning_rate (float)
+        - dropout (float)
+        - seed (str, optional if use_seed is True and present in param_string)
     """
     param_parts = param_string.split("_")
     output = {
-        "learning_rate": param_parts[0],
-        "dropout": param_parts[1],
-        "model_size": param_parts[2],
-        "data_type": param_parts[3],
+        "learning_rate": float(param_parts[0]),
+        "dropout": float(param_parts[1])
+    }
+    if use_seed and len(param_parts) >= 4:
+        output["seed"] = param_parts[3]
+    return output
+
+
+def parse_tokenizer(tokenizer_string: str) -> Dict[str, str]:
+    """Parse tokenizer configuration string into components.
+
+    Args:
+        tokenizer_string: String containing tokenizer configuration in format
+                         "embedding_tokenizer_dataset_architecture"
+
+    Returns:
+        Dictionary containing parsed tokenizer configuration with keys:
+        - embedding (str): Type of molecular representation (e.g., "smiles")
+        - tokenizer (str): Tokenizer type (e.g., "atom")
+        - dataset (str): Dataset variant (e.g., "isomers")
+        - architecture (str): Model architecture (defaults to "bart")
+    """
+    tokenizer_parts = tokenizer_string.split("_")
+    output = {
+        "embedding": tokenizer_parts[0],
+        "tokenizer": tokenizer_parts[1],
+        "dataset": tokenizer_parts[2],
+        "architecture": tokenizer_parts[3] if len(tokenizer_parts) > 3 else "bart",
     }
     return output
 
 
-def parse_line(line: str, separator_occurences: int = 1) -> Tuple[str, bool]:
-    """Parse line after seperator_occurences of the seperator
+def evaluate_model(
+    model_path: Path,
+    task_path: Path,
+    tokenizer: str,
+    cuda: str,
+    classification: bool
+) -> Tuple[List[float], List[float]]:
+    """Load and evaluate a model on test data.
 
     Args:
-        line (str): line to parse
-        separator_occurences (int, optional): how many seperator was seen before the good sequence. Defaults to 1.
+        model_path: Path to the model checkpoint.
+        task_path: Path to the task directory containing test data.
+        tokenizer: Tokenizer configuration string.
+        cuda: CUDA device identifier.
+        classification: Whether the task is classification.
 
     Returns:
-        Tuple[str, bool, int]: parsed mol, unknown flag, amount of NLP tokens
-
+        Tuple containing:
+        - Model predictions
+        - Ground truth labels/values
     """
-    tokens = line.split("\t", separator_occurences)[separator_occurences]
-    tokens = [token.strip() for token in tokens.split(" ") if token]
-    unk_flag = "<unk>" in tokens
-    full = "".join(tokens).strip()
-    return full, unk_flag, len(tokens)
-
-
-def parse_file(file_path: Path, examples_per: int = 10) -> List[dict]:
-    """Parse a file with translated lines generated by fairseq-generate.
-
-    Args:
-        file_path (Path): Path of translation file.
-        examples_per (int, optional): Attempted translations per sample. Defaults to 10.
-
-    Returns:
-        List[dict]: List of samples with dicts, where source, targets and predictions are.
-    """
-    with open(file_path, "r") as open_file:
-        lines = open_file.readlines()[:-1]
-    samples = []
-    assert (
-        len(lines) % (2 + 3 * examples_per) == 0
-    ), f"{len(lines)} does not work with examples per {examples_per}."
-    target_examples = np.split(np.array(lines), len(lines) / (2 + 3 * examples_per))
-    for target_example in tqdm(target_examples):
-        sample_dict = {}
-        source, source_unk, source_len = parse_line(target_example[0], 1)
-        sample_dict["source"] = source
-        sample_dict["source_unk"] = source_unk
-        sample_dict["source_len"] = source_len
-        target, target_unk, target_len = parse_line(target_example[1], 1)
-        sample_dict = sample_dict | compute_distances(source, target)
-        sample_dict["target"] = target
-        sample_dict["target_unk"] = target_unk
-        sample_dict["target_len"] = target_len
-        predictions = []
-        target_example = target_example[2:]
-        for _ in range(examples_per):
-            prediction, prediction_unk, _ = parse_line(target_example[0], 2)
-            predictions.append((prediction, prediction_unk))
-            target_example = target_example[3:]
-        sample_dict["predictions"] = predictions
-        samples.append(sample_dict)
-    return samples
-
-
-def find_match(target: str, predictions: List[str], selfies: bool) -> Optional[int]:
-    """Find if there is a match between target and the predictions.
-
-    Args:
-        target (str): Target to match to.
-        predictions (List[str]): Predictions that could match.
-        selfies (bool): Whether or not to translate SELFIES to SMILES.
-
-    Returns:
-        Optional[int]: Index of correct translation (or None if none match)
-    """
-    if selfies:
-        canonized_target = translate_smile(target)
+    model = load_model(model_path, task_path / tokenizer, cuda)
+    mols = load_dataset(task_path / tokenizer / "input0" / "test")
+    
+    if classification:
+        labels = load_dataset(
+            task_path / tokenizer / "label" / "test",
+            classification
+        )
     else:
-        canonized_target = canonize_smile(target)
-    for index, prediction in enumerate(predictions):
-        if selfies:
-            canonized_prediction = translate_smile(prediction[0])
-        else:
-            canonized_prediction = canonize_smile(prediction[0])
-
-        if (
-            canonized_prediction is not None
-            and canonized_target is not None
-            and canonized_prediction == canonized_target
-        ) or prediction == target:
-            return index
-    return None
+        labels = load_dataset(
+            task_path / tokenizer / "label" / "test.label",
+            classification
+        )
+    
+    return get_predictions(
+        model,
+        mols,
+        labels,
+        task_path / tokenizer / "label" / "dict.txt",
+        classification
+    )
 
 
-def score_samples(samples: List[dict], selfies: bool = False) -> dict:
-    """Score samples of targets and predictions.
-
-    Args:
-        samples (List[dict]): List of samples with targets and predictions
-        selfies (bool, optional): Whether to translate to SELFIES or not. Defaults to False.
-
-    Returns:
-        dict: computed scores over all samples
-    """
-    matches = [
-        find_match(sample["target"], sample["predictions"], selfies)
-        for sample in tqdm(samples)
-    ]
-    stats = {"all_samples": len(samples)}
-    for i in range(len(samples[0]["predictions"])):
-        stats[f"top_{i+1}"] = matches.count(i)
-    return stats
-
-
-def score_distances(samples: List[dict]) -> dict:
-    """Compute statistics based on (lexicographic) distances.
+def process_hyperparameter_directory(
+    hyperparameter_path: Path,
+    hyperparameter: str,
+    task: str,
+    config: str,
+    cuda: str,
+    use_seed: bool
+) -> Optional[Dict[str, Union[str, float]]]:
+    """Process a single hyperparameter directory and evaluate the model.
 
     Args:
-        samples (List[dict]): Samples with distances
+        hyperparameter_path: Path to the hyperparameter directory.
+        hyperparameter: Hyperparameter configuration string.
+        task: Name of the task being evaluated.
+        config: Model configuration string.
+        cuda: CUDA device identifier.
+        use_seed: Whether to include seed in the output.
 
     Returns:
-        dict: Dict with statistics about distances
+        Dictionary containing evaluation results, or None if model couldn't be evaluated.
     """
-    keep_keys = [
-        "source_len",
-        "target_len",
-        "max_len",
-        "len_diff",
-        "nw",
-        "nw_norm",
-        "lev",
-        "lev_norm",
-        "dl",
-        "dl_norm",
-        "rouge1",
-        "rouge2",
-        "rouge3",
-        "rougeL",
-        "BLEU",
-        "BLEU1",
-        "BLEU2",
-        "BLEU3",
-        "BLEU4",
-        "input_set",
-        "output_set",
-    ]
-    df = [{key: sample[key] for key in keep_keys} for sample in samples]
-    df = pd.DataFrame.from_dict(df)
-    output = {}
-    for key in keep_keys[:-2]:
-        output[f"{key}_mean"] = df[key].mean()
-        output[f"{key}_median"] = df[key].median()
-        output[f"{key}_std"] = df[key].std()
-    output["unique_input_tokens"] = len(set.union(*df["input_set"].tolist()))
-    output["unique_output_tokens"] = len(set.union(*df["output_set"].tolist()))
-    return output
+    # Determine the path to the best checkpoint
+    if (hyperparameter_path / hyperparameter).exists():
+        best_checkpoint_path = hyperparameter_path / hyperparameter / "checkpoint_best.pt"
+    else:
+        best_checkpoint_path = hyperparameter_path / "checkpoint_best.pt"
 
+    if not best_checkpoint_path.is_file(): # or (use_seed and not("seed" in str(hyperparameter_path))) or (use_seed and not Path(str(best_checkpoint_path.parent)[:-1]+seeds).exists()) or (not use_seed and ("seed" in str(hyperparameter_path))):
+        print(f"Skipping hyperparameter {hyperparameter_path}")
+        return None
+
+    print(f"Working hyperparameter {hyperparameter_path}")
+    classification = MOLNET_DIRECTORY[task]["dataset_type"] == "classification"
+    tokenizer = "_".join(config.split("_")[:3])
+
+    try:
+        preds, seen_targets = evaluate_model(
+            best_checkpoint_path,
+            TASK_PATH / task,
+            tokenizer,
+            cuda,
+            classification
+        )
+    except Exception as e:
+        print(f"Error evaluating {hyperparameter_path}: {str(e)}")
+        return None
+
+    output_dict = {
+        "task": task,
+        "task_type": "classification" if classification else "regression",
+    }
+    score_dict, report = get_score(preds, seen_targets, classification)
+    
+    # Combine all information
+    result_dict = {
+        **output_dict,
+        **parse_tokenizer(config),
+        **parse_hyperparams(hyperparameter, use_seed),
+        **score_dict
+    }
+
+    # Save reports
+    report_path = hyperparameter_path / "report.txt"
+    with open(report_path, "w") as report_file:
+        report_file.write(report if classification else json.dumps(report, indent=4))
+
+    # Save scores
+    scores_path = hyperparameter_path / "scores.csv"
+    pd.DataFrame([result_dict]).to_csv(scores_path)
+
+    return result_dict
+
+
+def main() -> None:
+    """Main function to evaluate all models in the task directory."""
+    arguments = parse_arguments(cuda=True, seeds=True)
+    cuda = arguments["cuda"]
+    seeds = arguments["seeds"]
+    use_seed = int(seeds) > 1
+
+    all_results = []
+
+    for task_path, task in iterate_paths(TASK_MODEL_PATH):
+        for config_path, config in iterate_paths(task_path):
+            for hyperparameter_path, hyperparameter in iterate_paths(config_path):
+                result = process_hyperparameter_directory(
+                    hyperparameter_path,
+                    hyperparameter,
+                    task,
+                    config,
+                    cuda,
+                    use_seed
+                )
+                if result:
+                    all_results.append(result)
 
 if __name__ == "__main__":
-    cuda = parse_arguments(True, False, False)["cuda"]
-    for task_path, task in iterate_paths(TASK_MODEL_PATH):
-        for tokenizer_path, tokenizer in iterate_paths(task_path):
-            if task in MOLNET_DIRECTORY:
-                classification = (
-                    MOLNET_DIRECTORY[task]["dataset_type"] == "classification"
-                )
-                for hyperparameter_path, hyperparameter in iterate_paths(
-                    tokenizer_path
-                ):
-                    if (hyperparameter_path / hyperparameter).exists():
-                        best_checkpoint_path = (
-                            hyperparameter_path / hyperparameter / "checkpoint_best.pt"
-                        )
-                    else:
-                        best_checkpoint_path = (
-                            hyperparameter_path / "checkpoint_best.pt"
-                        )
-                    if not best_checkpoint_path.is_file():
-                        continue
-                    model = load_model(
-                        best_checkpoint_path, TASK_PATH / task / tokenizer, cuda
-                    )
-                    mols = load_dataset(
-                        TASK_PATH / task / tokenizer / "input0" / "test"
-                    )
-                    if classification:
-                        labels = load_dataset(
-                            TASK_PATH / task / tokenizer / "label" / "test",
-                            classification,
-                        )
-                    else:
-                        labels = load_dataset(
-                            TASK_PATH / task / tokenizer / "label" / "test.label",
-                            classification,
-                        )
-                    preds, seen_targets = get_predictions(
-                        model,
-                        mols,
-                        labels,
-                        TASK_PATH / task / tokenizer / "label" / "dict.txt",
-                        classification,
-                    )
-                    output_dict = {
-                        "task": task,
-                        "tokenizer": tokenizer,
-                        "task_type": "classification"
-                        if classification
-                        else "regression",
-                    }
-                    score_dict, report = get_score(preds, seen_targets, classification)
-                    output_dict = (
-                        output_dict | parse_hyperparams(hyperparameter) | score_dict
-                    )
-                    if classification:
-                        with open(
-                            hyperparameter_path / "report.txt", "w"
-                        ) as report_file:
-                            report_file.write(report)
-                    else:
-                        with open(
-                            hyperparameter_path / "report.txt", "w"
-                        ) as report_file:
-                            report_file.write(json.dumps(report, indent=4))
-                    pd.DataFrame([output_dict]).to_csv(
-                        hyperparameter_path / "scores.csv"
-                    )
-            if task in REACTION_PREDICTION_DIRECTORY:
-                # os.system(
-                #    f'CUDA_VISIBLE_DEVICES={cuda} fairseq-generate {TASK_PATH/task/tokenizer/"pre-processed"} --source-lang input --target-lang label --wandb-project reaction_prediction-beam-generate --task translation --path {TASK_MODEL_PATH/task/tokenizer/"1e-05_0.2_based_norm"/"checkpoint_best.pt"} --batch-size 16 --beam 10 --nbest 10 --results-path {PROJECT_PATH/"reaction_prediction_beam"/task/tokenizer}'
-                # )
-                samples = parse_file(
-                    PROJECT_PATH
-                    / "reaction_prediction_beam"
-                    / task
-                    / tokenizer
-                    / "generate-test.txt"
-                )
-                selfies = "selfies" in tokenizer
-                output = {"model": tokenizer, "task": task}
-                output = output | score_samples(samples, selfies)
-                output = output | score_distances(samples)
-                pd.DataFrame.from_dict([output]).to_csv(
-                    PROJECT_PATH
-                    / "reaction_prediction_beam"
-                    / task
-                    / tokenizer
-                    / "output.csv"
-                )
+    main()
