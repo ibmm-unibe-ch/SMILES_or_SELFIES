@@ -87,8 +87,11 @@ def load_dataset(
     Load a Fairseq dataset.
 
     Args:
-        data_path: Path to data file or directory.
-        classification: If True, loads classification data; otherwise, regression.
+        data_path (Path): folder path of data (e.g. /input0/test)
+            for classification: TASK_PATH / task / tokenizer / "label" / "test" , 
+            for regression: TASK_PATH / task / tokenizer / "label" / "test.label"
+        classification (bool): if classification(True) or regression(False) loading should be used. Defaults to classification.
+
 
     Returns:
         List of dataset items (tokens or float labels).
