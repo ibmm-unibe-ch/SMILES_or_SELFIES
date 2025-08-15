@@ -1,8 +1,10 @@
 """ Constants for project
 SMILES or SELFIES, 2022
 """
+
 import logging
 from pathlib import Path
+from typing import Dict, List, TypedDict
 
 from deepchem.molnet import (
     load_bace_classification,
@@ -16,6 +18,7 @@ from deepchem.molnet import (
     load_tox21,
 )
 
+# ----------------- Molecular Descriptors -----------------
 DESCRIPTORS = [
     "NumHDonors",
     "NumAromaticRings",
@@ -29,10 +32,23 @@ DESCRIPTORS = [
     "MinAbsPartialCharge",
     "MolWt",
 ]
-HEADER = DESCRIPTORS + ["SELFIES", "SELFIES_LEN", "SMILES"]#, "OWN"]
 
+OTHERS = ["Chi0v", "Kappa1", "MolLogP", "MolMR", "QED"]
+
+HEADER = DESCRIPTORS + OTHERS + ["SELFIES", "SELFIES_LEN", "SMILES"]
+
+# ----------------- MoleculeNet Configuration -----------------
 # from https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/molnet_dataloader.py
-MOLNET_DIRECTORY = {
+
+class MolNetConfig(TypedDict):
+    """Typed dictionary for MoleculeNet dataset configuration."""
+    dataset_type: str
+    load_fn: callable
+    split: str
+    trainingset_size: int
+    tasks_wanted: List[str]  # Optional
+
+MOLNET_DIRECTORY: Dict[str, MolNetConfig] = {
     "bace_classification": {
         "dataset_type": "classification",
         "load_fn": load_bace_classification,
@@ -91,6 +107,7 @@ MOLNET_DIRECTORY = {
     },
 }
 
+# ----------------- Tokenizer Configuration -----------------
 TOKENIZER_SUFFIXES = [
     "smiles_atom_isomers",
     "smiles_atom_standard",
@@ -102,6 +119,7 @@ TOKENIZER_SUFFIXES = [
     "selfies_trained_standard",
 ]
 
+# ----------------- Path Configuration -----------------
 PROJECT_PATH = Path(__file__).parent
 PROCESSED_PATH = PROJECT_PATH / "processed"
 TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
@@ -114,19 +132,26 @@ TASK_MODEL_PATH = Path("/data2/jgut/SoS_models/")
 PLOT_PATH = PROJECT_PATH / "plots"
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
 
+# ----------------- Project Constants -----------------
 PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
 SEED = 6217
 VAL_SIZE = 10000
 NUM_SEEDS = 5
-# ---------------- LOGGING CONSTANTS ----------------
-DEFAULT_FORMATTER = "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]"
-DEFAULT_LOG_FILE = PROJECT_PATH / "logs" / "default_log.log"
-DEFAULT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-DEFAULT_LOG_LEVEL = logging.DEBUG
-DEFAULT_LOGGER_NAME = "Project-SoS"
+
+# ----------------- Logging Configuration -----------------
+LOGGING_CONFIG = {
+    "level": logging.DEBUG,
+    "format": "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]",
+    "filename": PATHS["logs"] / "default_log.log",
+    "logger_name": "Project-SoS",
+}
 
 logging.basicConfig(
-    level=DEFAULT_LOG_LEVEL,
-    format=DEFAULT_FORMATTER,
-    filename=DEFAULT_LOG_FILE,
+    level=LOGGING_CONFIG["level"],
+    format=LOGGING_CONFIG["format"],
+    filename=LOGGING_CONFIG["filename"],
 )
+
+# Create a main logger instance
+logger = logging.getLogger(LOGGING_CONFIG["logger_name"])
+logger.setLevel(LOGGING_CONFIG["level"])

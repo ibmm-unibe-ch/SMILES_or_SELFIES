@@ -7,73 +7,131 @@ import logging
 import os
 import pickle
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-def pickle_object(objekt, path: Path):
-    """Pickle an object at *path*
+def pickle_object(obj: Any, path: Path) -> None:
+    """Serialize and save an object to disk using pickle.
 
     Args:
-        objekt: object to pickle
-        path (Path): path to save to
+        obj: Python object to be serialized. Must be pickleable.
+        path: File path where the object will be saved. Parent directories
+              will be created if they don't exist.
+
+    Raises:
+        pickle.PicklingError: If the object cannot be pickled.
+        OSError: If the file cannot be written.
+
+    Example:
+        >>> data = {"key": "value"}
+        >>> pickle_object(data, Path("data.pkl"))
     """
     path = Path(path)
     os.makedirs(path.parent, exist_ok=True)
-    with open(path, "wb") as openfile:
-        pickle.dump(objekt, openfile)
+    with open(path, "wb") as f:
+        pickle.dump(obj, f)
 
 
-def unpickle(path: Path):
-    """Unpickle an object from path.
+def unpickle(path: Path) -> Any:
+    """Load and deserialize a pickled object from disk.
 
     Args:
-        path (Path): Path to unpickle from
+        path: File path containing the pickled object.
 
     Returns:
-        object: pickled object
+        The deserialized Python object.
+
+    Raises:
+        FileNotFoundError: If the specified path doesn't exist.
+        pickle.UnpicklingError: If the file cannot be unpickled.
+
+    Example:
+        >>> data = unpickle(Path("data.pkl"))
     """
     path = Path(path)
-    with open(path, "rb") as openfile:
-        objekt = pickle.load(openfile)
-    return objekt
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
 
-def log_and_add(text: str, string: str) -> str:
-    """Log string and add it to text
-
-    Args:
-        text (str): Longer text to add string to
-        string (str): String to add to log and add to text
-
-    Returns:
-        str: Extended text
-    """
-    logging.info(string)
-    text += string + "\n"
-    return text
-
-
-def parse_arguments(cuda=False, tokenizer=False, task=False, seeds=False, dict_params=False, model_type=False) -> dict:
-    """Parse command line arguments
+def log_and_add(text: str, message: str) -> str:
+    """Log a message and append it to an existing text string.
 
     Args:
-        cuda (bool, optional): Should CUDA be selectable? Defaults to False.
-        tokenizer (bool, optional): Should tokenizer be selectable? Defaults to False.
-        task (bool, optional): Should task be selectable? Defaults to False.
+        text: The existing text string to append to.
+        message: The message to log and append.
 
     Returns:
-        dict: Dict with all selected arguments.
+        The input text with the message appended.
+
+    Example:
+        >>> log = "Start processing\\n"
+        >>> log = log_and_add(log, "Processing complete")
+        Start processing
+        Processing complete
     """
-    parser = argparse.ArgumentParser()
+    logging.info(message)
+    return f"{text}{message}\n"
+
+
+def parse_arguments(
+    cuda: bool = False,
+    tokenizer: bool = False,
+    task: bool = False,
+    seeds: bool = False,
+    dict_params: bool = False,
+    model_type: bool = False
+) -> Dict[str, Optional[str]]:
+    """Parse command line arguments with flexible configuration.
+
+    Args:
+        cuda: Whether to include CUDA device argument. Defaults to False.
+        tokenizer: Whether to include tokenizer argument. Defaults to False.
+        task: Whether to include task argument. Defaults to False.
+        seeds: Whether to include seeds argument. Defaults to False.
+        dict_params: Whether to include hyperparameters dict argument. Defaults to False.
+        model_type: Whether to include model type argument. Defaults to False.
+
+    Returns:
+        Dictionary of parsed arguments where keys are argument names and values
+        are the provided values (or None if not provided).
+
+    Example:
+        >>> args = parse_arguments(cuda=True, task=True)
+        # Can then access args['cuda'] and args['task']
+    """
+    parser = argparse.ArgumentParser(
+        description="Command line arguments for SMILES/SELFIES processing"
+    )
+
     if cuda:
-        parser.add_argument("--cuda", required=True, help="VISIBLE_CUDA_DEVICE")
+        parser.add_argument(
+            "--cuda",
+            required=True,
+            help="VISIBLE_CUDA_DEVICE (e.g., '0' or '1')"
+        )
     if task:
-        parser.add_argument("--task", help="Which specific task as string.")
+        parser.add_argument(
+            "--task",
+            help="Specific task to process (e.g., 'bbbp' or 'tox21')"
+        )
     if tokenizer:
-        parser.add_argument("--tokenizer", help="Which tokenizer to use.")
+        parser.add_argument(
+            "--tokenizer",
+            help="Tokenizer configuration to use (e.g., 'smiles_atom_isomers')"
+        )
     if seeds:
-        parser.add_argument("--seeds", help="How many different random seeds should be used.")
+        parser.add_argument(
+            "--seeds",
+            help="Number of different random seeds to use for experiments"
+        )
     if dict_params:
-        parser.add_argument("--dict", help="Optional dict of hyperparameters stored in hyperparams.py.")
+        parser.add_argument(
+            "--dict",
+            help="Dictionary of hyperparameters from hyperparams.py"
+        )
     if model_type:
-        parser.add_argument("--modeltype", help="Optional dict of hyperparameters stored in hyperparams.py.") 
-    args = parser.parse_args()
-    return vars(args)
+        parser.add_argument(
+            "--modeltype",
+            help="Model architecture type (e.g., 'roberta' or 'bart')"
+        )
+
+    return vars(parser.parse_args())
