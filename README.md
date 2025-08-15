@@ -1,5 +1,4 @@
 # Smiles or Selfies
-# Delete attention_readout.py, Attention_readout.ipynb, Attentions.ipynb
 ## Usage
 ### Load environment
 The fairseq framework has hit end of service, since we started our project, which resulted in using two different fairseq versions and conda environments because of this.
@@ -18,7 +17,7 @@ The fairseq framework has hit end of service, since we started our project, whic
     - `fairseq-preprocess --only-source --destdir fairseq_preprocess/selfies_atom_isomers --trainpref processed/selfies_atom_isomers  --validpref processed/selfies_atom_isomers_val`
 1. Pre-train a model with:
     -  `fairseq-train fairseq_preprocess/selfies_atom_isomers --save-dir fairseq/selfies_atom_isomers --wandb-project pre-train --batch-size 32 --tokens-per-sample 512 --total-num-update 500000 --max-update 500000 --warmup-updates 1500 --task masked_lm --save-interval 1 --arch roberta_base --optimizer adam --lr-scheduler polynomial_decay --lr 1e-05 --dropout 0.1 --criterion masked_lm --max-tokens 3200 --weight-decay 0.01 --attention-dropout 0.2 --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --log-interval 1000 --save-interval-updates 5000 --keep-interval-updates 1 --update-freq 4 --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --dataset-impl mmap --num-workers 4`
-### Downstream results 
+### Downstream results
 1. Run the "training pipeline" from above
 1. Create and prepare MolNet datasets with _dataset.py_
 1. Train different hyperparams with _hyperparameter\_search.py_
