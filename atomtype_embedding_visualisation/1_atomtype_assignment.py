@@ -12,6 +12,9 @@ import pandas as pd
 from rdkit import Chem
 from deepchem.feat import RawFeaturizer
 from tokenisation import tokenize_dataset, get_tokenizer
+from tqdm import tqdm
+
+#conda env AmberTools23
 
 from constants import (
     MOLNET_DIRECTORY,
@@ -229,7 +232,7 @@ def clean_SMILES(SMILES_tok):
 
     return SMILES_tok_prep, posToKeep
 
-def get_atom_assignments(smiles_arr, smi_toks, filepath):
+def get_atom_assignments(smiles_arr, smi_toks, filepath, infologfile):
     """Getting the atom assignments
 
     Args:
@@ -249,7 +252,7 @@ def get_atom_assignments(smiles_arr, smi_toks, filepath):
     smi_num = 0
     failedSmiPos = list()
     cleanSmis = list()
-    for smi, smi_tok in zip(smiles_arr, smi_toks):
+    for smi, smi_tok in tqdm(zip(smiles_arr, smi_toks), total=len(smiles_arr)):
         # print statements only to structure obabel and antechamber output
         print("##############################################################################################################")
         print(f"SMILES: {smi}")
@@ -290,14 +293,19 @@ def get_atom_assignments(smiles_arr, smi_toks, filepath):
             failedSmiPos.append(smi_num)
         no += 1
         smi_num += 1
+    #write failedSmiPos into infologfile like pandas column
+    with open(infologfile, 'a') as f:
+        f.write("failedSmiPos\n")
+        for pos in failedSmiPos:
+            f.write(f"{pos}\n")
     assert(len(dikt.keys()) == (len(smiles_arr)))
     assert(len(dikt.keys()) == (len(smi_toks)))
     assert len(posToKeep_list) == len(dikt_clean.keys(
     )), f"Length of list of positions of assigned atoms in SMILES ({len(posToKeep_list)}) and number of SMILES ({len(posToKeep_list)}) is not the same."
     logging.info(
-        f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(rndm_smiles)}")
+        f"File creation from SMILES to pdb by obabel failed {filecreation_fail} times out of {len(smiles_arr)}")
     logging.info(
-        f"Atom assignment by antechamber failed {assignment_fail} times out of {len(rndm_smiles)}")
+        f"Atom assignment by antechamber failed {assignment_fail} times out of {len(smiles_arr)}")
     return dikt, dikt_clean, posToKeep_list, filecreation_fail+assignment_fail, failedSmiPos, cleanSmis
 
 
@@ -308,15 +316,25 @@ if __name__ == "__main__":
     #task = "bace_classification"
     #task="bbbp"
     #task="clearance"
-    task="lipo"
-    assert task in list(
-        MOLNET_DIRECTORY.keys()
-    ), f"{task} not in MOLNET tasks."
+    #task="lipo"
+    task = "pretraindataset"
+    limit = 4000
     
-    task_SMILES, task_labels = load_molnet_test_set(task)
+    #read in pretrain dataset
+    csv = '/data/jgut/SMILES_or_SELFIES/processed/isomers/full_deduplicated_isomers.csv'
+    df = pd.read_csv(csv)
+    task_SMILES = df['SMILES'].tolist()
+    task_SMILES = task_SMILES[:limit]
+    #assert task in list(
+    #    MOLNET_DIRECTORY.keys()
+    #), f"{task} not in MOLNET tasks."
+    
+    print('Canonizing SMILES')
+    #task_SMILES, task_labels = load_molnet_test_set(task)
     task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
-    print(
-        f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
+    print(f"len task_SMILES {task}: {len(task_SMILES)}")
+        #f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
+   
     #print(f"task labels",task_labels)
     rndm_smiles = task_SMILES
     print(f"first smiles {task_SMILES[0]} and length {len(task_SMILES[0])}")
@@ -334,8 +352,9 @@ if __name__ == "__main__":
 
     ############################## get atomassignments for task test set using antechamber and parmchk2 (not here: OR from previous antechamber assignment with antechamber and parmchk2) ########################################
         # get atom assignments from SMILES
-    filepath = f"/data/ifender/SOS_atoms/{task}_mols_bccc0_gaff2_assigned/"
+    filepath = f"/data/ifender/SOS_atoms/{task}_lim{limit}_mols_bccc0_gaff2_assigned/"
+    infologfile = f"/data/ifender/SOS_atoms/{task}_lim{limit}_mols_bccc0_gaff2_assigned.log"
     #Check if the directory exists, and create it if it doesn't
     if not os.path.exists(filepath):
         os.makedirs(filepath)
-    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath)
+    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath, infologfile)

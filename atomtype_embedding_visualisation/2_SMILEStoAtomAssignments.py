@@ -132,8 +132,12 @@ def clean_SMILES(SMILES_tok):
     posToKeep = list()
     pos = 0
     for i in range(len(SMILES_tok)):
+        # If token is bracketed, keep as is, even if contains H or other atoms or numbers
+        if SMILES_tok[i].startswith("[") and SMILES_tok[i].endswith("]"):
+            SMILES_tok_prep.append(SMILES_tok[i])
+            posToKeep.append(pos)
         # when it's an H in the SMILES, ignore, cannot deal
-        if SMILES_tok[i] != "H" and SMILES_tok[i] != "h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
+        elif SMILES_tok[i] != "H" and SMILES_tok[i] != "h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if not any(elem in struc_toks for elem in SMILES_tok[i]):
                 if SMILES_tok[i] != "-":
                     SMILES_tok_prep.append(SMILES_tok[i])
@@ -175,7 +179,7 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
             mol2_files.append(file)
     # sort according to numbers
     mol2_files.sort(key=lambda f: int(re.sub('\D', '', f)))
-    print(mol2_files)
+    print("first and last mol2 file: ",mol2_files[0]," ", mol2_files[-1])
     print("len of mol2files: ",len(mol2_files))
 
     filecreation_fail = len(smiles_tokens_dict.keys())-(len(mol2_files))
@@ -184,11 +188,11 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
            ), f"Not every SMILES ({len(smiles_tokens_dict.keys())}) has a corresponding file ({len(mol2_files)}) created for it. Needs more checking."
     for mol2 in mol2_files:
         num = int((re.findall(r'\d+', mol2.split('.')[0]))[0])
-        print(num)
+        #print(num)
         parmcheck_file = f"mol_{num}_assigned.frcmod"
         assignment_file = f"mol_{num}_assigned.mol2"
         smi = task_SMILES[num]
-        print(f"smi {smi} with tokens {smiles_tokens_dict[smi]}")
+        #print(f"smi {smi} with tokens {smiles_tokens_dict[smi]}")
         # to check lengths agree, any unknown token will be assumed to have length one, just because it often is "." as in e.g. bbbp dataset
         if(len(smi)!=(sum(1 if s =='<unk>' else len(s) for s in smiles_tokens_dict[smi]))):
             print(f"SMILES and tokenised version do not have same length {smi} with len{len(smi)} to {smiles_tokens_dict[smi]} with len {sum(len(s) for s in smiles_tokens_dict[smi])}")
@@ -198,11 +202,11 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
             lengthfail.append(smi)
             continue
         
-        print(f"smi {smi} with tokens {smiles_tokens_dict[smi]}")
+        #print(f"smi {smi} with tokens {smiles_tokens_dict[smi]}")
         smi_clean, posToKeep = clean_SMILES(smiles_tokens_dict[smi])
-        print(f"smi: {smi}, smiles_tokens {smiles_tokens_dict[smi]}, smi_clean {smi_clean}")
+        #print(f"smi: {smi}, smiles_tokens {smiles_tokens_dict[smi]}, smi_clean {smi_clean}")
 
-        print(f"num {num} extracted from mol2 {mol2}")
+        #print(f"num {num} extracted from mol2 {mol2}")
         # check whether assignment exists
         if os.path.isfile(f"{folder}/{assignment_file}") == True:
             #print("assignment exists")
@@ -214,10 +218,10 @@ def load_assignments_from_folder(folder, smiles_tokens_dict, task_SMILES):
                     # then get atom assignments from assignment file
                     atoms_assignment_list, atoms_assignment_set = get_atom_assignment(
                         f"{folder}/{assignment_file}")
-                    print(atoms_assignment_list)
+                    #print(atoms_assignment_list)
                     
                     assignment_list.append(atoms_assignment_list)
-                    print(f"({len(atoms_assignment_list)} == {len(smi_clean)})")
+                    #print(f"({len(atoms_assignment_list)} == {len(smi_clean)})")
                     assert(len(atoms_assignment_list) == len(smi_clean)), f"Length of atom assignment list ({len(atoms_assignment_list)}) and length of cleaned SMILES ({len(smi_clean)}) are not the same"
                     # check atomtypes aassigned to correct atoms as far as possible
                     for str1, str2 in zip(smi_clean, atoms_assignment_list):
@@ -292,14 +296,14 @@ def save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKee
     with open(f'{outfolder}/dikt_{task}.json', 'w') as file:
         json.dump(dikt, file, indent=4)
 
-    print("Dictionary saved to dikt.json")
+    print(f"Dictionary saved to {outfolder}/dikt_{task}.json")
 
     # Load the dictionary from the JSON file
-    with open(f'{outfolder}/dikt_{task}.json', 'r') as file:
-        loaded_dikt = json.load(file)
+   # with open(f'{outfolder}/dikt_{task}.json', 'r') as file:
+    #    loaded_dikt = json.load(file)
 
-    print("Dictionary loaded from dikt.json")
-    print(loaded_dikt)
+    #print("Dictionary loaded from dikt.json")
+    #print(loaded_dikt)
     
     # save infos to file
     data = {
@@ -325,28 +329,43 @@ if __name__ == "__main__":
     #task = "bace_classification"
     #task="clearance"
     #task="bbbp"
-    task="lipo"
-    assert task in list(
-        MOLNET_DIRECTORY.keys()
-    ), f"{task} not in MOLNET tasks."
+    #task="lipo"
+    task = "pretraindataset"
+    #load SMILES from csv
+    #read in pretrain dataset
+    csv = '/data/jgut/SMILES_or_SELFIES/processed/isomers/full_deduplicated_isomers.csv'
+    df = pd.read_csv(csv)
+    task_SMILES = df['SMILES'].tolist()
+    limit = 4000
+    task_SMILES = task_SMILES[:limit]
+    #print('Canonizing SMILES')
+    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    folder = f"/data/ifender/SOS_atoms/{task}_lim{limit}_mols_bccc0_gaff2_assigned/"
+    #infoassignmentfile = 
+
+    #-------------------if MOLNET set-------------------------------------------------------
+    #assert task in list(
+    #    MOLNET_DIRECTORY.keys()
+    #), f"{task} not in MOLNET tasks."
     
     # get SMILES from task
-    task_SMILES, task_labels = load_molnet_test_set(task)
-    print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
+    #task_SMILES, task_labels = load_molnet_test_set(task)
+    #print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
     
     # make sure all task SMILES are the canonical SMILES
-    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    #task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    #folder=f"/data/ifender/SOS_atoms/{task}_mols_bccc0_gaff2_assigned/"
+    #if task=="bace_classification":
+    #    folder="/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/bace_classification_mols_bccc0_gaff2_assigned"
+    #if task=="delaney":
+    #    folder="/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/delaney_mols_bccc0_gaff2_assigned"
     
+    #-------------------if MolNET set-------------------------------------------------------
     # get tokenized version of dataset, SMILES mapped to tokenised version
     smiles_dict = get_tokenized_SMILES(task_SMILES)
     for key, val in smiles_dict.items():
         print(f"{key}: {val}")
     
-    folder=f"/data/ifender/SOS_atoms/{task}_mols_bccc0_gaff2_assigned/"
-    if task=="bace_classification":
-        folder="/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/bace_classification_mols_bccc0_gaff2_assigned"
-    if task=="delaney":
-        folder="/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/delaney_mols_bccc0_gaff2_assigned"
     # get assignments and save to file
     dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder(folder, smiles_dict, task_SMILES)
     print(f"totalfails: {totalfails}, failedSmiPos: {failedSmiPos}")
