@@ -245,9 +245,9 @@ def create_selected_dataframe(
     if classification:
         if amount is None:
             amount = min(len(df) - sum(property_col.gt(0)), sum(property_col.gt(0)))
-        zeros = df[property_col == 0].sample(n=amount, random_state=SEED + 3497975)
+        zeros = df[property_col == 0].sample(n=int(amount), random_state=SEED + 3497975)
         zeros["label"] = 0
-        bigger = df[property_col > 0].sample(n=amount, random_state=SEED + 3497975)
+        bigger = df[property_col > 0].sample(n=int(amount), random_state=SEED + 3497975)
         bigger["label"] = 1
         return pd.concat([zeros, bigger]).drop(columns=indexes[:-1])
     else:
@@ -440,13 +440,19 @@ def main_pretraining(tokenizers: List[str], model_type: str, cuda: bool) -> None
     ]
     
     for classification, descriptor in descriptor_configs:
+        if not classification:
+            continue #already works
         descriptor_name = descriptor[0] if isinstance(descriptor, tuple) else descriptor
         if not (PROJECT_PATH / f"embeddings_{model_type}" / descriptor_name).exists():
+            if classification:
+                amount = 50000
+            else:
+                amount = 100000
             create_dataset(
                 descriptor,
                 Path("/data/jgut/SMILES_or_SELFIES/processed/descriptors/merged.csv"),
                 PROJECT_PATH / f"embeddings_{model_type}",
-                100000,
+                amount,
                 classification=classification,
             )
         
