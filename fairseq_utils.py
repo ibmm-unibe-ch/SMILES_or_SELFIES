@@ -47,7 +47,8 @@ os.environ["MKL_THREADING_LAYER"] = "GNU"
 def load_model(
     model_path: Path,
     data_path: Path,
-    cuda_device: Optional[int] = None
+    cuda: Optional[int] = None
+
 ) -> Union[RobertaModel, BARTHubInterface]:
     """
     Load a Fairseq BART or RoBERTa model.
@@ -55,7 +56,7 @@ def load_model(
     Args:
         model_path: Path to the .pt model checkpoint.
         data_path: Path to the Fairseq-preprocessed data directory.
-        cuda_device: CUDA device index. If None, stays on CPU.
+        cuda: CUDA device index. If None, stays on CPU.
 
     Returns:
         Fairseq model in evaluation mode.
@@ -74,8 +75,8 @@ def load_model(
         )
 
     model.eval()
-    if cuda_device is not None:
-        model.cuda(device=f"cuda:{cuda_device}")
+    if cuda is not None:
+        model.cuda(device=f"cuda:{cuda}")
     return model
 
 
@@ -300,9 +301,8 @@ def preprocess_series(
 
         model_dict = FAIRSEQ_PREPROCESS_PATH / suffix / "dict.txt"
         dest_dir = output_dir / "input0"
-
         os.system(
-            f'fairseq-preprocess --only-source --trainpref {train_input} --testpref {output_dir/"test.input"}'
+            f'fairseq-preprocess --only-source --trainpref {train_input} --testpref {output_dir/"test.input "}'
             f'--destdir {dest_dir} --srcdict {model_dict} --workers 60'
         )
 
@@ -380,7 +380,7 @@ def get_embeddings(
     dataset: Union[Path, str, List[torch.Tensor]],
     source_dictionary: Dictionary,
     whole_mol: bool = True,
-    cuda_device: int = 0
+    cuda: int = 0
 ) -> List[np.ndarray]:
     """
     Extract embeddings for a dataset from a Fairseq model.
@@ -390,7 +390,7 @@ def get_embeddings(
         dataset: Path to dataset, string path, or list of tokenized samples.
         source_dictionary: Fairseq dictionary for decoding.
         whole_mol: If True, return only last-token (molecule-level) embedding.
-        cuda_device: CUDA device index.
+        cuda: CUDA device index.
 
     Returns:
         List of embeddings (numpy arrays).
@@ -402,16 +402,16 @@ def get_embeddings(
     for sample in tqdm(dataset):
         sample = sample[:1020]
         if isinstance(model, BARTHubInterface):
-            prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(f"cuda:{cuda_device}")
+            prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(f"cuda:{cuda}")
             features = model.model(
-                sample.unsqueeze(0).to(f"cuda:{cuda_device}"),
+                sample.unsqueeze(0).to(f"cuda:{cuda}"),
                 None,
                 prev_output_tokens,
                 features_only=True,
             )[0][0]
         else:
             features = model.model(
-                sample.unsqueeze(0).to(f"cuda:{cuda_device}"),
+                sample.unsqueeze(0).to(f"cuda:{cuda}"),
                 None
             )[0][0]
 
@@ -469,7 +469,7 @@ def compute_embedding_output(
     texts: List[str],
     source_dictionary: Dictionary,
     tokenizer: Optional[Any] = None,
-    cuda_device: int = 0
+    cuda: int = 0
 ) -> List[List[Tuple[List[float], str]]]:
     """
     Compute token-level embeddings for a list of input texts.
@@ -480,7 +480,7 @@ def compute_embedding_output(
         texts: List of SMILES/SELFIES strings.
         source_dictionary: Fairseq dictionary.
         tokenizer: Optional HuggingFace tokenizer.
-        cuda_device: CUDA device index.
+        cuda: CUDA device index.
 
     Returns:
         List of token-embedding lists, each containing (embedding_vector, token) tuples.
