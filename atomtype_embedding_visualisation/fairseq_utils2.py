@@ -348,7 +348,7 @@ def compute_embedding_output_givendataset(
         )
     return dataset_embeddings
 
-#taken from fairseq_utils.py
+#taken from fairseq_utils.py and reworked to work
 def compute_embedding_output(
     model: Union[RobertaModel, BARTHubInterface],
     texts: List[str],
@@ -372,17 +372,34 @@ def compute_embedding_output(
     """
     device = next(model.parameters()).device
     dataset_embeddings = []
+    
+    if isinstance(model, RobertaModel):
+        for text in texts:
+            if tokenizer is None:
+                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
+            else:
+                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
+            sample = torch.tensor(tokenizer(text).input_ids)
 
-    for text in texts:
-        if tokenizer is None:
-            parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
-        else:
-            parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
-        sample = torch.tensor(tokenizer(text).input_ids)
+            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
+            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
+            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+    if isinstance(model, BARTHubInterface):
+        print("cannot deal with BART or can we?")
+        for text in texts:
+            if tokenizer is None:
+                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
+            else:
+                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
+            sample = torch.tensor(tokenizer(text).input_ids)
 
-        token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
-        token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
-        dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+            prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(device)           
+            # same as in predict
+            token_embeddings, extra = model.model(
+                sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+            )
+            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
+            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
     return dataset_embeddings
 
 def compute_random_model_output(model, dataset, source_dictionary, cuda=3):
