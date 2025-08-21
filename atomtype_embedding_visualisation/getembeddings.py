@@ -21,6 +21,7 @@ import matplotlib.colors as mcolors
 from matplotlib.ticker import MultipleLocator
 from collections import Counter
 import pandas as pd
+import traceback
 
 from constants import (
     TASK_PATH,
@@ -205,10 +206,11 @@ if __name__ == "__main__":
     with open(diktfolder, 'r') as file:
         loaded_dikt = json.load(file)
 
-    # 2. Load all SMILES and generate mapping between SMILES and SELFIES 
+    # 2. Load all SMILES 
     print("Get all SMILES from properly assigned atom type SMILES")
     task_SMILES = [smiles for smiles, value in loaded_dikt.items() if value['atom_types'] is not None]
-    
+    print(f"--Got them {len(task_SMILES)}")
+
     # 3. Canonize those SMILES and tell me they turn out to be the same as before
     task_SMILES_canonized = [canonize_smiles(smile) for smile in task_SMILES]
     print("Canonized SMILES:")
@@ -216,12 +218,16 @@ if __name__ == "__main__":
     # compare to task_SMILES (I already compared them in a separate notebook and they were canonized before for atom types)
     for original, canonized in zip(task_SMILES, task_SMILES_canonized):
         assert(original == canonized)
+    print("                 ...no problems")
 
     # 4. Generate mapping between SMILES and SELFIES
     #this is what smiles_to_selfies_mapping looks like: mappings[smiles]['selfiesstr_tok_map'] = (selfies_str,tokenised_selfies,mapping)
+    print("Mapping SMILES and SELFIES")
     smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
-    
+    print("--Mapped")
+
     #5. Merge all the working atomtype mappings and smilestoselfies mappings to select only SMILES that have both informations
+    print("Create dict of SMILES that have both atom types and SELFIES matching")
     smilestoatomtypestoselfies_dikt = dict()
     for smiles in task_SMILES:
         #print(smiles)
@@ -232,45 +238,54 @@ if __name__ == "__main__":
         selfies_map = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[2]
         #print('selfies map: ',selfies_map)
         #check that neither is empty
-        if selfies_map is not None and atom_types is not None:
+        if selfies_map is not None and atom_types is not None: #atom types cannot be none because we filter on it, but anyway
             # final dict will have as keys to value: 'posToKeep', 'smi_clean', 'atom_types', 'max_penalty'
             smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {}), 'selfies': selfies, 'selfies_toks': selfies_toks, 'selfies_map': selfies_map}
     #print(smilestoatomtypestoselfies_dikt)
-    print(f"Final dict of SMILES that contain info on atom types and SELFIES created and contains: {len(smilestoatomtypestoselfies_dikt)} molecules")
-
+    print(f"--Final dict of SMILES that contain info on atom types and SELFIES created and contains: {len(smilestoatomtypestoselfies_dikt)} molecules")
+    
 
     # 6. Get all the corresponding SELFIES and tokenized SELFIES from the created dictionary
+    print("Retrieve SELFIES and tokenized SELFIES")
     selfies_tokenised = []
     selfies = []
     maps_num = 0
     for key, value in smilestoatomtypestoselfies_dikt.items():
         #print(f"SMILES: {key} SELFIES: {smiles_to_selfies_mapping[key]}")
-        selfies_tokenised.append(value['selfiesstr_tok_map'][1])
-        selfies.append(value['selfiesstr_tok_map'][0])
+        selfies_tokenised.append(value['selfies_toks'])
+        selfies.append(value['selfies'])
         #if value['selfiesstr_tok_map'][2] is not None:
         #    maps_num +=1
         #    for key2,val in value['selfiesstr_tok_map'][2].items():
         #        print(f"SELFIES index:{key2[0]} with token:{key2[1]}\tmaps to SMILES token at pos: {val} in SMILES: {key[val]}")
         #print()
+    print(f"--Got them: len: {len(selfies)}")
 
     # 7. then prepare SMILES for tokenization to get embeddings
-
     print("Tokenizing SMILES of pretraining set")
     tokenizer = get_tokenizer(TOKENIZER_PATH)
     #print(f"tokenizer {tokenizer}")
-    smi_toks = tokenize_dataset(tokenizer, smilestoatomtypestoselfies_dikt.keys(), False)
+    smi_toks = tokenize_dataset(tokenizer, list(smilestoatomtypestoselfies_dikt.keys()), False)
     print("whole SMILES tokenized: ",smi_toks[0])
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
     #print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
     smiles_dict = dict(zip(smilestoatomtypestoselfies_dikt.keys(),smi_toks))
+    print("--Created SMILES dictionary")
 
     #for k, v in smiles_dict.items():
     #    print(f"SMILES: {k}")
     #    print(f"Tokens: {v}")
+    
+    print("Saving the final dictionary of SMILES to atom types and SELFIES mappings")
+
+    with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt.json", "w") as f:
+        json.dump(smilestoatomtypestoselfies_dikt, f)
+        
     print("We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
 
 
     #####################################get actual embeddings for 4 models
+    print("Getting embeddings for filtered pretrained dataset")
     # task can be anything, 
     task = 'pretrained'
     # traintype choose pretrained, 
@@ -304,3 +319,4 @@ if __name__ == "__main__":
             df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}.csv", index=False)
         except Exception as e:
             print(f"Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
+            traceback.print_exc()
