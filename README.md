@@ -1,4 +1,7 @@
-# Smiles or Selfies
+# [Beyond performance: How design choices shape chemical language models](https://www.biorxiv.org/content/10.1101/2025.05.23.655735v1)
+## Abstract
+> Chemical language models (CLMs) have shown strong performance in molecular property prediction and generation tasks. However, the impact of design choices, such as molecular representation format, tokenization strategy, and model architecture, on both performance and chemical interpretability remains underexplored. In this study, we systematically evaluate how these factors influence CLM performance and chemical understanding. We evaluated models through finetuning on downstream tasks and probing the structure of their latent spaces using simple classifiers and dimensionality reduction techniques. Despite similar performance on downstream tasks across model configurations, we observed substantial differences in the structure and interpretability of their internal representations. SMILES molecular representation format with atomwise tokenization strategy consistently produced more chemically meaningful embeddings, while models based on BART and RoBERTa architectures yielded comparably interpretable representations. These findings highlight that design choices meaningfully shape how chemical information is represented, even when external metrics appear unchanged. This insight can inform future model development, encouraging more chemically grounded and interpretable CLMs.
+![overview.png](.plots/overview.png)
 ## Usage
 ### Load environment
 The fairseq framework has hit end of service, since we started our project, which resulted in using two different fairseq versions and conda environments because of this.
@@ -38,4 +41,4 @@ The fairseq framework has hit end of service, since we started our project, whic
 1. Run the "training pipeline" from above
 
 ## Contact
-If there are questions, please file a [GitHub issue](https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES/issues) or send an e-mail to thomas.lemmin@unibe.ch, inken.fender@unibe.ch and jannik.gut@unibe.ch.
+If there are questions, please file a [GitHub issue](https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES/issues) or send an e-mail to thomas.lemmin@unibe.ch, inken.fender@unibe.ch, and jannik.gut@unibe.ch.
