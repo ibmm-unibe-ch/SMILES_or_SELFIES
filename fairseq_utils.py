@@ -48,6 +48,7 @@ def load_model(
     model_path: Path,
     data_path: Path,
     cuda: Optional[int] = None
+
 ) -> Union[RobertaModel, BARTHubInterface]:
     """
     Load a Fairseq BART or RoBERTa model.
@@ -300,9 +301,6 @@ def preprocess_series(
 
         model_dict = FAIRSEQ_PREPROCESS_PATH / suffix / "dict.txt"
         dest_dir = output_dir / "input0"
-        print(f'fairseq-preprocess --only-source --trainpref {train_input} --testpref {output_dir/"test.input"}'
-            f'--destdir {dest_dir} --srcdict {model_dict} --workers 60'
-   )
         os.system(
             f'fairseq-preprocess --only-source --trainpref {train_input} --testpref {output_dir/"test.input "}'
             f'--destdir {dest_dir} --srcdict {model_dict} --workers 60'
