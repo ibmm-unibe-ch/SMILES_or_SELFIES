@@ -110,9 +110,9 @@ def eval_weak_classifiers(
         if val_X is not None:  # MoleculeNet case - add test results
             predictions = grid_search.predict(test_X)
             lines.extend([
-                "TEST_RESULTS!!\n",
+                "CLASSIFICATION_TEST_RESULTS!!\n",
+                str(roc_auc_score(test_y, predictions)) + "\n",
                 str(classification_report(test_y, predictions)) + "\n",
-                str(roc_auc_score(test_y, predictions)) + "\n"
             ])
         
         report_path = report_prefix / f"estimator_{name}.txt"
@@ -180,12 +180,13 @@ def eval_weak_regressors(
         lines = [f"{name}\n", pprint.pformat(grid_search.cv_results_) + "\n"]
         
         if val_X is not None:  # MoleculeNet case - add test results
-            predictions = estimator.predict(test_X)
+            predictions = grid_search.predict(test_X)
             rmse = root_mean_squared_error(test_y, predictions)
             mae = mean_absolute_error(test_y, predictions)
             r2 = r2_score(test_y, predictions)
             lines.extend([
-                "TEST_RESULTS!!\n",
+                "REGRESSION_TEST_RESULTS!!\n",
+                f"{rmse}\n",
                 f"RMSE: {rmse} MAE: {mae} R2 score: {r2}\n"
             ])
         
@@ -401,7 +402,7 @@ def main_molnet(tokenizers: List[str], model_type: str, cuda: bool) -> None:
                     dataset_dict["train_y"],
                     dataset_dict["test_X"],
                     dataset_dict["test_y"],
-                    task_path / "reports",
+                    task_path / "reports"/ model_type,
                     dataset_dict["valid_X"],
                     dataset_dict["valid_y"],
                 )
@@ -411,7 +412,7 @@ def main_molnet(tokenizers: List[str], model_type: str, cuda: bool) -> None:
                     dataset_dict["train_y"],
                     dataset_dict["test_X"],
                     dataset_dict["test_y"],
-                    task_path / "reports",
+                    task_path / "reports"/ model_type,
                     dataset_dict["valid_X"],
                     dataset_dict["valid_y"],
                 )

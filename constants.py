@@ -142,7 +142,7 @@ NUM_SEEDS = 5
 LOGGING_CONFIG = {
     "level": logging.DEBUG,
     "format": "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]",
-    "filename": PATHS["logs"] / "default_log.log",
+    "filename": "default_log.log",
     "logger_name": "Project-SoS",
 }
 
