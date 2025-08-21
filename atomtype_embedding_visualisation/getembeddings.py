@@ -4,13 +4,14 @@
 # BART
 # RoBERTa
 # use env fairseq_git2
+# analogous to SMILEStoSELFIEStoatomtypes.ipynb
 import os, sys
 import json
 import logging
 from typing import List
 from tokenisation import tokenize_dataset, get_tokenizer
 from pathlib import Path
-from fairseq_utils2 import compute_model_output, compute_model_output_RoBERTa, compute_random_model_output, load_dataset, load_model
+from fairseq_utils2 import load_dataset, load_model, compute_embedding_output
 from fairseq.data import Dictionary
 from SMILES_to_SELFIES_mapping import canonize_smiles, generate_mapping, generate_mappings_for_task_SMILES_to_SELFIES
 from itertools import chain
@@ -96,15 +97,22 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     source_dictionary = Dictionary.load(str(data_path.parent / "dict.txt"))
 
     # only works if run on whole dataset
-    assert len(task_reps) == len(
-        dataset
-    ), f"Real and filtered dataset {task} do not have same length: len(task_reps): {len(task_reps)} vs. len(dataset):{len(dataset)} ."
+    #assert len(task_reps) == len(
+    #    dataset
+    #), f"Real and filtered dataset {task} do not have same length: len(task_reps): {len(task_reps)} vs. len(dataset):{len(dataset)} ."
     
 
     #text = [canonize_smile(smile) for smile in task_SMILES]
     text = [rep for rep in task_reps]
     embeds= []
     tokenizer = None
+    
+    #new embedding computation
+    # taken from fairseq_utils.py
+    tokenizer = get_tokenizer(TOKENIZER_PATH)
+    embeds.append(compute_embedding_output(model, text, source_dictionary,tokenizer))
+    
+    """
     if "bart" in str(specific_model_path):
         embeds.append(
             compute_model_output(
@@ -133,6 +141,7 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
                 tokenizer,
             )[2]
         )
+        """
    # print("attention encodings",len(attention_encodings[0]))
    # print(len(attention_encodings))
     #output = list(zip(*embeds))
@@ -189,38 +198,78 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
 
 if __name__ == "__main__":
 
-    # all SMILES from pretrained dataset, yes you really need to get all because that is how the get embeddings function works
-    csv = '/data/jgut/SMILES_or_SELFIES/processed/isomers/full_deduplicated_isomers.csv'
-    df = pd.read_csv(csv)
-    task_SMILES = df['SMILES'].tolist()
-    #print('Canonizing SMILES')
-    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
-        
+    # 1 . Load assigned atom types
+    # get the mapping SMILES to atom types from dict.json
+    # Load the dictionary from the JSON file
+    diktfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/dikt_pretraindataset.json"
+    with open(diktfolder, 'r') as file:
+        loaded_dikt = json.load(file)
+
+    # 2. Load all SMILES and generate mapping between SMILES and SELFIES 
+    print("Get all SMILES from properly assigned atom type SMILES")
+    task_SMILES = [smiles for smiles, value in loaded_dikt.items() if value['atom_types'] is not None]
+    
+    # 3. Canonize those SMILES and tell me they turn out to be the same as before
+    task_SMILES_canonized = [canonize_smiles(smile) for smile in task_SMILES]
+    print("Canonized SMILES:")
+    #print(task_SMILES_canonized)
+    # compare to task_SMILES (I already compared them in a separate notebook and they were canonized before for atom types)
+    for original, canonized in zip(task_SMILES, task_SMILES_canonized):
+        assert(original == canonized)
+
+    # 4. Generate mapping between SMILES and SELFIES
+    #this is what smiles_to_selfies_mapping looks like: mappings[smiles]['selfiesstr_tok_map'] = (selfies_str,tokenised_selfies,mapping)
+    smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
+    
+    #5. Merge all the working atomtype mappings and smilestoselfies mappings to select only SMILES that have both informations
+    smilestoatomtypestoselfies_dikt = dict()
+    for smiles in task_SMILES:
+        #print(smiles)
+        atom_types = loaded_dikt.get(smiles, {}).get('atom_types', None)
+        #print('atom types: ',atom_types)
+        selfies = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[0]
+        selfies_toks = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[1]
+        selfies_map = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[2]
+        #print('selfies map: ',selfies_map)
+        #check that neither is empty
+        if selfies_map is not None and atom_types is not None:
+            # final dict will have as keys to value: 'posToKeep', 'smi_clean', 'atom_types', 'max_penalty'
+            smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {}), 'selfies': selfies, 'selfies_toks': selfies_toks, 'selfies_map': selfies_map}
+    #print(smilestoatomtypestoselfies_dikt)
+    print(f"Final dict of SMILES that contain info on atom types and SELFIES created and contains: {len(smilestoatomtypestoselfies_dikt)} molecules")
+
+
+    # 6. Get all the corresponding SELFIES and tokenized SELFIES from the created dictionary
+    selfies_tokenised = []
+    selfies = []
+    maps_num = 0
+    for key, value in smilestoatomtypestoselfies_dikt.items():
+        #print(f"SMILES: {key} SELFIES: {smiles_to_selfies_mapping[key]}")
+        selfies_tokenised.append(value['selfiesstr_tok_map'][1])
+        selfies.append(value['selfiesstr_tok_map'][0])
+        #if value['selfiesstr_tok_map'][2] is not None:
+        #    maps_num +=1
+        #    for key2,val in value['selfiesstr_tok_map'][2].items():
+        #        print(f"SELFIES index:{key2[0]} with token:{key2[1]}\tmaps to SMILES token at pos: {val} in SMILES: {key[val]}")
+        #print()
+
+    # 7. then prepare SMILES for tokenization to get embeddings
+
+    print("Tokenizing SMILES of pretraining set")
     tokenizer = get_tokenizer(TOKENIZER_PATH)
     #print(f"tokenizer {tokenizer}")
-    smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
-    #print("whole SMILES tokenized: ",smi_toks[0])
+    smi_toks = tokenize_dataset(tokenizer, smilestoatomtypestoselfies_dikt.keys(), False)
+    print("whole SMILES tokenized: ",smi_toks[0])
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
     #print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
-    smiles_dict = dict(zip(task_SMILES,smi_toks))
+    smiles_dict = dict(zip(smilestoatomtypestoselfies_dikt.keys(),smi_toks))
 
     #for k, v in smiles_dict.items():
     #    print(f"SMILES: {k}")
     #    print(f"Tokens: {v}")
+    print("We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
 
 
-    ## map SMILES to SELFIES and get SELFIES and SELFIES tokens
-    
-    smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
-    selfies_tokenised = []
-    selfies = []
-    maps_num = 0
-    for key in smiles_to_selfies_mapping.keys():
-        #print(f"SMILES: {key} SELFIES: {smiles_to_selfies_mapping[key]}")
-        selfies_tokenised.append(smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][1])
-        selfies.append(smiles_to_selfies_mapping[key]['selfiesstr_tok_map'][0])
-    
-    
     #####################################get actual embeddings for 4 models
     # task can be anything, 
     task = 'pretrained'
