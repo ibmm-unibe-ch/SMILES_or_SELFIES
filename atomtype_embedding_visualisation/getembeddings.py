@@ -87,6 +87,14 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     
     #data_path = "/data/jgut/SMILES_or_SELFIES/task/delaney/smiles_atom_isomers"
     print("data path: ", data_path)
+
+    if "selfies" in str(data_path):
+        print("Using SELFIES tokenizer")
+        tokenizer = get_tokenizer(Path("/data/jgut/SMILES_or_SELFIES/tokenizer/selfies_atom_standard"))
+    else:
+        print("Using SMILES tokenizer")
+        tokenizer = get_tokenizer(TOKENIZER_PATH)
+
     if "random" not in str(specific_model_path):
         print("loading model")
         model = load_model(specific_model_path, data_path, cuda)
@@ -108,11 +116,10 @@ def get_embeddings(task: str, specific_model_path: str, data_path: str, cuda: in
     #text = [canonize_smile(smile) for smile in task_SMILES]
     text = [rep for rep in task_reps]
     embeds= []
-    tokenizer = None
     
     #new embedding computation
     # taken from fairseq_utils.py
-    tokenizer = get_tokenizer(TOKENIZER_PATH)
+
     embeds.append(compute_embedding_output(model, text, source_dictionary,tokenizer))
     
     """

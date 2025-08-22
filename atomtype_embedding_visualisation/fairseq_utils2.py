@@ -364,7 +364,7 @@ def compute_embedding_output(
         model: Fairseq model.
         texts: List of SMILES/SELFIES strings.
         source_dictionary: Fairseq dictionary.
-        tokenizer: Optional HuggingFace tokenizer.
+        tokenizer: Neccessary HuggingFace tokenizer.
         cuda: CUDA device index.
 
     Returns:
@@ -373,19 +373,11 @@ def compute_embedding_output(
     device = next(model.parameters()).device
     dataset_embeddings = []
     
-    if isinstance(model, RobertaModel):
-        for text in texts:
-            if tokenizer is None:
-                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
-            else:
-                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
-            sample = torch.tensor(tokenizer(text).input_ids)
-
-            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
-            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
-            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+    # make sure tokenizer is not None
+    assert tokenizer is not None, "Tokenizer must be provided to compute atom-level embeddings."
+    
     if isinstance(model, BARTHubInterface):
-        print("cannot deal with BART or can we?")
+        print("BART model")
         for text in texts:
             if tokenizer is None:
                 parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
@@ -398,6 +390,19 @@ def compute_embedding_output(
             token_embeddings, extra = model.model(
                 sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
             )
+            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
+            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+        return dataset_embeddings
+    else:
+        print("RoBERTa model")
+        for text in texts:
+            if tokenizer is None:
+                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
+            else:
+                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
+            sample = torch.tensor(tokenizer(text).input_ids)
+
+            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
             token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
             dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
     return dataset_embeddings
