@@ -22,6 +22,8 @@ from matplotlib.ticker import MultipleLocator
 from collections import Counter
 import pandas as pd
 import traceback
+import pickle
+from datetime import datetime
 
 from constants import (
     TASK_PATH,
@@ -61,7 +63,7 @@ def check_lengths(smi_toks, embeds):
         return embeds
     else:
         print(
-            f"same numbers between tokens and embeddings: {samenums} and different number betqween tokens and embeddings: {diffnums} of which smiles tokens have smaller length: {smismaller}")
+            f"same numbers between tokens and embeddings: {samenums} and different number between tokens and embeddings: {diffnums} of which smiles tokens have smaller length: {smismaller}")
         perc = (diffnums/(diffnums+samenums))*100
         print(
             "percentage of embeddings not correct compared to smiles: {:.2f}%".format(perc))
@@ -161,9 +163,11 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
     if rep=="smiles":
         #subfolder = "smiles_atom_isomers"
         subfolder = "smiles_atom_standard"
+        data_path = Path("/scratch/ifender/SOS_tmp/")
     elif rep=="selfies":
         #subfolder="selfies_atom_isomers"
         subfolder="selfies_atom_standard"
+        data_path = Path("/scratch/ifender/SOS_tmp/selfies/")
         
     if model!="random":
         if traintype=="pretrained":
@@ -185,7 +189,6 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
     
     if specific_model_path is None:
         raise ValueError("specific_model_path cannot be None")
-    data_path = Path("/scratch/ifender/SOS_tmp/")
     #data_path = TASK_PATH/"bbbp"/f"{subfolder}"
     #fairseq_dict = Dictionary.load(str(fairseq_dict_path))
     #fairseq_dict_path = FAIRSEQ_PREPROCESS_PATH/ "smiles_atom_isomers"/"dict.txt"
@@ -198,7 +201,7 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
 
 
 if __name__ == "__main__":
-
+    print(f"{datetime.now()} Starting embedding extraction")
     # 1 . Load assigned atom types
     # get the mapping SMILES to atom types from dict.json
     # Load the dictionary from the JSON file
@@ -243,23 +246,14 @@ if __name__ == "__main__":
             smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {}), 'selfies': selfies, 'selfies_toks': selfies_toks, 'selfies_map': selfies_map}
     #print(smilestoatomtypestoselfies_dikt)
     print(f"--Final dict of SMILES that contain info on atom types and SELFIES created and contains: {len(smilestoatomtypestoselfies_dikt)} molecules")
-    
+
 
     # 6. Get all the corresponding SELFIES and tokenized SELFIES from the created dictionary
     print("Retrieve SELFIES and tokenized SELFIES")
-    selfies_tokenised = []
-    selfies = []
-    maps_num = 0
-    for key, value in smilestoatomtypestoselfies_dikt.items():
-        #print(f"SMILES: {key} SELFIES: {smiles_to_selfies_mapping[key]}")
-        selfies_tokenised.append(value['selfies_toks'])
-        selfies.append(value['selfies'])
-        #if value['selfiesstr_tok_map'][2] is not None:
-        #    maps_num +=1
-        #    for key2,val in value['selfiesstr_tok_map'][2].items():
-        #        print(f"SELFIES index:{key2[0]} with token:{key2[1]}\tmaps to SMILES token at pos: {val} in SMILES: {key[val]}")
-        #print()
-    print(f"--Got them: len: {len(selfies)}")
+    selfies_list = [v['selfies'] for v in smilestoatomtypestoselfies_dikt.values()]
+    selfies_tokenised = [v['selfies_toks'] for v in smilestoatomtypestoselfies_dikt.values()]
+    selfies_dict = dict(zip(selfies_list,selfies_tokenised))
+    print(len(selfies_dict))
 
     # 7. then prepare SMILES for tokenization to get embeddings
     print("Tokenizing SMILES of pretraining set")
@@ -270,22 +264,20 @@ if __name__ == "__main__":
     smi_toks = [smi_tok.split() for smi_tok in smi_toks]
     #print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
     smiles_dict = dict(zip(smilestoatomtypestoselfies_dikt.keys(),smi_toks))
-    print("--Created SMILES dictionary")
+    print("--Created SMILES dictionary with len ", len(smiles_dict))
+
+    assert len(smiles_dict) == len(smilestoatomtypestoselfies_dikt), "Length of SMILES dictionary and final dict do not agree."
+    assert len(smiles_dict) == len(selfies_dict), "Length of SMILES dictionary and selfies do not agree."
+
 
     #for k, v in smiles_dict.items():
     #    print(f"SMILES: {k}")
     #    print(f"Tokens: {v}")
-    
-    print("Saving the final dictionary of SMILES to atom types and SELFIES mappings")
-
-    with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt.json", "w") as f:
-        json.dump(smilestoatomtypestoselfies_dikt, f)
-        
-    print("We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
+    print(f"{datetime.now()}: We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
 
 
     #####################################get actual embeddings for 4 models
-    print("Getting embeddings for filtered pretrained dataset")
+    print("#########################################Getting embeddings for filtered pretrained dataset")
     # task can be anything, 
     task = 'pretrained'
     # traintype choose pretrained, 
@@ -297,13 +289,13 @@ if __name__ == "__main__":
     configs = [
         {"model": "BART", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
         {"model": "roberta", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
-        {"model": "BART", "rep": "selfies", "keys": selfies, "values": selfies_tokenised},
-        {"model": "roberta", "rep": "selfies", "keys": selfies, "values": selfies_tokenised},
+        {"model": "BART", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        {"model": "roberta", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
     ]
 
     for cfg in configs:
         try:
-            print(f"Getting embeddings for model={cfg['model']} rep={cfg['rep']}")
+            print(f"{datetime.now()}====Getting embeddings for model={cfg['model']} rep={cfg['rep']}==================================")
             embeds = get_embeddings_from_model(
                 task,
                 traintype,
@@ -312,11 +304,29 @@ if __name__ == "__main__":
                 cfg["keys"],
                 cfg["values"],
             )
+            
+            # Filter out None embeddings and only save the ones that don't have none embeddings
+            filtered_keys = []
+            filtered_embeds = []
+            for k, e in zip(cfg["keys"], embeds[0]):
+                if e is not None:
+                    filtered_keys.append(k)
+                    filtered_embeds.append(e)
+            print(f"Number of none embeddings filtered out: {len(cfg['keys']) - len(filtered_keys)}")
+            print(f"Finale number of embeddings: {len(filtered_keys)}")
+            
             df = pd.DataFrame({
-                cfg["rep"].upper(): cfg["keys"],
-                "embedding": embeds[0]  # adjust if needed
+                cfg["rep"].upper(): filtered_keys,
+                "embedding": filtered_embeds
             })
-            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}.csv", index=False)
+
+            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_22_8.csv", index=False)
+            print(f"{datetime.now()}    Successfully saved embeddings for model={cfg['model']} rep={cfg['rep']}")
         except Exception as e:
-            print(f"Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
+            print(f"{datetime.now()}    Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
             traceback.print_exc()
+
+    print(f"{datetime.now()} Lastly trying to save dictionary connecting SMILES to atomtypes and SMILES and SELFIES")
+
+    with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt_22_8.pkl", "wb") as f:
+        pickle.dump(smilestoatomtypestoselfies_dikt, f)
