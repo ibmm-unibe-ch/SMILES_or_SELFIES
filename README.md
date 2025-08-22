@@ -4,14 +4,19 @@
 
 ![overview.png](plots/overview.png)
 ## Usage
+We provide the code to replicate the pre-training of our models in b), but we suggest to download the pre-trained models as explained in a) to save resources.  
 ### Load environment
-The fairseq framework has hit end of service, since we started our project, which resulted in using two different fairseq versions and conda environments because of this.
-- For **RoBERTa** just load the environment:
+The fairseq framework has hit end of service, since we started our project, which resulted in using two different fairseq versions and conda environments for pre-training because of this.
+- For **RoBERTa**, fine-tuning and the analysis just load the environment:
     - `conda env create -f SMILES_OR_SELFIES.yml`
-- For **BART** you additionally need to download the nightly version of fairseq:
+- For **BART** pre-training you additionally need to download the nightly version of fairseq:
     - `conda env create -f fairseq_git.yml`
     - `git clone https://github.com/facebookresearch/fairseq.git`
-### Training pipeline
+### a) Download the pre-trained models
+1. Download the models and tokenisers from our [Zenodo record](https://zenodo.org/records/16926537)
+1. Unpack the models to the path specified in _constants.py_
+
+### b) Pre-training pipeline
 1. Install environment with _make build-conda-from-env_
 1. Download data with _make download-10m_
 1. Preprocess with _preprocessing.py_
