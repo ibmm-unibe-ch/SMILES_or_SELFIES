@@ -24,6 +24,7 @@ import pandas as pd
 import traceback
 import pickle
 from datetime import datetime
+import ast
 
 from constants import (
     TASK_PATH,
@@ -209,6 +210,8 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
 
 if __name__ == "__main__":
     print(f"{datetime.now()} Starting embedding extraction")
+    
+    '''
     # 1 . Load assigned atom types
     # get the mapping SMILES to atom types from dict.json
     # Load the dictionary from the JSON file
@@ -282,6 +285,15 @@ if __name__ == "__main__":
     #    print(f"Tokens: {v}")
     print(f"{datetime.now()}: We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
 
+    '''
+    
+    df = pd.read_csv("/scratch/ifender/SOS_tmp/ETH_dataset/ETH_extended.csv")
+    print(len(df))
+    print(df['SMILES'].nunique())
+    df['selfies_toks'] = df['selfies_toks'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+    selfies_dict = dict(zip(df['selfies'], df['selfies_toks']))
+    df['tokenized_SMILES'] = df['tokenized_SMILES'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+    smiles_dict = dict(zip(df['SMILES'], df['tokenized_SMILES']))
 
     #####################################get actual embeddings for 4 models
     print("#########################################Getting embeddings for filtered pretrained dataset")
@@ -290,7 +302,7 @@ if __name__ == "__main__":
     # traintype choose pretrained, 
     traintype="pretrained"
     
-    outfolder = "/scratch/ifender/SOS_tmp/embeddings_pretrainingdata"
+    outfolder = "/scratch/ifender/SOS_tmp/ETH_dataset"
     os.makedirs(outfolder, exist_ok=True)
 
     configs = [
@@ -327,7 +339,7 @@ if __name__ == "__main__":
                 "embedding": filtered_embeds
             })
 
-            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_22_8.csv", index=False)
+            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_26_8.csv", index=False)
             print(f"{datetime.now()}    Successfully saved embeddings for model={cfg['model']} rep={cfg['rep']}")
         except Exception as e:
             print(f"{datetime.now()}    Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
@@ -335,5 +347,5 @@ if __name__ == "__main__":
 
     print(f"{datetime.now()} Lastly trying to save dictionary connecting SMILES to atomtypes and SMILES and SELFIES")
 
-    with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt_22_8.pkl", "wb") as f:
-        pickle.dump(smilestoatomtypestoselfies_dikt, f)
+    #with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt_22_8.pkl", "wb") as f:
+    #    pickle.dump(smilestoatomtypestoselfies_dikt, f)

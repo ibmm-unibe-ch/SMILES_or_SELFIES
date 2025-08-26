@@ -402,7 +402,7 @@ def compute_embedding_output(
                 parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
             sample = torch.tensor(tokenizer(text).input_ids)
 
-            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
+            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), classification_head_name=None, features_only=True)
             token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
             dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
     return dataset_embeddings
@@ -430,7 +430,7 @@ def compute_random_model_output(model, dataset, source_dictionary, cuda=3):
                 .numpy()
             )
         else:
-            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), None)[0][0][-1, :].detach().cpu().numpy()
+            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), classification_head_name=None, features_only=True)[0][0][-1, :].detach().cpu().numpy()
         embeddings.append(embedding)
     return embeddings
 
@@ -566,7 +566,7 @@ def compute_model_output_RoBERTa(
         #)
         #RoBERTa forward differes from BART, there are no prev_output_tokens as input
         token_embeddings, extra = model.model(
-            sample.unsqueeze(0).to(device), features_only=True
+            sample.unsqueeze(0).to(device), classification_head_name=None, features_only=True
             )
         if attentions or eos_attentions:
             attention = extra["attn"][0][0].cpu().detach().tolist()
