@@ -495,7 +495,7 @@ def compute_embedding_output(
             parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
         sample = torch.tensor(tokenizer(text).input_ids)
 
-        token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None)
+        token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), None, classification_head_name=None, features_only=True)
         token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
         dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
     return dataset_embeddings
