@@ -412,7 +412,7 @@ def get_embeddings(
         else:
             features = model.model(
                 sample.unsqueeze(0).to(f"cuda:{cuda}"),
-                None
+                classification_head_name=None, features_only=True,
             )[0][0]
 
         features = features.detach().cpu().numpy()
