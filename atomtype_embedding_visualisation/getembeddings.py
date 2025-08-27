@@ -168,16 +168,16 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
     
     # path to finetuned models
     subfolder=""
-    if rep=="smiles":
-        #subfolder = "smiles_atom_isomers"
-        subfolder = "smiles_atom_standard"
-        data_path = Path("/scratch/ifender/SOS_tmp/")
-    elif rep=="selfies":
-        #subfolder="selfies_atom_isomers"
-        subfolder="selfies_atom_standard"
-        data_path = Path("/scratch/ifender/SOS_tmp/selfies/")
-        
-    if model!="random":
+
+    if model!="untrained":
+        if rep=="smiles":
+            #subfolder = "smiles_atom_isomers"
+            subfolder = "smiles_atom_standard"
+            data_path = Path("/scratch/ifender/SOS_tmp/")
+        elif rep=="selfies":
+            #subfolder="selfies_atom_isomers"
+            subfolder="selfies_atom_standard"
+            data_path = Path("/scratch/ifender/SOS_tmp/selfies/")
         if traintype=="pretrained":
             if model=="BART":
                 # path for BART   
@@ -193,6 +193,18 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
                 / f"{subfolder}_roberta"
                 / "checkpoint_last.pt"
                 )
+    elif model=='untrained':
+        if rep=='smiles':
+            subfolder_un="smiles_atom_isomers"
+            data_path=Path("/scratch/ifender/SOS_tmp/untrained/smiles/")
+        elif rep=='selfies':
+            subfolder_un="selfies_atom_isomers"
+            data_path=Path("/scratch/ifender/SOS_tmp/untrained/selfies/")
+        specific_model_path = (
+            pretrained_TASK_MODEL_PATH
+            / f"untrained_{subfolder_un}"
+            / "checkpoint_last.pt"
+        )
     print("specific model path: ",specific_model_path)
     
     if specific_model_path is None:
@@ -211,7 +223,6 @@ def get_embeddings_from_model(task, traintype, model, rep, reps, listoftokenised
 if __name__ == "__main__":
     print(f"{datetime.now()} Starting embedding extraction")
     
-    '''
     # 1 . Load assigned atom types
     # get the mapping SMILES to atom types from dict.json
     # Load the dictionary from the JSON file
@@ -285,8 +296,8 @@ if __name__ == "__main__":
     #    print(f"Tokens: {v}")
     print(f"{datetime.now()}: We now have everything needed to retrieve embeddings for SMILES, SELFIES and from both models, RoBERTa, and BART")
 
-    '''
     
+    '''
     df = pd.read_csv("/scratch/ifender/SOS_tmp/ETH_dataset/ETH_extended.csv")
     print(len(df))
     print(df['SMILES'].nunique())
@@ -294,7 +305,7 @@ if __name__ == "__main__":
     selfies_dict = dict(zip(df['selfies'], df['selfies_toks']))
     df['tokenized_SMILES'] = df['tokenized_SMILES'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
     smiles_dict = dict(zip(df['SMILES'], df['tokenized_SMILES']))
-
+    '''
     #####################################get actual embeddings for 4 models
     print("#########################################Getting embeddings for filtered pretrained dataset")
     # task can be anything, 
@@ -302,14 +313,17 @@ if __name__ == "__main__":
     # traintype choose pretrained, 
     traintype="pretrained"
     
-    outfolder = "/scratch/ifender/SOS_tmp/ETH_dataset"
+    #outfolder = "/scratch/ifender/SOS_tmp/ETH_dataset"
+    outfolder = "/scratch/ifender/SOS_tmp/embeddings_pretrainingdata"
     os.makedirs(outfolder, exist_ok=True)
 
     configs = [
-        {"model": "BART", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
-        {"model": "roberta", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
-        {"model": "BART", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
-        {"model": "roberta", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        #{"model": "BART", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
+        #{"model": "roberta", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
+        #{"model": "BART", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        #{"model": "roberta", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        {"model": "untrained", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        {"model": "untrained", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
     ]
 
     for cfg in configs:
@@ -339,7 +353,7 @@ if __name__ == "__main__":
                 "embedding": filtered_embeds
             })
 
-            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_26_8.csv", index=False)
+            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_27_8.csv", index=False)
             print(f"{datetime.now()}    Successfully saved embeddings for model={cfg['model']} rep={cfg['rep']}")
         except Exception as e:
             print(f"{datetime.now()}    Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
