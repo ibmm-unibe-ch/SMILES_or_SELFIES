@@ -132,8 +132,12 @@ def clean_SMILES(SMILES_tok):
     posToKeep = list()
     pos = 0
     for i in range(len(SMILES_tok)):
+        # If token is bracketed, keep as is, even if contains H or other atoms or numbers
+        if SMILES_tok[i].startswith("[") and SMILES_tok[i].endswith("]"):
+            SMILES_tok_prep.append(SMILES_tok[i])
+            posToKeep.append(pos)
         # when it's an H in the SMILES, ignore, cannot deal
-        if SMILES_tok[i] != "H" and SMILES_tok[i] != "h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
+        elif SMILES_tok[i] != "H" and SMILES_tok[i] != "h" and not SMILES_tok[i].isdigit() and not SMILES_tok[i].isspace():
             if not any(elem in struc_toks for elem in SMILES_tok[i]):
                 if SMILES_tok[i] != "-":
                     SMILES_tok_prep.append(SMILES_tok[i])
@@ -292,14 +296,14 @@ def save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKee
     with open(f'{outfolder}/dikt_{task}.json', 'w') as file:
         json.dump(dikt, file, indent=4)
 
-    print("Dictionary saved to dikt.json")
+    print(f"Dictionary saved to {outfolder}/dikt_{task}.json")
 
     # Load the dictionary from the JSON file
-    with open(f'{outfolder}/dikt_{task}.json', 'r') as file:
-        loaded_dikt = json.load(file)
+    #with open(f'{outfolder}/dikt_{task}.json', 'r') as file:
+    #    loaded_dikt = json.load(file)
 
-    print("Dictionary loaded from dikt.json")
-    print(loaded_dikt)
+    #print("Dictionary loaded from dikt.json")
+    #print(loaded_dikt)
     
     # save infos to file
     data = {
@@ -326,35 +330,39 @@ if __name__ == "__main__":
     #task="clearance"
     #task="bbbp"
     #task="lipo"
-    for task in ["delaney", "bace_classification", "clearance", "bbbp", "lipo"]:
-        assert task in list(
-            MOLNET_DIRECTORY.keys()
-        ), f"{task} not in MOLNET tasks."
-        
-        # get SMILES from task
-        task_SMILES, task_labels = load_molnet_test_set(task)
-        print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
-        
-        # make sure all task SMILES are the canonical SMILES
-        task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
-        # kekulize the SMILES
-        task_SMILES = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), kekuleSmiles=True) for smiles in task_SMILES]  
-        
-        # get tokenized version of dataset, SMILES mapped to tokenised version
-        smiles_dict = get_tokenized_SMILES(task_SMILES)
-        for key, val in smiles_dict.items():
-            print(f"{key}: {val}")
+    task = "pretraindataset_kekulized"
+    
+    #for task in ["delaney", "bace_classification", "clearance", "bbbp", "lipo"]:
+     ##   assert task in list(
+      #      MOLNET_DIRECTORY.keys()
+      #  ), f"{task} not in MOLNET tasks."
+    df = pd.read_csv("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/365unique_smiles_of_pretraining_passing_pipeline.csv")
+    # get SMILES from task
+    task_SMILES = list(df['SMILES'])
+    #task_SMILES, task_labels = load_molnet_test_set(task)
+    print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
+    
+    # make sure all task SMILES are the canonical SMILES
+    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    # kekulize the SMILES
+    task_SMILES = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), kekuleSmiles=True) for smiles in task_SMILES]  
+    
+    # get tokenized version of dataset, SMILES mapped to tokenised version
+    smiles_dict = get_tokenized_SMILES(task_SMILES)
+    for key, val in smiles_dict.items():
+        print(f"{key}: {val}")
 
-        folder = f"/data/ifender/SOS_atoms/kekulized/{task}_mols_bccc0_gaff2_assigned/"
-        # get assignments and save to file
-        dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder(folder, smiles_dict, task_SMILES)
-        print(f"totalfails: {totalfails}, failedSmiPos: {failedSmiPos}")
-        print(f"failed SMILES: {failedSmiPos}")
-        print(f"dikt: {dikt}")
-            
-        # save dikt to file and also totalfails, failedSmiPos, posToKeep_list to info file
-        outfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/kekulized"
-        save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKeep_list, task)
+    #folder = f"/data/ifender/SOS_atoms/kekulized/{task}_mols_bccc0_gaff2_assigned/"
+    folder = "/data/ifender/SOS_atoms/pretraindataset_kekulized_mols_bcc0_gaff2_assigned/"
+    # get assignments and save to file
+    dikt, totalfails, failedSmiPos, posToKeep_list = load_assignments_from_folder(folder, smiles_dict, task_SMILES)
+    print(f"totalfails: {totalfails}, failedSmiPos: {failedSmiPos}")
+    print(f"failed SMILES: {failedSmiPos}")
+    print(f"dikt: {dikt}")
+        
+    # save dikt to file and also totalfails, failedSmiPos, posToKeep_list to info file
+    outfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/kekulized"
+    save_assignments_to_file(outfolder, dikt, totalfails, failedSmiPos, posToKeep_list, task)
 
         # Clc1cc(Nc2ncnc3[nH]nc(OCCN4CCCC4)c23)ccc1OCc1ccccn1 (original SMILES)
         # ClC1=CC(NC2=NC=NC3=C2C(OCCN2CCCC2)=NN3)=CC=C1OCC1=CC=CC=N1 (kekulized SMILES)

@@ -226,7 +226,8 @@ if __name__ == "__main__":
     # 1 . Load assigned atom types
     # get the mapping SMILES to atom types from dict.json
     # Load the dictionary from the JSON file
-    diktfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/dikt_pretraindataset.json"
+   # diktfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/dikt_pretraindataset.json"
+    diktfolder = "/home/ifender/SOS/SMILES_or_SELFIES/atomtype_embedding_visualisation/assignment_dicts/kekulized/dikt_pretraindataset_kekulized.json"
     with open(diktfolder, 'r') as file:
         loaded_dikt = json.load(file)
 
@@ -235,21 +236,25 @@ if __name__ == "__main__":
     task_SMILES = [smiles for smiles, value in loaded_dikt.items() if value['atom_types'] is not None]
     print(f"--Got them {len(task_SMILES)}")
 
+
+###no canonization needed for kekulized SMILES, otherwise kekulization gone
     # 3. Canonize those SMILES and tell me they turn out to be the same as before
-    task_SMILES_canonized = [canonize_smiles(smile) for smile in task_SMILES]
-    print("Canonized SMILES:")
+   # task_SMILES_canonized = [canonize_smiles(smile) for smile in task_SMILES]
+   # print("Canonized SMILES:")
     #print(task_SMILES_canonized)
     # compare to task_SMILES (I already compared them in a separate notebook and they were canonized before for atom types)
-    for original, canonized in zip(task_SMILES, task_SMILES_canonized):
-        assert(original == canonized)
-    print("                 ...no problems")
+   # for original, canonized in zip(task_SMILES, task_SMILES_canonized):
+   #     assert(original == canonized)
+   # print("                 ...no problems")
 
+#### no SELFIES needed for kekulized SMILES, as SELFIES stay the same
     # 4. Generate mapping between SMILES and SELFIES
     #this is what smiles_to_selfies_mapping looks like: mappings[smiles]['selfiesstr_tok_map'] = (selfies_str,tokenised_selfies,mapping)
-    print("Mapping SMILES and SELFIES")
-    smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
-    print("--Mapped")
+#   print("Mapping SMILES and SELFIES")
+#    smiles_to_selfies_mapping = generate_mappings_for_task_SMILES_to_SELFIES(task_SMILES)
+#    print("--Mapped")
 
+###for kekulized SMILES only need to map atom types, not SELFIES
     #5. Merge all the working atomtype mappings and smilestoselfies mappings to select only SMILES that have both informations
     print("Create dict of SMILES that have both atom types and SELFIES matching")
     smilestoatomtypestoselfies_dikt = dict()
@@ -257,24 +262,29 @@ if __name__ == "__main__":
         #print(smiles)
         atom_types = loaded_dikt.get(smiles, {}).get('atom_types', None)
         #print('atom types: ',atom_types)
-        selfies = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[0]
-        selfies_toks = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[1]
-        selfies_map = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[2]
+        #uncomment three lines underneath to get mapping to SELFIES
+       # selfies = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[0]
+       # selfies_toks = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[1]
+       # selfies_map = smiles_to_selfies_mapping.get(smiles, {}).get('selfiesstr_tok_map', (None, None, None))[2]
         #print('selfies map: ',selfies_map)
         #check that neither is empty
-        if selfies_map is not None and atom_types is not None: #atom types cannot be none because we filter on it, but anyway
+        #uncomment line undernath for regular SMILES
+        #if selfies_map is not None and atom_types is not None: #atom types cannot be none because we filter on it, but anyway
+        if atom_types is not None:
             # final dict will have as keys to value: 'posToKeep', 'smi_clean', 'atom_types', 'max_penalty'
-            smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {}), 'selfies': selfies, 'selfies_toks': selfies_toks, 'selfies_map': selfies_map}
+            #uncomment line udnerneath for regular SMILES
+            #smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {}), 'selfies': selfies, 'selfies_toks': selfies_toks, 'selfies_map': selfies_map}
+            smilestoatomtypestoselfies_dikt[smiles] = {**loaded_dikt.get(smiles, {})}
     #print(smilestoatomtypestoselfies_dikt)
     print(f"--Final dict of SMILES that contain info on atom types and SELFIES created and contains: {len(smilestoatomtypestoselfies_dikt)} molecules")
 
-
+### no need for SELFIES for kekulized SMILES
     # 6. Get all the corresponding SELFIES and tokenized SELFIES from the created dictionary
-    print("Retrieve SELFIES and tokenized SELFIES")
-    selfies_list = [v['selfies'] for v in smilestoatomtypestoselfies_dikt.values()]
-    selfies_tokenised = [v['selfies_toks'] for v in smilestoatomtypestoselfies_dikt.values()]
-    selfies_dict = dict(zip(selfies_list,selfies_tokenised))
-    print(len(selfies_dict))
+    #print("Retrieve SELFIES and tokenized SELFIES")
+    #selfies_list = [v['selfies'] for v in smilestoatomtypestoselfies_dikt.values()]
+    #selfies_tokenised = [v['selfies_toks'] for v in smilestoatomtypestoselfies_dikt.values()]
+    #selfies_dict = dict(zip(selfies_list,selfies_tokenised))
+    #print(len(selfies_dict))
 
     # 7. then prepare SMILES for tokenization to get embeddings
     print("Tokenizing SMILES of pretraining set")
@@ -288,7 +298,7 @@ if __name__ == "__main__":
     print("--Created SMILES dictionary with len ", len(smiles_dict))
 
     assert len(smiles_dict) == len(smilestoatomtypestoselfies_dikt), "Length of SMILES dictionary and final dict do not agree."
-    assert len(smiles_dict) == len(selfies_dict), "Length of SMILES dictionary and selfies do not agree."
+    #assert len(smiles_dict) == len(selfies_dict), "Length of SMILES dictionary and selfies do not agree."
 
 
     #for k, v in smiles_dict.items():
@@ -314,18 +324,18 @@ if __name__ == "__main__":
     traintype="pretrained"
     
     #outfolder = "/scratch/ifender/SOS_tmp/ETH_dataset"
-    outfolder = "/scratch/ifender/SOS_tmp/embeddings_pretrainingdata"
+    outfolder = "/scratch/ifender/SOS_tmp/embeddings_pretrainingdata_kekulized"
     os.makedirs(outfolder, exist_ok=True)
 
     configs = [
-        #{"model": "BART", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
-        #{"model": "roberta", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
+        {"model": "BART", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
+        {"model": "roberta", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
         #{"model": "BART", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
         #{"model": "roberta", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
-        {"model": "untrained", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
+        #{"model": "untrained", "rep": "selfies", "keys": list(selfies_dict.keys()), "values": list(selfies_dict.values())},
         {"model": "untrained", "rep": "smiles", "keys": list(smiles_dict.keys()), "values": list(smiles_dict.values())},
     ]
-
+    '''
     for cfg in configs:
         try:
             print(f"{datetime.now()}====Getting embeddings for model={cfg['model']} rep={cfg['rep']}==================================")
@@ -353,13 +363,13 @@ if __name__ == "__main__":
                 "embedding": filtered_embeds
             })
 
-            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_27_8.csv", index=False)
+            df.to_csv(f"{outfolder}/embeds_{cfg['rep']}_{task}_{cfg['model']}_28_8.csv", index=False)
             print(f"{datetime.now()}    Successfully saved embeddings for model={cfg['model']} rep={cfg['rep']}")
         except Exception as e:
             print(f"{datetime.now()}    Error occurred while getting embeddings for model={cfg['model']} rep={cfg['rep']}: {e}")
             traceback.print_exc()
-
+    '''
     print(f"{datetime.now()} Lastly trying to save dictionary connecting SMILES to atomtypes and SMILES and SELFIES")
 
-    #with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/smilestoatomtypestoselfies_dikt_22_8.pkl", "wb") as f:
-    #    pickle.dump(smilestoatomtypestoselfies_dikt, f)
+    with open("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata_kekulized/smilestoatomtypestoselfies_dikt_28_8.pkl", "wb") as f:
+        pickle.dump(smilestoatomtypestoselfies_dikt, f)

@@ -309,37 +309,42 @@ if __name__ == "__main__":
     #task="bbbp"
     #task="clearance"
     #task="lipo"
-    for task in ["delaney", "bace_classification", "bbbp", "clearance"]:
-        assert task in list(
-            MOLNET_DIRECTORY.keys()
-        ), f"{task} not in MOLNET tasks."
-        
-        task_SMILES, task_labels = load_molnet_test_set(task)
-        task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
-        print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
-        task_SMILES = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), kekuleSmiles=True) for smiles in task_SMILES]
-        
-        #print(f"task labels",task_labels)
-        rndm_smiles = task_SMILES
-        print(f"first smiles {task_SMILES[0]} and length {len(task_SMILES[0])}")
-        print(f"{task} reading done")
-        
-        ###############################get tokenized version of dataset ########################################
-        # get tokenized version of dataset
-        tokenizer = get_tokenizer(TOKENIZER_PATH)
-        print(f"tokenizer {tokenizer}")
-        smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
-        print("whole SMILES tokenized: ",smi_toks[0])
-        smi_toks = [smi_tok.split() for smi_tok in smi_toks]
-        print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
+    #for task in ["delaney", "bace_classification", "bbbp", "clearance"]:
+    #    assert task in list(
+    #        MOLNET_DIRECTORY.keys()
+    #    ), f"{task} not in MOLNET tasks."
+    task="pretraining_mols_passing_pipeline"
+    df = pd.read_csv("/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/365unique_smiles_of_pretraining_passing_pipeline.csv")
+    print(len(df))
+    #print(list(df['SMILES']))
+    task_SMILES = list(df['SMILES'])
+    #task_SMILES, task_labels = load_molnet_test_set(task)
+    task_SMILES = [canonize_smiles(smiles) for smiles in task_SMILES]
+    print(f"SMILES: {task_SMILES} \n len task_SMILES {task}: {len(task_SMILES)}")
+    task_SMILES = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), kekuleSmiles=True) for smiles in task_SMILES]
+    
+    #print(f"task labels",task_labels)
+    rndm_smiles = task_SMILES
+    print(f"first smiles {task_SMILES[0]} and length {len(task_SMILES[0])}")
+    print(f"{task} reading done")
+    
+    ###############################get tokenized version of dataset ########################################
+    # get tokenized version of dataset
+    tokenizer = get_tokenizer(TOKENIZER_PATH)
+    print(f"tokenizer {tokenizer}")
+    smi_toks = tokenize_dataset(tokenizer, task_SMILES, False)
+    print("whole SMILES tokenized: ",smi_toks[0])
+    smi_toks = [smi_tok.split() for smi_tok in smi_toks]
+    print(f"SMILES tokens after splitting tokens into single strings: {smi_toks[0]}")
 
 
-        ############################## get atomassignments for task test set using antechamber and parmchk2 (not here: OR from previous antechamber assignment with antechamber and parmchk2) ########################################
-            # get atom assignments from SMILES
-        filepath = f"/data/ifender/SOS_atoms/kekulized/{task}_mols_bccc0_gaff2_assigned/"
-        #Check if the directory exists, and create it if it doesn't
-        if not os.path.exists(filepath):
-            os.makedirs(filepath)
-        smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath)
+    ############################## get atomassignments for task test set using antechamber and parmchk2 (not here: OR from previous antechamber assignment with antechamber and parmchk2) ########################################
+        # get atom assignments from SMILES
+    #filepath = f"/data/ifender/SOS_atoms/kekulized/{task}_mols_bccc0_gaff2_assigned/"
+    filepath = "/data/ifender/SOS_atoms/pretraindataset_kekulized_mols_bcc0_gaff2_assigned/"
+    #Check if the directory exists, and create it if it doesn't
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
+    smiToAtomAssign_dict, smiToAtomAssign_dict_clean, posToKeep_list, creation_assignment_fail, failedSmiPos, cleanSmis = get_atom_assignments(task_SMILES,smi_toks,filepath)
   
      
