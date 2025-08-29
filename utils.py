@@ -7,7 +7,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, List
 from ast import literal_eval
 import re
 from statistics import mean, stdev
@@ -200,7 +200,7 @@ def get_cells(line: str) -> List[str]:
     return [cell.strip() for cell in re.split(r"\s{2,}", line) if cell.strip()]
 
 
-def parse_dict(dikt: Dict[str, Any]) -> tuple[Dict[str, Any], float, float]:
+def parse_dict(cv_results: Dict[str, Any]) -> tuple[Dict[str, Any], float, float]:
     """Parse cross-validation results to extract best parameters and scores.
     
     Args:
@@ -240,8 +240,8 @@ def get_report(path: Union[str, Path]) -> Dict[str, Any]:
     Returns:
         Dictionary containing estimator name, best parameters, and scores.
     """
-    estimator, cv_results = read_dict_file(path)
-    best_params, mean_score, std_score = parse_cv_results(cv_results)
+    estimator, cv_results = reading_dict(path)
+    best_params, mean_score, std_score = parse_dict(cv_results)
     
     return {
         "estimator": estimator,
@@ -250,7 +250,7 @@ def get_report(path: Union[str, Path]) -> Dict[str, Any]:
         "std": std_score,
     }
 
-def parse_tokenizer_config(tokenizer_string: str) -> Dict[str, str]:
+def parse_tokenizer(tokenizer_string: str) -> Dict[str, str]:
     """Parse tokenizer configuration string into components.
     
     Args:
