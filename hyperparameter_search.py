@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES
+from constants import MOLNET_DIRECTORY, TASK_MODEL_PATH, TASK_PATH, TOKENIZER_SUFFIXES, MODEL_PATH
 from utils import parse_arguments
 from hyperparameters import EPOCHS, BATCH_SIZE, DROPOUT
 
@@ -84,7 +84,7 @@ def build_fairseq_command(config: TrainingConfig) -> str:
     base_cmd = (
         f'CUDA_VISIBLE_DEVICES={config.cuda_device} fairseq-train {config.task_path} '
         f'--update-freq 8 '
-        f'--restore-file fairseq_models/{config.model_prefix}/checkpoint_last.pt '
+        f'--restore-file {MODEL_PATH/config.model_prefix/"checkpoint_last.pt"} '
         f'--wandb-project {"Finetune_"+config.task} '
         f'--batch-size {BATCH_SIZE} '
         f'--task sentence_prediction '

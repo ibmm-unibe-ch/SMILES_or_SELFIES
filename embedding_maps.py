@@ -22,8 +22,8 @@ from constants import (
 from fairseq_utils import (
     get_embeddings,
     load_model,
-    preprocess_series,
-    create_random_prediction_model,
+    preprocess_series_old,
+    create_untrained_prediction_model,
     transform_to_prediction_model
 )
 from plotting import plot_representations
@@ -57,29 +57,25 @@ def prepare_selected_molecules(sample_amount: int = 64) -> pd.DataFrame:
         "Tropanes": list(set(TROPANES)),
         "Sulfonamides": list(set(SULFONAMIDES)),
     }
-    
     molecules = []
     labels = []
-    
     for class_name, class_molecules in molecule_classes.items():
         sampled = random.sample(class_molecules, min(sample_amount, len(class_molecules)))
-        
         for smile in sampled:
             if not check_valid(smile):
                 continue
             selfie, len_selfie = translate_selfie(smile)
-            canon_smile= canonize_smile(smile)
-            if len_selfie > 0:
+            canon_smile = canonize_smile(smile)
+            if len_selfie == 0:
                 continue
-                
             molecules.append((canon_smile, selfie))
             labels.append(class_name)
-    
-    return pd.DataFrame({
+    dataframe = pd.DataFrame({
         "SELFIES": [m[1] for m in molecules],
         "SMILES": [m[0] for m in molecules],
         "label": labels
     })
+    return dataframe
 
 
 def sample_other_molecules(data_path: Path, amount: int) -> Optional[pd.DataFrame]:
@@ -111,8 +107,7 @@ def get_molecule_dataframe(data_path: Path) -> pd.DataFrame:
         Combined DataFrame with all molecules
     """
     selected_df = prepare_selected_molecules(64)
-    other_df = sample_other_molecules(data_path, amount=0)  # Currently disabled
-    return pd.concat([selected_df, other_df], ignore_index=True)
+    return selected_df
 
 
 def process_molecules_with_model(
@@ -153,13 +148,14 @@ def process_molecules_with_model(
     working_dir = PROJECT_PATH / f"embedding_mapping_{model_type}"
     
     # Preprocess and get embeddings
-    preprocess_series(tokenized_molecules, working_dir, fairseq_dict_path)
+    preprocess_series_old(tokenized_molecules, working_dir, fairseq_dict_path)
     
     # Load or create model
-    if model_type == "random":
-        model_path = PREDICTION_MODEL_PATH / "random_bart" / "checkpoint_last.pt"
+    if model_type == "untrained":
+        model_path = PREDICTION_MODEL_PATH / f"untrained_{tokenizer_suffix}" / "checkpoint_last.pt"
         if not model_path.exists():
-            create_random_prediction_model(model_path.parent)
+            smiles = tokenizer_suffix.lower().startswith("smiles")
+            create_untrained_prediction_model(model_path.parent, smiles)
     else:
         tokenizer_model_suffix = f"{tokenizer_suffix}_{model_type}"
         model_path = PREDICTION_MODEL_PATH / tokenizer_model_suffix / "checkpoint_last.pt"
@@ -186,7 +182,7 @@ def process_molecules_with_model(
 
 def main():
     """Main execution function for the visualization script."""
-    args = parse_arguments(cuda=True, tokenizer=True, model_type=True) #TODO
+    args = parse_arguments(cuda=True, tokenizer=True, model_type=True)
     
     # Configuration
     cuda = args["cuda"]
@@ -196,7 +192,9 @@ def main():
         if args.get("tokenizer") 
         else TOKENIZER_SUFFIXES
     )
-    
+    if model_type == "untrained":
+        tokenizer_suffixes = ["selfies_atom_isomers", "smiles_atom_isomers", ]
+
     # Prepare molecule data
     data_path = PROCESSED_PATH / "standard" / "full_deduplicated_standard.csv"
     molecule_df = get_molecule_dataframe(data_path)
@@ -204,12 +202,10 @@ def main():
     # Process with each tokenizer
     for tokenizer_suffix in tokenizer_suffixes:
         output_dir = PLOT_PATH / "selected_molecules_scaled"
-        if model_type == "random":
-            output_dir = output_dir / "random"
-            tokenizer_suffix = "smiles_atom_isomers"  # Override for random model
+        if model_type == "untrained":
+            output_dir = output_dir / f"untrained_{tokenizer_suffix[:6]}"
         else:
             output_dir = output_dir / f"{tokenizer_suffix}_{model_type}"
-        
         process_molecules_with_model(
             molecule_df,
             tokenizer_suffix,

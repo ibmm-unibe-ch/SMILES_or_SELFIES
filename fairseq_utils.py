@@ -307,7 +307,7 @@ def preprocess_series(
         )
 
 
-def create_random_prediction_model(output_path: Path) -> None:
+def create_untrained_prediction_model(output_path: Path, smiles:bool) -> None:
     """
     Create a randomly initialized BART prediction model.
 
@@ -316,11 +316,13 @@ def create_random_prediction_model(output_path: Path) -> None:
     """
     if output_path.exists():
         return
-
+    preprocess_path = FAIRSEQ_PREPROCESS_PATH/"smiles_atom_isomers" if smiles else FAIRSEQ_PREPROCESS_PATH/"selfies_atom_isomers"
+    task_path = TASK_PATH/"lipo"/"smiles_atom_isomers" if smiles else TASK_PATH/"lipo"/"selfies_atom_isomers"
+    interim_path = MODEL_PATH/"untrained_smiles" if smiles else MODEL_PATH/"untrained_selfies"
     # Step 1: Pre-train a random BART model
     os.system(
         f'CUDA_VISIBLE_DEVICES=0 micromamba run -n fairseq_git fairseq-train '
-        f'{FAIRSEQ_PREPROCESS_PATH}/smiles_atom_isomers --save-dir {MODEL_PATH/"random_bart"} '
+        f'{preprocess_path} --save-dir {interim_path} '
         f'--max-source-positions 1024 --batch-size 32 --mask 0.0 --tokens-per-sample 512 '
         f'--max-update 1 --warmup-updates 1 --task denoising --save-interval 1 '
         f'--arch bart_base --optimizer adam --lr 0.0 --dropout 0.0 --criterion cross_entropy '
@@ -334,8 +336,8 @@ def create_random_prediction_model(output_path: Path) -> None:
 
     # Step 2: Fine-tune as a prediction model
     os.system(
-        f'CUDA_VISIBLE_DEVICES=0 fairseq-train {TASK_PATH/"lipo"/"smiles_atom_isomers"} '
-        f'--restore-file {MODEL_PATH/"random_bart"/"checkpoint_last.pt"} --save-dir {output_path} '
+        f'CUDA_VISIBLE_DEVICES=0 fairseq-train {task_path} '
+        f'--restore-file {interim_path/"checkpoint_last.pt"} --save-dir {output_path} '
         f'--max-source-positions 1024 --update-freq 1 --batch-size 1 --task sentence_prediction '
         f'--num-workers 1 --layernorm-embedding --share-all-embeddings '
         f'--share-decoder-input-output-embed --required-batch-size-multiple 1 '
