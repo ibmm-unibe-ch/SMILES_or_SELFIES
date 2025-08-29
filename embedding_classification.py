@@ -21,8 +21,10 @@ from constants import (
     TOKENIZER_SUFFIXES,
     PREDICTION_MODEL_PATH,
     TASK_PATH,
-    MOLNET_DIRECTORY
+    MOLNET_DIRECTORY,
+    PROCESSED_PATH
 )
+from sklearn.model_selection import StratifiedGroupKFold, GroupKFold
 from fairseq_utils import (
     get_embeddings,
     transform_to_prediction_model,
@@ -57,6 +59,7 @@ def eval_weak_classifiers(
     report_prefix: Path,
     val_X: Optional[pd.DataFrame] = None,
     val_y: Optional[pd.DataFrame] = None,
+    groups: Optional[pd.Series] = None,
 ) -> None:
     """Train and evaluate sklearn classifiers on the training set and save results.
 
@@ -70,9 +73,9 @@ def eval_weak_classifiers(
         val_y: Optional validation labels as a DataFrame (for MoleculeNet).
     """
     estimators = {
-        "RBF SVC": SVC(kernel=rbf_kernel, random_state=SEED + 49057, cache_size=100),
+        "RBF SVC": SVC(kernel=rbf_kernel, random_state=SEED + 49057, cache_size=100, class_weight="balanced"),
         "KNN": KNeighborsClassifier(),
-        "Linear SVC": LinearSVC(random_state=SEED + 57, max_iter=1000),
+        "Linear SVC": LinearSVC(random_state=SEED + 57, max_iter=1000, class_weight="balanced"),
     }
     
     for name, estimator in estimators.items():
@@ -80,16 +83,32 @@ def eval_weak_classifiers(
         
         if val_X is None:
             # Combine train and test for cross-validation
-            X = np.concatenate([train_X, test_X])
-            y = np.concatenate([np.array(train_y), np.array(test_y)])
-            grid_search = GridSearchCV(
+            if not (test_X is None):
+                X = np.concatenate([train_X, test_X])
+                y = np.concatenate([np.array(train_y), np.array(test_y)])
+            else:
+                X = np.array(train_X)
+                y = np.array(train_y)            
+            if not (groups is None):
+                sgkf = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=SEED)
+                splits = list(sgkf.split(X,y,groups=groups))
+                grid_search = GridSearchCV(
                 estimator=estimator,
                 param_grid=param_grid,
                 scoring="accuracy",
-                cv=3,
+                cv=splits,
                 n_jobs=10,
                 verbose=4,
             )
+            else:
+                grid_search = GridSearchCV(
+                    estimator=estimator,
+                    param_grid=param_grid,
+                    scoring="accuracy",
+                    cv=3,
+                    n_jobs=10,
+                    verbose=4,
+                )
         else:  # MoleculeNet case with validation set
             test_fold = [0] * len(train_X) + [1] * len(val_X)
             X = np.concatenate([train_X, val_X])
@@ -110,9 +129,9 @@ def eval_weak_classifiers(
         if val_X is not None:  # MoleculeNet case - add test results
             predictions = grid_search.predict(test_X)
             lines.extend([
-                "TEST_RESULTS!!\n",
+                "CLASSIFICATION_TEST_RESULTS!!\n",
+                str(roc_auc_score(test_y, predictions)) + "\n",
                 str(classification_report(test_y, predictions)) + "\n",
-                str(roc_auc_score(test_y, predictions)) + "\n"
             ])
         
         report_path = report_prefix / f"estimator_{name}.txt"
@@ -129,6 +148,7 @@ def eval_weak_regressors(
     report_prefix: Path,
     val_X: Optional[pd.DataFrame] = None,
     val_y: Optional[pd.DataFrame] = None,
+    groups: Optional[pd.Series] =None,
 ) -> None:
     """Train and evaluate sklearn regressors on the training set and save results.
 
@@ -149,12 +169,27 @@ def eval_weak_regressors(
     
     for name, estimator in estimators.items():
         param_grid = {"n_neighbors": [1, 5, 11], "weights": ["uniform", "distance"]} if name == "KNN" else {"C": [0.1, 1, 10]}
-        
         if val_X is None:
             # Combine train and test for cross-validation
-            X = np.concatenate([train_X, test_X])
-            y = np.concatenate([train_y, test_y])
-            grid_search = GridSearchCV(
+            if not (test_X is None):
+                X = np.concatenate([train_X, test_X])
+                y = np.concatenate([train_y, test_y])
+            else:
+                X = np.array(train_X)
+                y = np.array(train_y)  
+            if not (groups is None):
+                sgkf = GroupKFold(n_splits=3, shuffle=True, random_state=SEED)
+                splits = list(sgkf.split(X,y,groups=groups))
+                grid_search = GridSearchCV(
+                estimator=estimator,
+                param_grid=param_grid,
+                scoring='neg_root_mean_squared_error',
+                cv=splits,
+                n_jobs=10,
+                verbose=4,
+            )
+            else:
+                grid_search = GridSearchCV(
                 estimator=estimator,
                 param_grid=param_grid,
                 scoring='neg_root_mean_squared_error',
@@ -180,12 +215,13 @@ def eval_weak_regressors(
         lines = [f"{name}\n", pprint.pformat(grid_search.cv_results_) + "\n"]
         
         if val_X is not None:  # MoleculeNet case - add test results
-            predictions = estimator.predict(test_X)
+            predictions = grid_search.predict(test_X)
             rmse = root_mean_squared_error(test_y, predictions)
             mae = mean_absolute_error(test_y, predictions)
             r2 = r2_score(test_y, predictions)
             lines.extend([
-                "TEST_RESULTS!!\n",
+                "REGRESSION_TEST_RESULTS!!\n",
+                f"{rmse}\n",
                 f"RMSE: {rmse} MAE: {mae} R2 score: {r2}\n"
             ])
         
@@ -401,9 +437,9 @@ def main_molnet(tokenizers: List[str], model_type: str, cuda: bool) -> None:
                     dataset_dict["train_y"],
                     dataset_dict["test_X"],
                     dataset_dict["test_y"],
-                    task_path / "reports",
-                    dataset_dict["valid_X"],
-                    dataset_dict["valid_y"],
+                    task_path / "reports"/ model_type,
+                    val_X=dataset_dict["valid_X"],
+                    val_y=dataset_dict["valid_y"],
                 )
             else:
                 eval_weak_regressors(
@@ -411,9 +447,9 @@ def main_molnet(tokenizers: List[str], model_type: str, cuda: bool) -> None:
                     dataset_dict["train_y"],
                     dataset_dict["test_X"],
                     dataset_dict["test_y"],
-                    task_path / "reports",
-                    dataset_dict["valid_X"],
-                    dataset_dict["valid_y"],
+                    task_path / "reports"/ model_type,
+                    val_X=dataset_dict["valid_X"],
+                    val_y=dataset_dict["valid_y"],
                 )
 
 
@@ -438,10 +474,7 @@ def main_pretraining(tokenizers: List[str], model_type: str, cuda: bool) -> None
             "NumSaturatedHeterocycles",
         ])),
     ]
-    
     for classification, descriptor in descriptor_configs:
-        if not classification:
-            continue #already works
         descriptor_name = descriptor[0] if isinstance(descriptor, tuple) else descriptor
         if not (PROJECT_PATH / f"embeddings_{model_type}" / descriptor_name).exists():
             if classification:
@@ -450,7 +483,7 @@ def main_pretraining(tokenizers: List[str], model_type: str, cuda: bool) -> None
                 amount = 100000
             create_dataset(
                 descriptor,
-                Path("/data/jgut/SMILES_or_SELFIES/processed/descriptors/merged.csv"),
+                PROCESSED_PATH/"descriptors/merged.csv",
                 PROJECT_PATH / f"embeddings_{model_type}",
                 amount,
                 classification=classification,
@@ -502,49 +535,6 @@ def main_pretraining(tokenizers: List[str], model_type: str, cuda: bool) -> None
                     dataset_dict["test_y"],
                     descriptor_path / "reports",
                 )
-
-
-def main_eth(tokenizers: List[str], model_type: str, cuda: bool) -> None:
-    """Run evaluation on ETH atom-level properties.
-
-    Args:
-        tokenizers: List of tokenizer suffixes to evaluate.
-        model_type: Type of model being evaluated.
-        cuda: Whether to use CUDA for model inference.
-    """
-    descriptors = ["mulliken", "resp1", "resp2", "dual", "cnf_idx", "mbis_dipole_strength"]
-    
-    if not (PROJECT_PATH / f"embeddings_{model_type}" / "eth").exists():
-        create_atom_dataset(
-            PROJECT_PATH / "dash_dataset.csv",
-            PROJECT_PATH / f"embeddings_{model_type}",
-            10000,
-        )
-    
-    for tokenizer_suffix in tokenizers:
-        model_suffix = f"{tokenizer_suffix}_{model_type}"
-        fairseq_dict_path = TASK_PATH / "bbbp" / tokenizer_suffix
-        model_path = PREDICTION_MODEL_PATH / model_suffix / "checkpoint_last.pt"
-        
-        if not model_path.exists():
-            transform_to_prediction_model(model_suffix)
-        
-        model = load_model(model_path, fairseq_dict_path, str(cuda))
-        dataset_path = PROJECT_PATH / f"embeddings_{model_type}" / "eth" / tokenizer_suffix / "input0"
-        
-        for set_variation in ["train", "test"]:
-            dataset = load_dataset(dataset_path / set_variation)
-            pickle_dir = dataset_path / "input0" / f"{set_variation}_embeddings" / "embeddings.pkl"
-            
-            if False:  # Temporarily disabled pickle loading
-                embeddings = unpickle(pickle_dir)
-            else:
-                source_dictionary = Dictionary.load(str(dataset_path / "dict.txt"))
-                embeddings = get_embeddings(
-                    model, dataset, source_dictionary, whole_mol=False, cuda=cuda
-                )
-                pickle_object(embeddings, pickle_dir)
-
 
 if __name__ == "__main__":
     args = parse_arguments(cuda=True, tokenizer=True, task=True, model_type=True)

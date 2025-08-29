@@ -8,6 +8,9 @@ import os
 import pickle
 from pathlib import Path
 from typing import Any, Dict, Optional
+from ast import literal_eval
+import re
+from statistics import mean, stdev
 
 def pickle_object(obj: Any, path: Path) -> None:
     """Serialize and save an object to disk using pickle.
@@ -135,3 +138,153 @@ def parse_arguments(
         )
 
     return vars(parser.parse_args())
+
+def clean_string(string: str) -> str:
+    """Clean and normalize a string containing parameter data.
+    
+    Args:
+        string: Input string to clean.
+        
+    Returns:
+        Cleaned string with array notation and parameter artifacts removed.
+    """
+    # Remove parameter artifacts
+    string = re.sub(r"\'param\_.*\)\,\'params\'", "'params'", string)
+    # Convert numpy array notation to standard list notation
+    string = string.replace("array([", "[").replace("])", "]")
+    # Remove dtype specifications
+    string = re.sub(r"\],\s*dtype=.*\),", "],", string)
+    return string
+
+def reading_dict(path: Union[str, Path]) -> tuple[str, dict]:
+    """Read and parse a dictionary file containing estimator parameters.
+    
+    Args:
+        path: Path to the dictionary file.
+        
+    Returns:
+        Tuple containing estimator name and parsed parameters dictionary.
+        
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        ValueError: If the file content cannot be parsed.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Dictionary file not found: {path}")
+    
+    try:
+        with open(path, 'r') as f:
+            lines = f.readlines()
+        
+        # First line contains estimator name, rest contains parameters
+        estimator_name = lines[0].strip()
+        param_string = "".join(line.strip() for line in lines[1:])
+        cleaned_string = clean_string(param_string)
+        params_dict = literal_eval(cleaned_string)
+        
+        return estimator_name, params_dict
+    except (SyntaxError, ValueError) as e:
+        raise ValueError(f"Failed to parse dictionary file {path}: {e}")
+
+
+def get_cells(line: str) -> List[str]:
+    """Split a line into cells separated by multiple spaces.
+    
+    Args:
+        line: Input line to split.
+        
+    Returns:
+        List of non-empty cells.
+    """
+    return [cell.strip() for cell in re.split(r"\s{2,}", line) if cell.strip()]
+
+
+def parse_dict(dikt: Dict[str, Any]) -> tuple[Dict[str, Any], float, float]:
+    """Parse cross-validation results to extract best parameters and scores.
+    
+    Args:
+        cv_results: Dictionary containing cross-validation results.
+        
+    Returns:
+        Tuple containing best parameters, mean score, and standard deviation.
+        
+    Raises:
+        ValueError: If the results dictionary is malformed.
+    """
+    try:
+        best_model_index = cv_results['rank_test_score'].index(1)
+        best_params = cv_results["params"][best_model_index]
+        
+        best_scores = []
+        for i in range(3):  # Assuming 3-fold cross-validation
+            score_key = f"split{i}_test_score"
+            if score_key in cv_results:
+                best_scores.append(abs(float(cv_results[score_key][best_model_index])))
+        
+        if not best_scores:
+            raise ValueError("No test scores found in CV results")
+        
+        return best_params, mean(best_scores), stdev(best_scores)
+    
+    except (KeyError, IndexError, ValueError) as e:
+        raise ValueError(f"Malformed CV results dictionary: {e}")
+
+
+def get_report(path: Union[str, Path]) -> Dict[str, Any]:
+    """Generate a report from a cross-validation results file.
+    
+    Args:
+        path: Path to the results file.
+        
+    Returns:
+        Dictionary containing estimator name, best parameters, and scores.
+    """
+    estimator, cv_results = read_dict_file(path)
+    best_params, mean_score, std_score = parse_cv_results(cv_results)
+    
+    return {
+        "estimator": estimator,
+        "best_params": best_params,
+        "best_scores": mean_score,
+        "std": std_score,
+    }
+
+def parse_tokenizer_config(tokenizer_string: str) -> Dict[str, str]:
+    """Parse tokenizer configuration string into components.
+    
+    Args:
+        tokenizer_string: Tokenizer string to parse (e.g., 'smiles_atom_isomers').
+        
+    Returns:
+        Dictionary with tokenizer settings.
+        
+    Raises:
+        ValueError: If the tokenizer string format is invalid.
+    """
+    tokenizer_parts = tokenizer_string.split("_")
+    if len(tokenizer_parts) < 3:
+        raise ValueError(f"Invalid tokenizer string format: {tokenizer_string}")
+    
+    return {
+        "embedding": tokenizer_parts[0],
+        "tokenizer": tokenizer_parts[1],
+        "dataset": tokenizer_parts[2],
+    }
+
+def compute_zscore(
+    column: Any, 
+    value: Optional[float] = None
+) -> Union[float, Any]:
+    """Compute z-score for a value or an entire column.
+    
+    Args:
+        column: Data column (pandas Series, list, or array-like).
+        value: Specific value to compute z-score for. If None, computes for entire column.
+        
+    Returns:
+        Z-score(s) for the input data.
+    """
+    if value:
+        return (value-column.mean())/column.std()
+    return (column-column.mean())/column.std()
