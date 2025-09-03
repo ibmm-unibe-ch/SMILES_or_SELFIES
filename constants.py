@@ -126,12 +126,11 @@ TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "fairseq_models"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = PROJECT_PATH / "task"
-USPTO_PATH = PROJECT_PATH / "download_uspto"
 PREDICTION_MODEL_PATH = PROJECT_PATH/ "prediction_models"
 TASK_MODEL_PATH = Path("/data2/jgut/SoS_models/")
 PLOT_PATH = PROJECT_PATH / "plots"
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"
-
+ANNOT_PATH = "/scratch/ifender/SOS_tmp/embeddings_pretrainingdata/"
 # ----------------- Project Constants -----------------
 PARSING_REGEX = r"(<unk>|\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"
 SEED = 6217
@@ -142,7 +141,7 @@ NUM_SEEDS = 5
 LOGGING_CONFIG = {
     "level": logging.DEBUG,
     "format": "%(asctime)s %(levelname)s: %(message)s [in %(funcName)s at %(pathname)s:%(lineno)d]",
-    "filename": PATHS["logs"] / "default_log.log",
+    "filename": "default_log.log",
     "logger_name": "Project-SoS",
 }
 
