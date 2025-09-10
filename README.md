@@ -43,17 +43,19 @@ The fairseq framework has hit end of service, since we started our project, whic
 ### Molecule embedding plots
 1. Run the "training pipeline" from above
 1. Run _embedding_maps.py_ and find the plots in _plots/_
+### Latent space vector operations
+1. Check out the README in `/vector_operations/` to explore further
 ### Atom embedding
 1. Run the "training pipeline" from above
-1. INKEN PIPELINE!!!
+1. upcoming
 ### Atom regression
 1. Run the "training pipeline" from above
 1. Download data with _make download-eth_ into `download_eth/`
 1. Preprocess dataset with _dashMolecules.py_
-1. INKEN PIPELINE!!!
+1. upcoming
 1. GET PREPROCESSING OUT OF ZZZ\_token\_level\_prototype.ipynb
 1. Train the weak regressors with _atom_embeds.py_
-1. Read out results in _Scoring\_report\_atom-level\_analysis.ipynb_
+1. Read out results in _Scoring\_report\_atom-level\_analysis.ipynb_ 
 
 ## Contact
 If there are questions, please file a [GitHub issue](https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES/issues) or send an e-mail to thomas.lemmin@unibe.ch, inken.fender@unibe.ch, and jannik.gut@unibe.ch.
