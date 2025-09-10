@@ -57,5 +57,21 @@ The fairseq framework has hit end of service, since we started our project, whic
 1. Train the weak regressors with _atom_embeds.py_
 1. Read out results in _Scoring\_report\_atom-level\_analysis.ipynb_ 
 
+## Citing
+If you use work from `Beyond performance: How design choices shape chemical language models` please cite:
+```
+@article {FenderGutLemmin2025.05.23.655735,
+	author = {Fender, Inken and Gut, Jannik Adrian and Lemmin, Thomas},
+	title = {Beyond performance: How design choices shape chemical language models},
+	elocation-id = {2025.05.23.655735},
+	year = {2025},
+	doi = {10.1101/2025.05.23.655735},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2025/05/27/2025.05.23.655735},
+	eprint = {https://www.biorxiv.org/content/early/2025/05/27/2025.05.23.655735.full.pdf},
+	journal = {bioRxiv}
+}
+```
+
 ## Contact
 If there are questions, please file a [GitHub issue](https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES/issues) or send an e-mail to thomas.lemmin@unibe.ch, inken.fender@unibe.ch, and jannik.gut@unibe.ch.
