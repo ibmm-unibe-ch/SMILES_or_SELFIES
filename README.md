@@ -26,8 +26,8 @@ The fairseq framework has hit end of service, since we started our project, whic
     - `fairseq-preprocess --only-source --destdir fairseq_preprocess/selfies_atom_isomers --trainpref processed/selfies_atom_isomers  --validpref processed/selfies_atom_isomers_val`
 1. Pre-train a model with:
     -  `fairseq-train fairseq_preprocess/selfies_atom_isomers --save-dir fairseq/selfies_atom_isomers --wandb-project pre-train --batch-size 32 --tokens-per-sample 512 --total-num-update 500000 --max-update 500000 --warmup-updates 1500 --task masked_lm --save-interval 1 --arch roberta_base --optimizer adam --lr-scheduler polynomial_decay --lr 1e-05 --dropout 0.1 --criterion masked_lm --max-tokens 3200 --weight-decay 0.01 --attention-dropout 0.2 --clip-norm 1.0 --skip-invalid-size-inputs-valid-test --log-format json --log-interval 1000 --save-interval-updates 5000 --keep-interval-updates 1 --update-freq 4 --seed 4 --distributed-world-size 1 --no-epoch-checkpoints --dataset-impl mmap --num-workers 4`
+## Analysis of trained models
 ### Downstream results
-1. Run the "training pipeline" from above
 1. Create and prepare MolNet datasets with _dataset.py_
 1. Train different hyperparams with _hyperparameter\_search.py_
    - Get scores with _scoring.py_, adapt the path
@@ -37,23 +37,25 @@ The fairseq framework has hit end of service, since we started our project, whic
    - Get scores with _scoring.py_, adapt the path
    - Check results in _Scoring\_report\_MolNet.ipynb_
 ### Weak estimators
-1. Run the "training pipeline" from above
 1. Train weak estimators in _embedding\_classification.py_ 
 1. Check results in _Scoring\_report\_weak\_estimators\_RDKit.ipynb_
 ### Molecule embedding plots
-1. Run the "training pipeline" from above
 1. Run _embedding_maps.py_ and find the plots in _plots/_
 ### Latent space vector operations
 1. Check out the README in `/vector_operations/` to explore further
 ### Atom embedding
-1. Run the "training pipeline" from above
-1. upcoming
+1. Run `atomtype_embedding_visualisation/1_atomtype_assignment.py` to assign SMILES of your choice to atom types using Antechamber and parmchk2. Here, we use a subste of the pretraining SMILES dataset. Save the resulting files at a location of your choice.
+1. Afterwards you need to read out the assignments and create a dictionary with SMILES as keys and subdictionaries containing the assignments by running `atomtype_embedding_visualisation/2_SMILEStoAtomAssignments.py`.
+1. Get the embeddings of the SMILES you assigned by running `atomtype_embedding_visualisation/getembeddings.py` adjust filepaths and SMILES as needed.
+1. Connect atom assignments and embeddings by running `atomtype_embedding_visualisation/token_level_prototype.ipynb`to create a combined annotations dataframe and save it.
+1. Run `atomtype_embedding_visualisation/3_PlotAtomTypes.ipynb` on the combined annotations frame to plot PCA of the atom types by element. Adjust number of samples and specific atom types to your needs.
+For running the atom type assignments for the kekulized SMILES run the first two steps with the `_kekulized.py`-files.
 ### Atom regression
-1. Run the "training pipeline" from above
 1. Download data with _make download-eth_ into `download_eth/`
 1. Preprocess dataset with _dashMolecules.py_
-1. upcoming
-1. GET PREPROCESSING OUT OF ZZZ\_token\_level\_prototype.ipynb
+1. Read in the resulting `dash_dataset.csv` in `atomtype_embedding_visualisation/ExtendETHdf.ipynb` to run checks and add SMILES and SELFIES mappings to atoms
+1. Get the embeddings for the selected atom types following `atomtype_embedding_visualisation/getembeddings.py`, alter the file according to run for ETH dataset
+1. GET PREPROCESSING OUT OF ZZZ\_token\_level\_prototype.ipynb to connect embeddings of models for SMILES to atom assignments
 1. Train the weak regressors with _atom_embeds.py_
 1. Read out results in _Scoring\_report\_atom-level\_analysis.ipynb_ 
 
