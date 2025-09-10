@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -33,6 +33,7 @@ def load_model(model_path: Path, data_path: Path, cuda_device: str = None):
     Returns:
         fairseq_model: load BART model
     """
+    print("data path in load model: ",data_path)
     if "roberta" in str(model_path):
         model = RobertaModel.from_pretrained(
             str(model_path.parent),
@@ -111,7 +112,9 @@ def load_dataset(data_path: Path, classification: bool = True) -> List[str]:
     #    label_lines = label_file.readlines()
     #return [float(line.strip()) for line in label_lines]
     #if classification:
+    print("datapath dict location:",str(data_path.parent / "dict.txt"))
     dikt = Dictionary.load(str(data_path.parent / "dict.txt"))
+    print("dikt was loaded, now to indexed dataset..datapath location:",str(data_path.parent))
     data = list(load_indexed_dataset(str(data_path), dikt))
     return data
 
@@ -303,7 +306,7 @@ def compute_attention_output(
     return dataset_attentions
 
 
-def compute_embedding_output(
+def compute_embedding_output_givendataset(
     dataset: List[np.ndarray], model, text: List[str], source_dictionary, tokenizer=None
 ) -> List[List[Tuple[float, str]]]:
     """Compute embedding of whole dataset with model copied from fairseq
@@ -345,6 +348,65 @@ def compute_embedding_output(
         )
     return dataset_embeddings
 
+#taken from fairseq_utils.py and reworked to work
+def compute_embedding_output(
+    model: Union[RobertaModel, BARTHubInterface],
+    texts: List[str],
+    source_dictionary: Dictionary,
+    tokenizer: Optional[Any] = None,
+    cuda: int = 0
+) -> List[List[Tuple[List[float], str]]]:
+    """
+    Compute token-level embeddings for a list of input texts.
+    https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/bart/hub_interface.py
+
+    Args:
+        model: Fairseq model.
+        texts: List of SMILES/SELFIES strings.
+        source_dictionary: Fairseq dictionary.
+        tokenizer: Neccessary HuggingFace tokenizer.
+        cuda: CUDA device index.
+
+    Returns:
+        List of token-embedding lists, each containing (embedding_vector, token) tuples.
+    """
+    device = next(model.parameters()).device
+    dataset_embeddings = []
+    
+    # make sure tokenizer is not None
+    assert tokenizer is not None, "Tokenizer must be provided to compute atom-level embeddings."
+    
+    if isinstance(model, BARTHubInterface):
+        print("BART model")
+        for text in texts:
+            if tokenizer is None:
+                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
+            else:
+                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
+            sample = torch.tensor(tokenizer(text).input_ids)
+
+            prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(device)           
+            # same as in predict
+            token_embeddings, extra = model.model(
+                sample.unsqueeze(0).to(device), None, prev_output_tokens, features_only=True
+            )
+            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
+            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+        return dataset_embeddings
+    else:
+        print("RoBERTa model")
+        for text in texts:
+            if tokenizer is None:
+                parsed_tokens = [tok for tok in re.split(PARSING_REGEX, text) if tok]
+            else:
+                parsed_tokens = tokenizer.convert_ids_to_tokens(tokenizer(str(text)).input_ids)
+            sample = torch.tensor(tokenizer(text).input_ids)
+
+            token_embeddings, _ = model.model(sample.unsqueeze(0).to(device), classification_head_name=None, features_only=True)
+            token_embeddings_list = token_embeddings[0].cpu().detach().tolist()
+            dataset_embeddings.append(list(zip(token_embeddings_list, parsed_tokens)))
+    return dataset_embeddings
+
 def compute_random_model_output(model, dataset, source_dictionary, cuda=3):
     if isinstance(dataset, (Path, str)):
         dataset = list(load_indexed_dataset(str(dataset), source_dictionary))
@@ -368,7 +430,7 @@ def compute_random_model_output(model, dataset, source_dictionary, cuda=3):
                 .numpy()
             )
         else:
-            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), None)[0][0][-1, :].detach().cpu().numpy()
+            embedding= model.model(sample.unsqueeze(0).to(device=f"cuda:{cuda}"), classification_head_name=None, features_only=True)[0][0][-1, :].detach().cpu().numpy()
         embeddings.append(embedding)
     return embeddings
 
@@ -407,7 +469,12 @@ def compute_model_output(
     dataset_eos_attentions = [] if eos_attentions else None
     dataset_embeddings = [] if embeddings else None
     dataset_eos_embeddings = [] if eos_embedding else None
+    n=0
     for counter, sample in enumerate(dataset):
+        print(sample, sample.dtype, type(sample))
+        if n==0:
+            break
+    for counter, sample in enumerate(dataset[:len(text)]):
         if tokenizer is None:
             parsed_tokens = [
                 parsed_token
@@ -418,6 +485,7 @@ def compute_model_output(
             parsed_tokens = tokenizer.convert_ids_to_tokens(
                 tokenizer(str(text[counter])).input_ids
             )
+        print("parsed tokens ", parsed_tokens, type(parsed_tokens))
         prev_output_tokens = generate_prev_output_tokens(sample, source_dictionary).to(
             device
         )
@@ -478,7 +546,7 @@ def compute_model_output_RoBERTa(
     dataset_eos_attentions = [] if eos_attentions else None
     dataset_embeddings = [] if embeddings else None
     dataset_eos_embeddings = [] if eos_embedding else None
-    for counter, sample in enumerate(dataset):
+    for counter, sample in enumerate(dataset[:len(text)]):
         if tokenizer is None:
             parsed_tokens = [
                 parsed_token
@@ -498,7 +566,7 @@ def compute_model_output_RoBERTa(
         #)
         #RoBERTa forward differes from BART, there are no prev_output_tokens as input
         token_embeddings, extra = model.model(
-            sample.unsqueeze(0).to(device), features_only=True
+            sample.unsqueeze(0).to(device), classification_head_name=None, features_only=True
             )
         if attentions or eos_attentions:
             attention = extra["attn"][0][0].cpu().detach().tolist()
