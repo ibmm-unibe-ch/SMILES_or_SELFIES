@@ -55,7 +55,7 @@ For running the atom type assignments for the kekulized SMILES run the first two
 1. Preprocess dataset with _dashMolecules.py_
 1. Read in the resulting `dash_dataset.csv` in `atomtype_embedding_visualisation/ExtendETHdf.ipynb` to run checks and add SMILES and SELFIES mappings to atoms
 1. Get the embeddings for the selected atom types following `atomtype_embedding_visualisation/getembeddings.py`, alter the file according to run for ETH dataset
-1. GET PREPROCESSING OUT OF ZZZ\_token\_level\_prototype.ipynb to connect embeddings of models for SMILES to atom assignments
+1. Connect embeddings of models for SMILES to atom assignments with _token\_level\_level\_preprocessing.py_
 1. Train the weak regressors with _atom_embeds.py_
 1. Read out results in _Scoring\_report\_atom-level\_analysis.ipynb_ 
 
