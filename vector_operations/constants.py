@@ -121,7 +121,8 @@ TOKENIZER_SUFFIXES = [
 
 # ----------------- Path Configuration -----------------
 #PROJECT_PATH = Path(__file__).parent
-PROJECT_PATH = Path("/scratch/tlemmin/SoS/SMILES_or_SELFIES/")
+PROJECT_PATH = Path(__file__).resolve().parent.parent
+#PROJECT_PATH = Path("/scratch/tlemmin/SoS/SMILES_or_SELFIES/")
 PROCESSED_PATH = PROJECT_PATH / "processed"
 TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "fairseq_models"
@@ -129,6 +130,7 @@ ANALYSIS_PATH = PROJECT_PATH / "analysis"
 TASK_PATH = PROJECT_PATH / "task"
 USPTO_PATH = PROJECT_PATH / "download_uspto"
 PREDICTION_MODEL_PATH = PROJECT_PATH/ "prediction_models"
+# path to finetuned models (not provided in repo)
 TASK_MODEL_PATH = Path("/data2/jgut/SoS_models/")
 PLOT_PATH = PROJECT_PATH / "plots"
 FAIRSEQ_PREPROCESS_PATH = PROJECT_PATH / "fairseq_preprocess"

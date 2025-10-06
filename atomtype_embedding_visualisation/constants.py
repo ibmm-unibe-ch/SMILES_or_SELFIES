@@ -102,22 +102,15 @@ TOKENIZER_SUFFIXES = [
     "smiles_sentencepiece",
 ]
 
-PROJECT_PATH = Path(__file__).parent
+#PROJECT_PATH = Path(__file__).parent
+# use this for absolute paths
+PROJECT_PATH = Path(__file__).resolve().parent.parent
 PROCESSED_PATH = PROJECT_PATH / "processed"
-#TOKENIZER_PATH = Path("/data/ifender/smiles_atom") #previously used as smiles_atom was copied
-TOKENIZER_PATH = Path("/data/jgut/SMILES_or_SELFIES/tokenizer/smiles_atom_isomers")
+TOKENIZER_PATH = PROJECT_PATH / "tokenizer"
 MODEL_PATH = PROJECT_PATH / "model"
 ANALYSIS_PATH = PROJECT_PATH / "analysis"
-#TASK_PATH = PROJECT_PATH / "task"
-#TASK_PATH = Path("/data/ifender")
-TASK_PATH = Path("/data/jgut/SMILES_or_SELFIES/task")
+TASK_PATH = PROJECT_PATH / "task"
 USPTO_PATH = PROJECT_PATH / "download_uspto"
-#TASK_MODEL_PATH = Path("/data/jgut/SoS_models/")#previously used
-
-#for BART
-#TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
-# for RoBERTa
-#TASK_MODEL_PATH = Path("/data/jgut/SMILES_or_SELFIES/prediction_models")
 TASK_MODEL_PATH = Path("/data2/jgut/SoS_models")
 PLOT_PATH = PROJECT_PATH / "plots"
 
