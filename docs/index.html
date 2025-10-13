@@ -539,7 +539,7 @@
             </p>
 
 
-            <h3 id="expsetup"><strong>Experimental Set-Up</strong></h3>
+            <h3 id="expsetup"><strong>Experimental Set-Up: How we built 18 chemical language models</strong></h3>
             <p>Our experiments were based on the PubChem-10M molecule dataset [3], from which we obtained molecular strings in both SMILES and SELFIES <b>representations</b>.
                We then explored two <b>tokenization strategies</b>,  SentencePiece [4, 5] and atom-wise [6], to convert these molecular strings into model input tokens.
                For the <b>model architectures</b>, we used two widely adopted transformer variants: RoBERTa [7] and BART [8].
@@ -554,7 +554,7 @@
             <h3 id="zscores"><strong>Z-Scores make downstream tasks comparable</strong></h3>
 
 
-            <p>When fine-tuning our models on the <b>MoleculeNet</b> classification and regression datasets, we encountered a challenge: <b>the evaluation metrics differ across tasks</b>. Classification tasks are evaluated with <b>ROC-AUC</b>, while regression tasks use <b>RMSE</b>: Each metric has a different scale and variability. m A 0.04 difference in one metric might be a massive win, but in another, it could be negligible, as can be seen when comparing the ClinTox and Lipo plot. This made it nearly impossible to judge which model design was actually performing better overall.<br>
+            <p>When fine-tuning our 18 models on the <b>MoleculeNet</b> classification and regression datasets, we encountered a challenge: <b>the evaluation metrics differ across tasks</b>. Classification tasks are evaluated with <b>ROC-AUC</b>, while regression tasks use <b>RMSE</b>: Each metric has a different scale and variability. A 0.04 difference in one metric might be a massive win, but in another, it could be negligible, as can be seen when comparing the ClinTox and Lipo plot. This made it nearly impossible to judge which model design was actually performing better overall.<br>
 
 
             To fix this, we used <b>Z-Score normalization</b> [13]. In simple terms, this means we expressed each model's result relative to the mean and spread of scores for that specific task. With everything on the same standardized scale, we could finally compare how different design choices really affected performance.<br>
