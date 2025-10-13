@@ -1,255 +1,740 @@
 <!DOCTYPE html>
+
+
 <html lang="en">
+
+
 <head>
+
+
     <link href='https://fonts.googleapis.com/css?family=Alex Brush' rel='stylesheet'>
+
+
     <meta charset="UTF-8">
+
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
     <title>How design choices shape chemical language models and why it matters</title>
+
+
     <style>
+
+
         body {
+
+
             font-family: Arial, sans-serif;
+
+
             margin: 0;
+
+
             padding: 0;
+
+
             background-color: #f4f4f4;
+
+
             color: #333;
+
+
             min-height: 100vh;
+
+
         }
+
+
         .container {
+
+
             display: flex;
+
+
             flex-direction: column;
+
+
             max-width: 1200px;
+
+
             margin: 0 auto;
+
+
             background-color: #ffffff;
+
+
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+
         }
+
+
         .content {
+
+
             padding: 20px;
+
+
             overflow-y: auto;
+
+
             box-sizing: border-box;
+
+
             width: 100%;
+
+
         }
+
+
         
+
+
         h1, h3 {
+
+
             color: #F28C28;
+
+
             text-align: center;
+
+
             margin-left: auto;
+
+
             margin-right: auto;
+
+
         }
+
+
         h1 {
+
+
             max-width: 80%;
+
+
         }
+
+
         img {
+
+
             max-width: 100%;
+
+
             height: auto;
+
+
             display: block;
+
+
             margin: 0 auto;
+
+
         }
+
+
         p, ul, pre {
+
+
             line-height: 1.6;
+
+
             max-width: 90%;
+
+
             margin-left: auto;
+
+
             margin-right: auto;
+
+
         }
+
+
         a {
+
+
             color: #0066cc;
+
+
             text-decoration: none;
+
+
         }
+
+
         a:hover {
+
+
             text-decoration: underline;
+
+
         }
+
+
         .code-block {
+
+
             background-color: #f9f9f9;
+
+
             border-left: 3px solid #D35400;
+
+
             padding: 10px;
+
+
             margin: 10px 0;
+
+
             overflow-x: auto;
+
+
         }
+
+
         .caption {
+
+
             text-align: center;
+
+
             font-size: 0.9em;
+
+
             color: #777;
+
+
             margin-top: 5px;
+
+
         }
+
+
         footer {
+
+
             text-align: center;
+
+
             margin-top: 20px;
+
+
             padding: 10px 0;
+
+
             border-top: 1px solid #ddd;
+
+
             font-size: 0.9em;
+
+
             color: #777;
+
+
         }
+
+
         strong {
+
+
             font-weight: bold;
+
+
         }
+
+
         table {
+
+
             width: 80%;
+
+
             margin: 20px auto;
+
+
             border-collapse: collapse;
+
+
         }
+
+
         th, td {
+
+
             border: 1px solid #ddd;
+
+
             padding: 8px;
+
+
             text-align: left;
+
+
         }
+
+
         th {
+
+
             background-color: #f2f2f2;
+
+
             font-weight: bold;
+
+
         }
+
+
         table caption {
+
+
             font-style: italic;
+
+
             margin-bottom: 10px;
+
+
             color: #555;
+
+
         }
+
+
         .center {
+
+
             text-align: center;
+
+
             margin: 20px 0;
+
+
         }
+
+
         .doi-badge {
+
+
             margin: 20px 0;
+
+
         }
+
+
     </style>
+
+
 </head>
+
+
 <body>
+
+
     <div class="container">
+
+
         <div class="content">
+
+
             <div class="center">
+
+
                 <h1><a href="https://www.biorxiv.org/content/10.1101/2025.05.23.655735v1"> How design choices shape chemical language models and why it matters</a></h1>
+
+
             </div>
-            <div class="center">
-                <img src="img/Overview.png" alt="Project overview" width="60%">
-                <p class="caption">Our workflow: Systematic analysis of molecular representation, tokenization strategies, and
-                architecture in chemical language models (CLMs)</p>
-            </div>
-            <br>
+
             <div class="center doi-badge">
+
+
                 <a href="https://www.biorxiv.org/content/10.1101/2025.05.23.655735v1">
+
+
                     <img src="http://img.shields.io/badge/DOI-10.1101/2025-05-23-655735v1.svg" alt="DOI:10.1101/2025.05.23.655735v1">
+
+
                 </a>
+
+
             </div>
-            <blockquote style="font-family: 'Times New Roman'; background-color:#efc49a">
-                <p><b>“I want to predict molecular properties with a chemical language model, but where do I even start? RoBERTa or BART? SMILES or SELFIES? Does any of this really make a difference?...”</b></p>
-            </blockquote>
 
-            <p>What started as a comparison between SMILES [1] (a decades-old molecular notation, de facto standard) and SELFIES [2] (a newer, machine-learning-friendly alternative) soon grew into a systematic exploration of the inner workings of chemical language models (CLMs). Along the way, we uncovered how design choices influence not just model performance, but also the structure and interpretability of their latent chemical spaces.</p>
-
-            <blockquote style="background-color:#efc49a">
-                <p style="font-family: 'Alex Brush';">"How can the machine interpretability of different representations be compared, specifically between Smiles and Selfies? In other words, which one is 'easier' to learn for machines?"</p><p>Krenn et al., 2022 in "SELFIES and the future of molecular string representations"</p>
-                <p style="font-family: 'Alex Brush';">"Future project 16: The latent space represents the intrinsic representation that has been learned by the model to solve a given task. It will be exciting to understand what this representation stands for."</p></p>Krenn et al., 2022 in "SELFIES and the future of molecular string representations"</p>
-            </blockquote>
-
-            <p>We used the PubChem-10M[3] molecule database to construct SMILES and SELFIES <b>representations</b>. We then used two <b>different tokenizations</b> (SentencePiece[4][5] and atomwise[6]) as well as two <b>different model architectures</b> (RoBERTa[7] / BART[8]) to pre-train a lot of models (18!), which we then fine-tuned on MoleculeNet downstream datasets from DeepChem[9]. (Remark: The MoleculeNet downstream datasets are used solely for comparing model performance, not for creating state-of-the-art: see this <a href="https://practicalcheminformatics.blogspot.com/2023/08/we-need-better-benchmarks-for-machine.html">blogpost</a> for more information on the problems with the MoleculeNet benchmark). <br>
-            But first, a refresher on representations, tokenization, and model architecture:
-            </p>
-            
-            <h3 id="representation"><b>Representations encode a molecule into a computer-readable textstring</b></h3>
             <div class="center">
-                <img src="img/SMILES_SELFIES_difference.jpg" alt="SMILES SELFIES difference" width="60%">
-                <p class="caption">A great illustration from the SELFIES paper from Krenn et al., 2020 that highlights the differences between SMILES and SELFIES.</p>
+
+
+                <img src="img/Overview.png" alt="Project overview" width="60%">
+
+
+                <p class="caption">Our workflow: Systematic analysis of molecular representation, tokenization strategies, and
+
+
+                architecture in chemical language models (CLMs)</p>
+
+
             </div>
-            
-            <p>Language models have traditionally relied on the <b>Simplified Molecular Input Line Entry System (SMILES)</b> [1], introduced in the late 1980s. SMILES is a <b>simple rule-based textual format for representing molecules</b>, but its rules <b>do not guarantee valid molecules</b>. As a result, a large proportion of the latent space learned by models corresponds to invalid molecules [10]. <br>
-            To address these limitations, <b>Self-Referencing Embedded Strings (SELFIES)</b>[2] were introduced in 2020. SELFIES is a robust, string-based representation akin to a simple computer script that differs from SMILES by ensuring <b>100% validity for all molecules</b>.  Unlike SMILES, SELFIES avoids direct use of numbers (e.g. for ring closures) but instead <b>overloads tokens</b> to encode structural features. This design, together with the use of brackets in SELFIES syntax, makes its raw string representations roughly 4.4 times longer than SMILES on average in the PubChem 10M dataset. However, after tokenization, both representations yield a comparable number of tokens per molecule, since each SELFIES token corresponds approximately to an atomic or structural unit in SMILES.
+
+
+            <br>
+
+            <h3 id="question"><b>“I want to predict molecular properties with a chemical language model, but where do I even start? <br> RoBERTa or BART? SMILES or SELFIES? <br> Does any of this really make a difference?...”</b></h3>
+           <!-- <blockquote style="font-family: 'Times New Roman'; background-color:#efc49a"> -->
+
+
+            <!--    <p><b>“I want to predict molecular properties with a chemical language model, but where do I even start? RoBERTa or BART? SMILES or SELFIES? Does any of this really make a difference?...”</b></p> -->
+
+
+            <!-- </blockquote> -->
+
+
+            <p> These are the kinds of questions that inspired our recent study, <i>Beyond performance: How design choices shape chemical language models</i>. 
+                In this work, we take a step back from leaderboard numbers and benchmarks to ask a deeper question: <b>how do different design choices</b>, e.g. architecture, tokenization, and molecular representation, <b>shape what chemical language models actually learn?</b><br> What started as a comparison between SMILES [1] (a decades-old molecular notation, de facto standard) and SELFIES [2] (a newer, machine-learning-friendly alternative) soon grew into a <b>systematic exploration</b> of the inner workings of chemical language models (CLMs). 
+                Along the way, we uncovered how design choices influence not just model performance, but also the structure and interpretability of their latent chemical spaces. <br>
+                But first, a refresher on representations, tokenization, and model architecture:
             </p>
+
+
+
+
+            <h3 id="representation"><b>Representations encode a molecule into a computer-readable textstring</b></h3>
+
+
+            <div class="center">
+
+
+                <img src="img/SMILES_SELFIES_difference.jpg" alt="SMILES SELFIES difference" width="60%">
+
+
+                <p class="caption">A great illustration from the SELFIES paper from Krenn et al., 2020 that highlights the differences between SMILES and SELFIES.</p>
+
+
+            </div>
+
+
+            
+
+
+            <p>Language models have traditionally relied on the <b>Simplified Molecular Input Line Entry System (SMILES)</b> [1], introduced in the late 1980s. SMILES is a <b>simple rule-based textual format for representing molecules</b>, but its rules <b>do not guarantee valid molecules</b>. As a result, a large proportion of the latent space learned by models corresponds to invalid molecules [10]. <br>
+
+
+            To address these limitations, <b>Self-Referencing Embedded Strings (SELFIES)</b>[2] were introduced in 2020. SELFIES is a robust, string-based representation akin to a simple computer script that differs from SMILES by ensuring <b>100% validity for all molecules</b>.  Unlike SMILES, SELFIES avoids direct use of numbers (e.g. for ring closures) but instead <b>overloads tokens</b> to encode structural features. This design, together with the use of brackets in SELFIES syntax, makes its raw string representations roughly 4.4 times longer than SMILES on average in the PubChem 10M dataset. However, after tokenization, both representations yield a comparable number of tokens per molecule, since each SELFIES token corresponds approximately to an atomic or structural unit in SMILES.
+
+
+            </p>
+
+
+
+
 
             <h3 id="tokenisation"><b>Tokenization cuts enormous sequences into digestible pieces</b></h3>
+
+
             <p>During tokenization, sequences are broken down into sub-sequence tokens. These tokens are mapped to embedding vectors, which the model learns. [11] Tokenization ensures a <b>finite vocabulary</b>, improving model efficiency and enabling the handling of unknown sequences by recognising familiar tokens rather than entire sequences.<br>
+
+
             Tokenization can be applied at different granularities: from <b>character-level</b> (splitting text into individual characters) to <b>word-level</b> (splitting into words), or intermediate approaches such as <b>subword tokenization</b>. The type of tokenizer directly affects the number and length of tokens, as well as the vocabulary size, all of which impact <b>model training and performance</b>.
+
+
             </p>
+
+
+
+
 
             <table>
+
+
                 <caption>Example tokenization of a SMILES string. Vertical bars (|) delimit individual tokens.</caption>
+
+
                 <tr>
+
+
                     <th>SMILES</th>
+
+
                     <td>Cc1cc(=O)[nH]c(=S)[nH]1</td>
+
+
                 </tr>
+
+
                 <tr>
+
+
                     <th>Atomwise</th>
+
+
                     <td>C | c | 1 | c | c | ( | = | O | ) | [nH] | c | ( | = | S | ) | [nH] | 1</td>
+
+
                 </tr>
+
+
                 <tr>
+
+
                     <th>SentencePiece</th>
+
+
                     <td>C | c1c | c(=O)[nH] | c( | =S) | [nH]1</td>
+
+
                 </tr>
+
+
             </table> 
 
-            <p>We focused on two tokenization strategies (see Table 1):</p>
-            <ol type="1">
-                <li><b>SentencePiece tokenization</b> [4, 5]: This data-driven approach identifies the most frequently occurring substrings across all molecular sequences and constructs a vocabulary from them.</li>
-                <li><b>Atom-wise tokenization</b> [6]: In this rule-based approach, molecular sequences are split into atomic and structural tokens using a regular expression, ensuring that each token corresponds to a chemically meaningful unit.</li>
-            </ol>  
+
+
+
+
+            <p>We focused on two tokenization strategies (see Table 1):<br>
+                1. <b>SentencePiece tokenization</b> [4, 5]: This data-driven approach identifies the most frequently occurring substrings across all molecular sequences and constructs a vocabulary from them. <br>
+                2. <b>Atom-wise tokenization</b> [6]: In this rule-based approach, molecular sequences are split into atomic and structural tokens using a regular expression, ensuring that each token corresponds to a chemically meaningful unit. 
+            </p>
+
+        <!--    <ol type="1"> -->
+
+
+        <!--        <li><b>SentencePiece tokenization</b> [4, 5]: This data-driven approach identifies the most frequently occurring substrings across all molecular sequences and constructs a vocabulary from them.</li> -->
+
+
+        <!--        <li><b>Atom-wise tokenization</b> [6]: In this rule-based approach, molecular sequences are split into atomic and structural tokens using a regular expression, ensuring that each token corresponds to a chemically meaningful unit.</li> -->
+
+
+        <!--    </ol>  -->
+        
+
+
             
+
+
             <h3 id="model_architecture"><b>Model architecture</b></h3>
+
+
             <p>The <b>transformer</b> architecture revolutionized natural language processing (NLP) [12], inspiring a family of models such as BERT, RoBERTa, and BART [11].
+
+
             <br>
+
+
             <b>BERT</b> (Bidirectional Encoder Representations from Transformers, 2019) uses only the encoder component of the transformer and is pre-trained with <b>Masked Language Modeling</b> (MLM) and Next Sentence Prediction (NSP) objectives. Its <b>bidirectional attention</b>—capturing both left and right context around each token—and flexibility for fine-tuning on diverse downstream tasks set new state-of-the-art benchmarks [11].
+
+
             <br>
+
+
             <b>RoBERTa</b> (Robustly Optimized BERT Approach, 2019) builds upon BERT by optimizing hyperparameters, removing the NSP objective, and introducing <b>dynamic MLM masking</b>, leading to improved robustness and performance across benchmarks [7].
+
+
             <br>
+
+
             <b>BART</b> (Bidirectional and Auto-Regressive Transformer, 2019) extends the architecture further into a full <b>encoder-decoder</b> setup. Trained as a <b>denoising autoencoder</b>, BART corrupts and reconstructs text during pretraining, achieving state-of-the-art results in question answering and text generation tasks, matching RoBERTa's performance on GLUE and SQuAD benchmarks [8].
+
+
+            </p>
+
+
+            <h3 id="expsetup"><strong>Experimental Set-Up</strong></h3>
+            <p>Our experiments were based on the PubChem-10M molecule dataset [3], from which we obtained molecular strings in both SMILES and SELFIES <b>representations</b>.
+               We then explored two <b>tokenization strategies</b>,  SentencePiece [4, 5] and atom-wise [6], to convert these molecular strings into model input tokens.
+               For the <b>model architectures</b>, we used two widely adopted transformer variants: RoBERTa [7] and BART [8].
+               All combinations of representation, tokenization, and architecture were trained independently, resulting in 18 pre-trained chemical language models.
+               Each model was subsequently fine-tuned on downstream property-prediction tasks from the MoleculeNet benchmark as implemented in DeepChem [9].
+               We note that the MoleculeNet datasets were used only for consistent comparison across model configurations, not to achieve new state-of-the-art performance.
+               (For a discussion on the limitations of MoleculeNet as a benchmark, see this insightful <a href="https://practicalcheminformatics.blogspot.com/2023/08/we-need-better-benchmarks-for-machine.html">blogpost</a>). 
             </p>
             
+
+
             <h3 id="zscores"><strong>Z-Scores make downstream tasks comparable</strong></h3>
-            <p>When fine-tuning our models on the <b>MoleculeNet</b> classification and regression datasets, we encountered a challenge: <b>the evaluation metrics differ across tasks</b>. Some datasets measure performance with <b>ROC-AUC</b> for classification, others with <b>RMSE</b> for regression, and each has its own range and variance. A 0.04 difference in one metric might be a massive win, but in another, it could be negligible, as can be seen when comparing the ClinTox and Lipo plot. This made it nearly impossible to judge which model design was actually performing better overall.<br>
+
+
+            <p>When fine-tuning our models on the <b>MoleculeNet</b> classification and regression datasets, we encountered a challenge: <b>the evaluation metrics differ across tasks</b>. Classification tasks are evaluated with <b>ROC-AUC</b>, while regression tasks use <b>RMSE</b>: Each metric has a different scale and variability. m A 0.04 difference in one metric might be a massive win, but in another, it could be negligible, as can be seen when comparing the ClinTox and Lipo plot. This made it nearly impossible to judge which model design was actually performing better overall.<br>
+
+
             To fix this, we used <b>Z-Score normalization</b> [13]. In simple terms, this means we expressed each model's result relative to the mean and spread of scores for that specific task. With everything on the same standardized scale, we could finally compare how different design choices really affected performance.<br>
+
+
             This step was crucial for revealing <b>trends that were consistent across datasets</b>, rather than being misled by raw score differences. In fact, using these standardized z-scores led to one of our papers <b>first surprising insights</b>: different configurations of tokenizers, representations, and architectures often performed surprisingly similarly on downstream prediction tasks.</p>
+
+
             
+
+
             <div class="center">
+
+
                 <img src="img/Z-scores.png" alt="Z-scores of ClinTox and Lipo" width="60%">
+
+
                 <p class="caption">Scores for ClinTox and Lipo tasks, showing the effect of Z-score.</p>
+
+
             </div>
+
+
+
+
 
             <h3 id="probing_estimators"><strong>Testing the latent space with probing estimators</strong></h3>
+
+
             <p>To evaluate what our chemical language models have learned, we used <b>probing estimators</b>[14], simple ML models trained on the embeddings of pre-trained models to <b>investigate the organization of the latent space</b>. Specifically, we tested <b><a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html#sklearn.svm.LinearSVC">Linear SVM</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html">RBF SVM</a>, and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html">k-Nearest Neighbour (k-NN)</a></b>.
+
+
             <br>
-            We used the probing estimators to <b>study the latent space itself</b> and show some of the results in the next plot. We studied the latent space at two levels:</p>
-            <ol type="1">
-                <li><b>Molecular level</b>, where properties of whole molecules (e.g., MolLogP) were predicted</li>
-                <li><b>Atomic level</b>, where properties of individual atoms (e.g., MBIS Dipole Strength) were queried</li>
-            </ol>  
+
+
+            We used the probing estimators to <b>study the latent space itself</b> and show some of the results in the next plot. We studied the latent space at two levels:<br>
+            <br>
+            1. <b>Molecular level</b>, where properties of whole molecules (e.g., MolLogP) were predicted. <br>
+            2. <b>Atomic level</b>, where properties of individual atoms (e.g., MBIS Dipole Strength) were queried. <br>
+            </p>
+
+ 
+
+
             <p>The results revealed clear patterns. <b>k-NN</b> performed best on atomic tasks, while <b>Linear SVM</b> excelled on molecular tasks. <b>RBF SVM</b>, with its flexible non-linear boundaries, performed consistently well across both levels, demonstrating its versatility.<br>
+
+
             From these performance differences, we can <b>infer the structure of the latent space</b>. The fact that k-NN works well for atomic tasks suggests that <b>atomic embeddings are locally clustered</b>, likely by chemical element, with subtle variations within clusters. Linear SVM performs poorly on atomic tasks because its global linear boundaries cannot easily separate these fine-grained differences. Conversely, the strong performance of Linear SVM on molecular tasks indicates that <b>molecular embeddings are more coherent and less dominated by single features</b>, allowing global estimators to capture patterns across molecules that k-NN cannot.<br>
+
+
             In summary, probing estimators allow us to <b>indirectly reveal the organization of the latent space</b>, providing insight into how the model represents chemical information at different levels of granularity.</p>
+
+
             
+
+
             <div class="center">
+
+
                 <img src="img/Atomic_molecular.png" alt="Atomic molecular difference" width="60%">
+
+
                 <p class="caption">The difference between molecular MolLogP and atomic MBIS Dipole Strength.</p>
+
+
             </div>
+
+
             
+
+
             <h3 id="atom_embeddings"><strong>Some patterns stick post-training; some knowledge comes straight from the representation.</strong></h3>
+
+
             <div class="center">
+
+
                 <img src="img/Cosine_similarity_matrix.gif" alt="Cosine similarity matrix" width="60%">
+
+
             </div>
+
+
             <p>To explore how molecular patterns are represented, we computed <b>cosine similarities</b> between embeddings of molecules from nine classes of hydrocarbons and their derivatives, with brighter colors indicating higher similarity. Strikingly, the <b>overall patterns observed in untrained models are largely preserved after training</b>, showing that the <b>choice of molecular representation (SMILES vs. SELFIES) strongly shapes the structure of the embeddings</b>. Some class-specific patterns, such as the high similarity between <b>aldehydes and ketones</b>, persist, while <b>length-based patterns</b>—off-center diagonals in untrained models reflecting molecules of the same length—also remain faintly visible in pre-trained embeddings.<br>
+
+
             The <b>architecture</b> primarily influences the <b>numerical range of cosine similarity values. BART embeddings</b> display a wider range of similarities, while <b>RoBERTa embeddings</b> are "compressed" into a narrower range.</p>
+
+
             
+
+
             <div class="center">
+
+
                 <img src="img/Kekulisation.png" alt="Kekulisation" width="60%">
+
+
             </div>
+
+
             <p>At the <b>atom level</b>, we used <b>Antechamber</b> (Amber package [15]) to assign atom types within molecules, allowing us to probe how embeddings represent chemical detail. <b>Surprisingly, even untrained models</b>—with completely random embeddings—already show <b>meaningful clustering of atom types</b>, for example, aromatic versus aliphatic carbons in SMILES. This is partly due to how the representation encodes chemical features (e.g., lowercase <b><i>c</i></b> for aromatic carbon in SMILES), but it highlights an important point: <b><i>latent spaces can appear structured even before any training.</i></b> </p>
 
+
+
+
+
             <h3 id="summary"><strong>Same same but different and why that matters</strong></h3>
+
+
             <p>Ultimately, our results show that <b>there is not a single "best" configuration</b>: different combinations of representations, tokenizers, and architectures can <b>all yield chemically interpretable embeddings</b>. But the way the models leverage representations and how and what details they learn from them differs. And for some projects, success may lie in the subtleties <b>reminding us that understanding how a model learns chemistry is just as important as measuring how well it performs</b>. After all, the true objective of science is not merely prediction, but understanding what transforms data into knowledge.</p>
 
+
+
+
+
             <h3 id="references"><strong>References</strong></h3>
+
+
             <p>[1] Weininger, D. Smiles, a chemical language and information system. Journal of chemical information and computer sciences 28, 31-36 (1988). <br>
+
+
 [2]  Krenn, M., Häse, F., Nigam, A., Friederich, P. & Aspuru-Guzik, A. Self-referencing embedded strings (selfies): A 100% robust molecular string representation. Machine Learning: Science and Technology 1, 045024 (2020)<br>
+
+
 [3] Ahmad, W., Simon, E., Chithrananda, S., Grand, G. & Ramsundar, B. Chemberta-2: Towards chemical foundation models. arXiv preprint arXiv:2209.01712 (2022) <br>
+
+
 [4] Kudo, T. & Richardson, J. Blanco, E. & Lu, W. (eds) SentencePiece: A simple and language independent subword tokenizer and detokenizer for neural text processing. (eds Blanco, E. & Lu, W.) Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing: System Demonstrations, 66-71 (Association for Computational Linguistics, Brussels, Belgium, 2018). URL https://aclanthology.org/D18-2012/ <br>
+
+
 [5] Li, X. & Fourches, D. Smiles pair encoding: a data-driven substructure tokenization algorithm for deep learning. Journal of chemical information and modeling 61, 1560-1569 (2021) <br>
+
+
 [6] Schwaller, P. et al. Molecular Transformer: A Model for Uncertainty-Calibrated Chemical Reaction Prediction. ACS Central Science 5, 1572-1583 (2019) <br>
+
+
 [7] Liu, Y. et al. Roberta: A robustly optimized bert pretraining approach. arXiv preprint arXiv:1907.11692 (2019) <br>
+
+
 [8] Lewis, M. et al. BART: Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension. Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics 7871-7880 (2020) <br>
+
+
 [9] Wu, Z. et al. Moleculenet: A benchmark for molecular machine learning. CoRR abs/1703.00564 (2017) <br>
+
+
 [10] Krenn et al., 2022: SELFIES and the future of molecular string representations. Patterns <br>
+
+
 [11] Sultan, A., Sieg, J., Mathea, M. & Volkamer, A. Transformers for Molecular Property Prediction: Lessons Learned from the Past Five Years. Journal of Chemical Information and Modeling 64, 6259-6280 (2024).<br>
+
+
 [12] Vaswani, A. et al. Attention is all you need. Advances in neural information processing systems 30 (2017)  <br>
+
+
 [13] Kreyszig, Erwin, K. Stroud, and G. Stephenson. "Advanced engineering mathematics." Integration 9.4 (2008): 1014<br>
+
+
 [14] Belinkov, Yonatan. "Probing classifiers: Promises, shortcomings, and advances." Computational Linguistics 48.1 (2022): 207-219.<br>
+
+
 [15] Wang, J., Wang, W., Kollman, P. A. & Case, D. A. Automatic atom type and bond type perception in molecular mechanical calculations. Journal of Molecular Graphics and Modelling 25, 247-260 (2006)
+
+
 </p>
+
+
             <h3 id="contact"><strong>Contact</strong></h3>
+
+
             <p>Clone the code or ask a question on <a href="https://github.com/ibmm-unibe-ch/SMILES_or_SELFIES">GitHub</a>. Otherwise, you can contact us via email: inken.fender@unibe.ch & jannik.gut@unibe.ch.</p>
+
+
         </div>
+
+
     </div>
+
+
 </body>
+
+
 </html>
