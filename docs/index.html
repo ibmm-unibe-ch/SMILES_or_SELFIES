@@ -365,7 +365,7 @@
             <div class="center">
 
 
-                <img src="img/graphicalabstract_version5_evals.svg" alt="Graphical abstract" width="60%">
+                <img src="img/graphabs_16_5.png" alt="Graphical abstract" width="60%">
 
 
                 <p class="caption">Our set-up: Systematic analysis of molecular representation, tokenization strategies, and
@@ -539,6 +539,18 @@
             </p>
 
 
+
+            <h2 id="expsetup"><strong>Experimental Set-Up: How we built 18 chemical language models</strong></h2>
+            <p>Our experiments were based on the PubChem-10M molecule dataset [3], from which we obtained molecular strings in both SMILES and SELFIES <b>representations</b>.
+               We then explored two <b>tokenization strategies</b>,  SentencePiece [4, 5] and atom-wise [6], to convert these molecular strings into model input tokens.
+               For the <b>model architectures</b>, we used two widely adopted transformer variants: RoBERTa [7] and BART [8].
+               All combinations of representation, tokenization, and architecture were trained independently, resulting in 18 pre-trained chemical language models.
+               Each model was subsequently fine-tuned on downstream property-prediction tasks from the MoleculeNet benchmark as implemented in DeepChem [9].
+               We note that the MoleculeNet datasets were used only for consistent comparison across model configurations, not to achieve new state-of-the-art performance.
+               (For a discussion on the limitations of MoleculeNet as a benchmark, see this insightful <a href="https://practicalcheminformatics.blogspot.com/2023/08/we-need-better-benchmarks-for-machine.html">blogpost</a>). 
+            </p>
+            
+            
             <div class="center">
 
 
@@ -552,17 +564,6 @@
 
 
             </div>
-
-            <h2 id="expsetup"><strong>Experimental Set-Up: How we built 18 chemical language models</strong></h2>
-            <p>Our experiments were based on the PubChem-10M molecule dataset [3], from which we obtained molecular strings in both SMILES and SELFIES <b>representations</b>.
-               We then explored two <b>tokenization strategies</b>,  SentencePiece [4, 5] and atom-wise [6], to convert these molecular strings into model input tokens.
-               For the <b>model architectures</b>, we used two widely adopted transformer variants: RoBERTa [7] and BART [8].
-               All combinations of representation, tokenization, and architecture were trained independently, resulting in 18 pre-trained chemical language models.
-               Each model was subsequently fine-tuned on downstream property-prediction tasks from the MoleculeNet benchmark as implemented in DeepChem [9].
-               We note that the MoleculeNet datasets were used only for consistent comparison across model configurations, not to achieve new state-of-the-art performance.
-               (For a discussion on the limitations of MoleculeNet as a benchmark, see this insightful <a href="https://practicalcheminformatics.blogspot.com/2023/08/we-need-better-benchmarks-for-machine.html">blogpost</a>). 
-            </p>
-            
 
 
             <h2 id="zscores"><strong>Z-Scores make downstream tasks comparable</strong></h2>
