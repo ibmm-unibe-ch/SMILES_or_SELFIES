@@ -91,7 +91,7 @@
         
 
 
-        h1, h3 {
+        h1, h2, h3 {
 
 
             color: #F28C28;
@@ -365,13 +365,13 @@
             <div class="center">
 
 
-                <img src="img/Overview.png" alt="Project overview" width="60%">
+                <img src="img/graphicalabstract_version5_evals.svg" alt="Graphical abstract" width="60%">
 
 
-                <p class="caption">Our workflow: Systematic analysis of molecular representation, tokenization strategies, and
+                <p class="caption">Our set-up: Systematic analysis of molecular representation, tokenization strategies, and
 
 
-                architecture in chemical language models (CLMs)</p>
+                architecture in chemical language models (CLMs) to distil information beyond performance</p>
 
 
             </div>
@@ -379,7 +379,7 @@
 
             <br>
 
-            <h3 id="question"><b>“I want to predict molecular properties with a chemical language model, but where do I even start? <br> RoBERTa or BART? SMILES or SELFIES? <br> Does any of this really make a difference?...”</b></h3>
+            <h2 id="question"><b>“I want to predict molecular properties with a chemical language model, but where do I even start? <br> RoBERTa or BART? SMILES or SELFIES? <br> Does any of this really make a difference?...”</b></h2>
            <!-- <blockquote style="font-family: 'Times New Roman'; background-color:#efc49a"> -->
 
 
@@ -398,7 +398,7 @@
 
 
 
-            <h3 id="representation"><b>Representations encode a molecule into a computer-readable textstring</b></h3>
+            <h2 id="representation"><b>Representations encode a molecule into a computer-readable textstring</b></h2>
 
 
             <div class="center">
@@ -428,7 +428,7 @@
 
 
 
-            <h3 id="tokenisation"><b>Tokenization cuts enormous sequences into digestible pieces</b></h3>
+            <h2 id="tokenisation"><b>Tokenization cuts enormous sequences into digestible pieces</b></h2>
 
 
             <p>During tokenization, sequences are broken down into sub-sequence tokens. These tokens are mapped to embedding vectors, which the model learns. [11] Tokenization ensures a <b>finite vocabulary</b>, improving model efficiency and enabling the handling of unknown sequences by recognising familiar tokens rather than entire sequences.<br>
@@ -512,7 +512,7 @@
             
 
 
-            <h3 id="model_architecture"><b>Model architecture</b></h3>
+            <h2 id="model_architecture"><b>Model architecture</b></h2>
 
 
             <p>The <b>transformer</b> architecture revolutionized natural language processing (NLP) [12], inspiring a family of models such as BERT, RoBERTa, and BART [11].
@@ -539,7 +539,21 @@
             </p>
 
 
-            <h3 id="expsetup"><strong>Experimental Set-Up: How we built 18 chemical language models</strong></h3>
+            <div class="center">
+
+
+                <img src="img/Overview.png" alt="Project overview" width="60%">
+
+
+                <p class="caption">Our workflow: Systematic analysis of molecular representation, tokenization strategies, and
+
+
+                architecture in chemical language models (CLMs)</p>
+
+
+            </div>
+
+            <h2 id="expsetup"><strong>Experimental Set-Up: How we built 18 chemical language models</strong></h2>
             <p>Our experiments were based on the PubChem-10M molecule dataset [3], from which we obtained molecular strings in both SMILES and SELFIES <b>representations</b>.
                We then explored two <b>tokenization strategies</b>,  SentencePiece [4, 5] and atom-wise [6], to convert these molecular strings into model input tokens.
                For the <b>model architectures</b>, we used two widely adopted transformer variants: RoBERTa [7] and BART [8].
@@ -551,7 +565,7 @@
             
 
 
-            <h3 id="zscores"><strong>Z-Scores make downstream tasks comparable</strong></h3>
+            <h2 id="zscores"><strong>Z-Scores make downstream tasks comparable</strong></h2>
 
 
             <p>When fine-tuning our 18 models on the <b>MoleculeNet</b> classification and regression datasets, we encountered a challenge: <b>the evaluation metrics differ across tasks</b>. Classification tasks are evaluated with <b>ROC-AUC</b>, while regression tasks use <b>RMSE</b>: Each metric has a different scale and variability. A 0.04 difference in one metric might be a massive win, but in another, it could be negligible, as can be seen when comparing the ClinTox and Lipo plot. This made it nearly impossible to judge which model design was actually performing better overall.<br>
@@ -581,7 +595,7 @@
 
 
 
-            <h3 id="probing_estimators"><strong>Testing the latent space with probing estimators</strong></h3>
+            <h2 id="probing_estimators"><strong>Testing the latent space with probing estimators</strong></h2>
 
 
             <p>To evaluate what our chemical language models have learned, we used <b>probing estimators</b>[14], simple ML models trained on the embeddings of pre-trained models to <b>investigate the organization of the latent space</b>. Specifically, we tested <b><a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html#sklearn.svm.LinearSVC">Linear SVM</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html">RBF SVM</a>, and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html">k-Nearest Neighbour (k-NN)</a></b>.
@@ -626,8 +640,14 @@
             
 
 
-            <h3 id="atom_embeddings"><strong>Some patterns stick post-training; some knowledge comes straight from the representation.</strong></h3>
+            <h2 id="atom_embeddings"><strong>Some patterns stick post-training; some knowledge comes straight from the representation.</strong></h2>
 
+
+
+            <p>To explore how molecular patterns are represented, we computed <b>cosine similarities</b> between embeddings of molecules from nine classes of hydrocarbons and their derivatives, with brighter colors indicating higher similarity. Strikingly, the <b>overall patterns observed in untrained models are largely preserved after training</b>, showing that the <b>choice of molecular representation (SMILES vs. SELFIES) strongly shapes the structure of the embeddings</b>. Some class-specific patterns, such as the high similarity between <b>aldehydes and ketones</b>, persist, while <b>length-based patterns</b>—off-center diagonals in untrained models reflecting molecules of the same length—also remain faintly visible in pre-trained embeddings.<br>
+
+
+            The <b>architecture</b> primarily influences the <b>numerical range of cosine similarity values. BART embeddings</b> display a wider range of similarities, while <b>RoBERTa embeddings</b> are "compressed" into a narrower range.</p>
 
             <div class="center">
 
@@ -638,15 +658,9 @@
             </div>
 
 
-            <p>To explore how molecular patterns are represented, we computed <b>cosine similarities</b> between embeddings of molecules from nine classes of hydrocarbons and their derivatives, with brighter colors indicating higher similarity. Strikingly, the <b>overall patterns observed in untrained models are largely preserved after training</b>, showing that the <b>choice of molecular representation (SMILES vs. SELFIES) strongly shapes the structure of the embeddings</b>. Some class-specific patterns, such as the high similarity between <b>aldehydes and ketones</b>, persist, while <b>length-based patterns</b>—off-center diagonals in untrained models reflecting molecules of the same length—also remain faintly visible in pre-trained embeddings.<br>
-
-
-            The <b>architecture</b> primarily influences the <b>numerical range of cosine similarity values. BART embeddings</b> display a wider range of similarities, while <b>RoBERTa embeddings</b> are "compressed" into a narrower range.</p>
-
+            <p>At the <b>atom level</b>, we used <b>Antechamber</b> (Amber package [15]) to assign atom types within molecules, allowing us to probe how embeddings represent chemical detail. <b>Surprisingly, even untrained models</b>—with completely random embeddings—already show <b>meaningful clustering of atom types</b>, for example, aromatic versus aliphatic carbons in SMILES. This is partly due to how the representation encodes chemical features (e.g., lowercase <b><i>c</i></b> for aromatic carbon in SMILES), but it highlights an important point: <b><i>latent spaces can appear structured even before any training.</i></b> </p>
 
             
-
-
             <div class="center">
 
 
@@ -656,13 +670,8 @@
             </div>
 
 
-            <p>At the <b>atom level</b>, we used <b>Antechamber</b> (Amber package [15]) to assign atom types within molecules, allowing us to probe how embeddings represent chemical detail. <b>Surprisingly, even untrained models</b>—with completely random embeddings—already show <b>meaningful clustering of atom types</b>, for example, aromatic versus aliphatic carbons in SMILES. This is partly due to how the representation encodes chemical features (e.g., lowercase <b><i>c</i></b> for aromatic carbon in SMILES), but it highlights an important point: <b><i>latent spaces can appear structured even before any training.</i></b> </p>
 
-
-
-
-
-            <h3 id="summary"><strong>Same same but different and why that matters</strong></h3>
+            <h2 id="summary"><strong>Same same but different and why that matters</strong></h2>
 
 
             <p>Ultimately, our results show that <b>there is not a single "best" configuration</b>: different combinations of representations, tokenizers, and architectures can <b>all yield chemically interpretable embeddings</b>. But the way the models leverage representations and how and what details they learn from them differs. And for some projects, success may lie in the subtleties <b>reminding us that understanding how a model learns chemistry is just as important as measuring how well it performs</b>. After all, the true objective of science is not merely prediction, but understanding what transforms data into knowledge.</p>
@@ -671,7 +680,7 @@
 
 
 
-            <h3 id="references"><strong>References</strong></h3>
+            <h2 id="references"><strong>References</strong></h2>
 
 
             <p>[1] Weininger, D. Smiles, a chemical language and information system. Journal of chemical information and computer sciences 28, 31-36 (1988). <br>
