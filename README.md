@@ -1,4 +1,4 @@
-# [Beyond performance: How design choices shape chemical language models](https://www.biorxiv.org/content/10.1101/2025.05.23.655735v1)
+# [Beyond performance: How design choices shape chemical language models](https://doi.org/10.1186/s13321-025-01099-w)
 ## Abstract
 > Chemical language models (CLMs) have shown strong performance in molecular property prediction and generation tasks. However, the impact of design choices, such as molecular representation format, tokenization strategy, and model architecture, on both performance and chemical interpretability remains underexplored. In this study, we systematically evaluate how these factors influence CLM performance and chemical understanding. We evaluated models through finetuning on downstream tasks and probing the structure of their latent spaces using simple classifiers and dimensionality reduction techniques. Despite similar performance on downstream tasks across model configurations, we observed substantial differences in the structure and interpretability of their internal representations. SMILES molecular representation format with atomwise tokenization strategy consistently produced more chemically meaningful embeddings, while models based on BART and RoBERTa architectures yielded comparably interpretable representations. These findings highlight that design choices meaningfully shape how chemical information is represented, even when external metrics appear unchanged. This insight can inform future model development, encouraging more chemically grounded and interpretable CLMs.
 
@@ -62,16 +62,21 @@ For running the atom type assignments for the kekulized SMILES run the first two
 ## Citing
 If you use work from `Beyond performance: How design choices shape chemical language models` please cite:
 ```
-@article {FenderGutLemmin2025.05.23.655735,
-	author = {Fender, Inken and Gut, Jannik Adrian and Lemmin, Thomas},
-	title = {Beyond performance: How design choices shape chemical language models},
-	elocation-id = {2025.05.23.655735},
-	year = {2025},
-	doi = {10.1101/2025.05.23.655735},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2025/05/27/2025.05.23.655735},
-	eprint = {https://www.biorxiv.org/content/early/2025/05/27/2025.05.23.655735.full.pdf},
-	journal = {bioRxiv}
+﻿@article{Fender2025,
+author={Fender, Inken
+and Gut, Jannik Adrian
+and Lemmin, Thomas},
+title={Beyond performance: how design choices shape chemical language models},
+journal={Journal of Cheminformatics},
+year={2025},
+month={Nov},
+day={18},
+volume={17},
+number={1},
+pages={173},
+issn={1758-2946},
+doi={10.1186/s13321-025-01099-w},
+url={https://doi.org/10.1186/s13321-025-01099-w}
 }
 ```
 
